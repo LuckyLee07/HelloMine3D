@@ -2248,6 +2248,11 @@ class OgreUserInterface::Impl
         const float rowHeight=(compact ? 32.f : 52.f)*scale;
         const float worldHeight=(compact ? 52.f : 66.f)*scale;
         GameInterfaceWidgets::OverlayStyle theme(scale);
+        if (compact)
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.f * scale, 8.f * scale));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.f * scale, 4.f * scale));
+        }
         adventureBackdrop();
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * .5f, availableHeight * .5f), ImGuiCond_Always, ImVec2(.5f,.5f));
         ImGui::SetNextWindowSize(ImVec2(std::min(380.f * scale,io.DisplaySize.x-32.f),
@@ -2255,8 +2260,16 @@ class OgreUserInterface::Impl
         if (ImGui::Begin("##PauseMenu",nullptr,ImGuiWindowFlags_NoDecoration |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground))
         {
-            if (adventureHeader(tr("pause.title"),GameInterfaceWidgets::Glyph::Pause,tr(currentRegionKey()),!compact) && flow->resume()) playUiFeedback();
-            const float footerHeight = ImGui::GetTextLineHeight() + 35.f * scale + rowHeight*2.f;
+            if (compact) ImGui::PushFont(nullptr, 19.f);
+            const bool headerResume = adventureHeader(tr("pause.title"), GameInterfaceWidgets::Glyph::Pause,
+                compact ? std::string{} : tr(currentRegionKey()), !compact);
+            if (compact) ImGui::PopFont();
+            if (headerResume && flow->resume()) playUiFeedback();
+            // Short windows scroll all commands together. Only the escape hint
+            // stays fixed above the separate, stable notification rail.
+            const float footerHeight = compact
+                ? 23.f * scale + 2.f * ImGui::GetStyle().ItemSpacing.y + 1.f
+                : ImGui::GetTextLineHeight() + 35.f * scale + rowHeight*2.f;
             ImGui::BeginChild("##PauseOptions",ImVec2(0,-footerHeight),false);
             if (adventureButton("pause.resume",-1.f,true,Material::Nothing,GameInterfaceWidgets::Glyph::Play,rowHeight) && flow->resume())
                 playUiFeedback();
@@ -2409,8 +2422,11 @@ class OgreUserInterface::Impl
             }
 
             }
-            ImGui::EndChild();
-            ImGui::Separator();
+            if (!compact)
+            {
+                ImGui::EndChild();
+                ImGui::Separator();
+            }
             if (adventureButton("pause.save_main",-1.f,false,Material::Chest,GameInterfaceWidgets::Glyph::None,rowHeight))
             {
                 pendingAction.type = OgreUserInterfaceActionType::ReturnToMainMenu;
@@ -2421,10 +2437,12 @@ class OgreUserInterface::Impl
                 pendingAction.type = OgreUserInterfaceActionType::Quit;
                 playUiFeedback();
             }
+            if (compact) ImGui::EndChild();
             ImGui::Separator();
             adventureEscape("pause.resume",true);
         }
         ImGui::End();
+        if (compact) ImGui::PopStyleVar(2);
     }
 
     void beginSettingsSession()
@@ -2872,14 +2890,26 @@ class OgreUserInterface::Impl
     {
         const ImGuiIO& io = ImGui::GetIO();
         const float scale = appliedSettings.uiScale;
-        const PresentationWindowLayout layout = fitPresentationWindow(
+        PresentationWindowLayout layout = fitPresentationWindow(
             io.DisplaySize.x, io.DisplaySize.y, 940.f, 700.f, scale);
         const bool compact = layout.width <= 752.f * scale ||
             layout.height < 520.f * scale;
+        // Paused settings share the HUD caption rail. Main-menu settings do
+        // not draw those notifications and can use the full window height.
+        const float notificationReserve = compact && flow->state() == GameApplicationState::Paused ? 64.f : 0.f;
+        if (notificationReserve > 0.f)
+            layout = fitPresentationWindow(io.DisplaySize.x, io.DisplaySize.y - notificationReserve,
+                940.f, 700.f, scale);
         GameInterfaceWidgets::OverlayStyle theme(scale);
+        if (compact)
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.f * scale, 6.f * scale));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.f * scale, 3.f * scale));
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.f * scale, 4.f * scale));
+        }
         adventureBackdrop();
         ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * .5f, io.DisplaySize.y * .5f),
+            ImVec2(io.DisplaySize.x * .5f, (io.DisplaySize.y - notificationReserve) * .5f),
             ImGuiCond_Always, ImVec2(.5f, .5f));
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height),
                                  ImGuiCond_Always);
@@ -2938,8 +2968,9 @@ class OgreUserInterface::Impl
                 2.f * style.CellPadding.y + 3.f * style.ItemSpacing.y + 1.f;
             const float preferredMessageHeight = (compact ? 68.f : 44.f) * scale;
             const float minimumMessageHeight = ImGui::GetTextLineHeight();
+            const float minimumContentHeight = ImGui::GetFrameHeightWithSpacing() * (compact ? 2.f : 1.f);
             const float contentHeight = std::max(4.f, std::min(
-                std::max(ImGui::GetFrameHeightWithSpacing(),
+                std::max(minimumContentHeight,
                          remainingHeight - footerOverhead - preferredMessageHeight),
                 remainingHeight - footerOverhead - minimumMessageHeight));
             const float messageHeight = std::max(4.f, std::min(
@@ -3044,6 +3075,7 @@ class OgreUserInterface::Impl
             ImGui::EndDisabled();
         }
         ImGui::End();
+        if (compact) ImGui::PopStyleVar(3);
     }
 
     bool dismissSettings() noexcept
@@ -3482,31 +3514,33 @@ class OgreUserInterface::Impl
     }
 
     bool drawInventoryHeader(Material::ID icon, const std::string& title,
-                             const std::string& subtitle)
+                             const std::string& subtitle, bool compact = false)
     {
         const float scale = appliedSettings.uiScale;
         GameInterfaceWidgets::panelFrame(scale);
         const ImVec2 start = ImGui::GetCursorScreenPos();
         const float width = ImGui::GetContentRegionAvail().x;
-        const float emblem = 34.f * scale;
-        const float height = 40.f * scale;
+        const float emblem = compact ? ImGui::GetTextLineHeight() : 34.f * scale;
+        const float height = compact ? emblem : 40.f * scale;
         ImDrawList* draw = ImGui::GetWindowDrawList();
         GameInterfaceWidgets::slotFrame(draw, start, ImVec2(start.x + emblem, start.y + emblem),
             true, false, false, scale);
         drawMaterialIcon(draw, icon, ImVec2(start.x + 6.f * scale, start.y + 6.f * scale),
             ImVec2(start.x + emblem - 6.f * scale, start.y + emblem - 6.f * scale));
-        const float textX = start.x + emblem + 12.f * scale;
-        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 1.18f,
+        const float textX = start.x + emblem + (compact ? 8.f : 12.f) * scale;
+        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * (compact ? 1.f : 1.18f),
             ImVec2(textX, start.y - 1.f), IM_COL32(242, 237, 222, 255), title.c_str());
-        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * .83f,
-            ImVec2(textX, start.y + 22.f * scale), IM_COL32(156, 177, 177, 255), subtitle.c_str());
-        const float closeSize = 25.f * scale;
+        if (!compact)
+            draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * .83f,
+                ImVec2(textX, start.y + 22.f * scale), IM_COL32(156, 177, 177, 255), subtitle.c_str());
+        const float closeSize = compact ? emblem : 25.f * scale;
         ImGui::SetCursorScreenPos(ImVec2(start.x + width - closeSize, start.y));
         const bool close = ImGui::InvisibleButton("##PanelClose", ImVec2(closeSize, closeSize), ImGuiButtonFlags_EnableNav);
         const ImVec2 lo = ImGui::GetItemRectMin();
         const ImU32 colour = ImGui::IsItemHovered() || ImGui::IsItemFocused()
             ? IM_COL32(242, 215, 157, 255) : IM_COL32(136, 159, 163, 255);
-        const float a = 8.f * scale, b = 17.f * scale;
+        const float a = compact ? closeSize * .32f : 8.f * scale;
+        const float b = compact ? closeSize * .68f : 17.f * scale;
         draw->AddLine(ImVec2(lo.x + a, lo.y + a), ImVec2(lo.x + b, lo.y + b), colour, 1.5f);
         draw->AddLine(ImVec2(lo.x + a, lo.y + b), ImVec2(lo.x + b, lo.y + a), colour, 1.5f);
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s · Esc", tr("common.close").c_str());
@@ -6949,15 +6983,34 @@ class OgreUserInterface::Impl
         }
 
         const ImGuiIO &io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, (io.DisplaySize.y - 64.f) * 0.5f),
-            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        // Captions remain in the foreground below crafting, including when
+        // short windows use the compact panel layout.
+        const float hudReserve = 64.f;
         const PresentationWindowLayout layout = fitPresentationWindow(
-            io.DisplaySize.x, io.DisplaySize.y - 64.f,
+            io.DisplaySize.x, io.DisplaySize.y - hudReserve,
             learnedRecipes == 0 ? 700.0f : 820.0f,
             (learnedRecipes == 0 ? 480.0f : 580.0f) * appliedSettings.uiScale,
             appliedSettings.uiScale);
+        const ImGuiStyle &style = ImGui::GetStyle();
+        const float regularResultHeight = std::max(58.f * appliedSettings.uiScale,
+            ImGui::GetTextLineHeight() * (1.f + 3.f * .85f) + 4.f * style.ItemSpacing.y);
+        const float regularFooterHeight = regularResultHeight + 32.f * appliedSettings.uiScale +
+            5.f * style.ItemSpacing.y + 2.f;
+        const float minimumGridHeight = ImGui::GetTextLineHeightWithSpacing() +
+            gridSize * std::max(24.f, 24.f * appliedSettings.uiScale) +
+            (gridSize - 1) * style.ItemSpacing.y;
+        const bool compactCrafting = layout.height - 2.f * style.WindowPadding.y -
+            40.f * appliedSettings.uiScale - 2.f * style.ItemSpacing.y - 1.f -
+            regularFooterHeight < minimumGridHeight;
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * .5f, (io.DisplaySize.y - hudReserve) * .5f),
+            ImGuiCond_Always, ImVec2(.5f, .5f));
         ImGui::SetNextWindowSize(ImVec2(layout.width, layout.height), ImGuiCond_Always);
+        if (compactCrafting)
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(style.ItemSpacing.x, 3.f));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(style.WindowPadding.x, 6.f));
+        }
         bool open = true;
         const std::string title =
             gridSize == CraftingSession::WorkbenchGridSize
@@ -6972,17 +7025,59 @@ class OgreUserInterface::Impl
         {
             if (drawInventoryHeader(Material::ID::Workbench,
                 tr(gridSize == CraftingSession::WorkbenchGridSize ? "crafting.workbench_title" : "crafting.player_title"),
-                tr("inventory.craft_subtitle"))) open = false;
+                tr("inventory.craft_subtitle"), compactCrafting)) open = false;
             // Recipes and materials may scroll without moving the complete input
             // grid or the result controls out of view.
-            const float resultHeight = std::max(58.f * appliedSettings.uiScale,
-                ImGui::GetTextLineHeight() * (1.f + 3.f * .85f) +
-                    4.f * ImGui::GetStyle().ItemSpacing.y);
-            const float resultFooterHeight = resultHeight + 32.f * appliedSettings.uiScale +
-                5.f * ImGui::GetStyle().ItemSpacing.y + 2.f;
-            ImGui::BeginChild("##CraftingContent", ImVec2(0.f, -resultFooterHeight), false);
             const ImGuiStyle &craftingStyle = ImGui::GetStyle();
-            const float preferredCellWidth = 46.f * appliedSettings.uiScale;
+            const float actionHeight = compactCrafting ? ImGui::GetFrameHeight() : 32.f * appliedSettings.uiScale;
+            const float iconSize = compactCrafting ? ImGui::GetTextLineHeight() : 48.f * appliedSettings.uiScale;
+            const float identityWidth = ImGui::GetContentRegionAvail().x * .42f;
+            float summaryHeight = iconSize;
+            float recentHeight = 0.f;
+            if (compactCrafting)
+            {
+                const float fontSize = ImGui::GetFontSize();
+                const float identityTextWidth = std::max(1.f, identityWidth - iconSize - 8.f * appliedSettings.uiScale);
+                const float previewWidth = std::max(1.f,
+                    ImGui::GetContentRegionAvail().x - identityWidth - craftingStyle.ItemSpacing.x);
+                const auto wrappedHeight = [&](const std::string &text, float size, float width) {
+                    return ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, width, text.c_str()).y;
+                };
+                summaryHeight = std::max(summaryHeight,
+                    wrappedHeight(tr("crafting.output"), fontSize, identityTextWidth));
+                // Reserve every possible status and result up front. Loading a
+                // recipe or expiring feedback must not move the grid/buttons.
+                for (const CraftingPreviewStatus status : {CraftingPreviewStatus::NoMatch,
+                    CraftingPreviewStatus::MissingIngredients, CraftingPreviewStatus::OutputFull,
+                    CraftingPreviewStatus::Ready})
+                    summaryHeight = std::max(summaryHeight,
+                        wrappedHeight(craftingPreviewMessage(status), fontSize * .85f, previewWidth));
+                summaryHeight = std::max(summaryHeight, wrappedHeight(
+                    tr("crafting.maximum_crafts") + ": 99", fontSize * .85f, previewWidth));
+                for (const CraftingCommitStatus status : {CraftingCommitStatus::Success,
+                    CraftingCommitStatus::StaleSession, CraftingCommitStatus::StaleInventory,
+                    CraftingCommitStatus::NoMatch, CraftingCommitStatus::MissingIngredients,
+                    CraftingCommitStatus::OutputFull, CraftingCommitStatus::InvalidRequest})
+                    recentHeight = std::max(recentHeight, wrappedHeight(craftingCommitMessage(status),
+                        fontSize * .85f, ImGui::GetContentRegionAvail().x));
+                for (const RecipeDefinition &recipe : runtimeRecipeRegistry().recipes())
+                {
+                    if (!recipeFitsGrid(recipe, gridSize)) continue;
+                    const std::string name = materialName(recipe.outputMaterialId);
+                    summaryHeight = std::max(summaryHeight, wrappedHeight(name + " x" +
+                        std::to_string(recipe.outputCount), fontSize, identityTextWidth));
+                    recentHeight = std::max(recentHeight, wrappedHeight(name + ": " + tr("crafting.loaded"),
+                        fontSize * .85f, ImGui::GetContentRegionAvail().x));
+                }
+            }
+            const float resultHeight = compactCrafting
+                ? std::ceil(summaryHeight + recentHeight + craftingStyle.ItemSpacing.y)
+                : regularResultHeight;
+            const float resultFooterHeight = compactCrafting
+                ? resultHeight + actionHeight + 4.f * craftingStyle.ItemSpacing.y + 2.f
+                : regularFooterHeight;
+            ImGui::BeginChild("##CraftingContent", ImVec2(0.f, -resultFooterHeight), false);
+            const float preferredCellWidth = (compactCrafting ? 36.f : 46.f) * appliedSettings.uiScale;
             const std::string gridTitle = std::to_string(gridSize) + "x" +
                 std::to_string(gridSize) + " " + tr("crafting.input_grid");
             const float gridPanelWidth = std::max(
@@ -7004,8 +7099,8 @@ class OgreUserInterface::Impl
                 }
                 else
                 {
-                    ImGui::BeginChild("##RecipeBook",
-                                      ImVec2(0.0f, 135.0f), true);
+                    if (!compactCrafting)
+                        ImGui::BeginChild("##RecipeBook", ImVec2(0.f, 135.f), true);
                     for (const RecipeDefinition &recipe :
                          runtimeRecipeRegistry().recipes())
                     {
@@ -7034,11 +7129,16 @@ class OgreUserInterface::Impl
                                                     appliedSettings.locale);
                         const std::string outputName =
                             materialName(recipe.outputMaterialId);
-                        ImGui::TextWrapped("%s x%d  <-  %s", outputName.c_str(),
-                                    recipe.outputCount,
-                                    ingredients.c_str());
+                        if (compactCrafting)
+                        {
+                            ImGui::TextWrapped("%s x%d", outputName.c_str(), recipe.outputCount);
+                            ImGui::TextWrapped("<- %s", ingredients.c_str());
+                        }
+                        else
+                            ImGui::TextWrapped("%s x%d  <-  %s", outputName.c_str(),
+                                recipe.outputCount, ingredients.c_str());
                     }
-                    ImGui::EndChild();
+                    if (!compactCrafting) ImGui::EndChild();
                 }
             }
             ImGui::Separator();
@@ -7094,8 +7194,10 @@ class OgreUserInterface::Impl
             const ImVec2 gridSpace = ImGui::GetContentRegionAvail();
             const float craftingCellWidth = std::max(24.f, std::min({preferredCellWidth,
                 (gridSpace.x - (gridSize - 1) * craftingStyle.ItemSpacing.x) / gridSize,
-                (gridSpace.y - ImGui::GetTextLineHeight() -
-                 gridSize * craftingStyle.ItemSpacing.y - 3.f * appliedSettings.uiScale) / gridSize}));
+                compactCrafting
+                    ? std::floor((gridSpace.y - (gridSize - 1) * craftingStyle.ItemSpacing.y) / gridSize)
+                    : (gridSpace.y - ImGui::GetTextLineHeight() -
+                       gridSize * craftingStyle.ItemSpacing.y - 3.f * appliedSettings.uiScale) / gridSize}));
             for (int index = 0; index < craftingSession->cellCount();
                  ++index)
             {
@@ -7140,42 +7242,71 @@ class OgreUserInterface::Impl
             ImGui::Separator();
             ImGui::BeginChild("##CraftResult", ImVec2(0.f, resultHeight), false);
             const ImVec2 resultStart = ImGui::GetCursorScreenPos();
-            const float iconSize = 48.f * appliedSettings.uiScale;
             GameInterfaceWidgets::slotFrame(ImGui::GetWindowDrawList(), resultStart,
                 ImVec2(resultStart.x + iconSize, resultStart.y + iconSize), preview.ready(), false, false, appliedSettings.uiScale);
             if (!preview.recipeId.empty())
                 drawItemPortrait(preview.outputMaterialId,
                     ImVec2(resultStart.x + iconSize * .5f, resultStart.y + iconSize * .48f), iconSize * .66f);
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconSize + 14.f * appliedSettings.uiScale);
-            ImGui::BeginGroup();
-            if (preview.recipeId.empty())
-                ImGui::TextColored(WarmMuted, "%s", tr("crafting.output").c_str());
-            else
-                ImGui::TextColored(preview.ready() ? WarmAccent : WarmMuted, "%s  x%d",
-                    materialName(preview.outputMaterialId).c_str(), preview.outputCount);
-            ImGui::SetWindowFontScale(.85f);
-            if (resultFeedback.ready())
-                ImGui::TextWrapped("%s: %d", tr("crafting.maximum_crafts").c_str(),
-                    resultFeedback.maximumCrafts);
-            else
-                ImGui::TextWrapped("%s", craftingPreviewMessage(resultFeedback.previewStatus).c_str());
-            if (!resultFeedback.recentMessage.empty())
+            if (compactCrafting)
             {
-                const std::string recent(resultFeedback.recentMessage);
-                const std::string summary = boundedHudText(recent,
-                    ImGui::GetFontSize(), ImGui::GetContentRegionAvail().x);
-                ImGui::TextColored(
-                    resultFeedback.recentTone == CraftingResultFeedback::Tone::Failure
-                        ? ImVec4(.95f, .58f, .42f, 1.f) : WarmMuted,
-                    "%s", summary.c_str());
-                if (ImGui::IsItemHovered() && summary != recent)
-                    drawWrappedTooltip(recent);
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconSize + 8.f * appliedSettings.uiScale);
+                ImGui::BeginChild("##CraftOutputIdentity",
+                    ImVec2(std::max(1.f, identityWidth - iconSize - 8.f * appliedSettings.uiScale), summaryHeight), false);
+                ImGui::PushStyleColor(ImGuiCol_Text, preview.ready() ? WarmAccent : WarmMuted);
+                if (preview.recipeId.empty()) ImGui::TextWrapped("%s", tr("crafting.output").c_str());
+                else ImGui::TextWrapped("%s x%d", materialName(preview.outputMaterialId).c_str(), preview.outputCount);
+                ImGui::PopStyleColor();
+                ImGui::EndChild();
+                ImGui::SameLine();
+                ImGui::BeginChild("##CraftPreview", ImVec2(0.f, summaryHeight), false);
+                ImGui::SetWindowFontScale(.85f);
+                if (resultFeedback.ready())
+                    ImGui::TextWrapped("%s: %d", tr("crafting.maximum_crafts").c_str(), resultFeedback.maximumCrafts);
+                else ImGui::TextWrapped("%s", craftingPreviewMessage(resultFeedback.previewStatus).c_str());
+                ImGui::SetWindowFontScale(1.f);
+                ImGui::EndChild();
+                ImGui::SetWindowFontScale(.85f);
+                if (!resultFeedback.recentMessage.empty())
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Text,
+                        resultFeedback.recentTone == CraftingResultFeedback::Tone::Failure ? WarmError : WarmMuted);
+                    ImGui::TextWrapped("%s", std::string(resultFeedback.recentMessage).c_str());
+                    ImGui::PopStyleColor();
+                }
+                ImGui::SetWindowFontScale(1.f);
             }
-            ImGui::SetWindowFontScale(1.f);
-            ImGui::EndGroup();
+            else
+            {
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + iconSize + 14.f * appliedSettings.uiScale);
+                ImGui::BeginGroup();
+                if (preview.recipeId.empty())
+                    ImGui::TextColored(WarmMuted, "%s", tr("crafting.output").c_str());
+                else
+                    ImGui::TextColored(preview.ready() ? WarmAccent : WarmMuted, "%s  x%d",
+                        materialName(preview.outputMaterialId).c_str(), preview.outputCount);
+                ImGui::SetWindowFontScale(.85f);
+                if (resultFeedback.ready())
+                    ImGui::TextWrapped("%s: %d", tr("crafting.maximum_crafts").c_str(),
+                        resultFeedback.maximumCrafts);
+                else
+                    ImGui::TextWrapped("%s", craftingPreviewMessage(resultFeedback.previewStatus).c_str());
+                if (!resultFeedback.recentMessage.empty())
+                {
+                    const std::string recent(resultFeedback.recentMessage);
+                    const std::string summary = boundedHudText(recent,
+                        ImGui::GetFontSize(), ImGui::GetContentRegionAvail().x);
+                    ImGui::TextColored(
+                        resultFeedback.recentTone == CraftingResultFeedback::Tone::Failure
+                            ? ImVec4(.95f, .58f, .42f, 1.f) : WarmMuted,
+                        "%s", summary.c_str());
+                    if (ImGui::IsItemHovered() && summary != recent)
+                        drawWrappedTooltip(recent);
+                }
+                ImGui::SetWindowFontScale(1.f);
+                ImGui::EndGroup();
+            }
             ImGui::EndChild();
             const float actionsWidth = ImGui::GetContentRegionAvail().x - 2.f * ImGui::GetStyle().ItemSpacing.x;
-            const float actionHeight = 32.f * appliedSettings.uiScale;
             ImGui::BeginDisabled(!preview.ready());
             pushPrimaryButtonStyle();
             if (ImGui::Button(label("crafting.craft_one", "##CraftOne").c_str(), ImVec2(actionsWidth * .36f, actionHeight)))
@@ -7211,6 +7342,7 @@ class OgreUserInterface::Impl
             }
         }
         ImGui::End();
+        if (compactCrafting) ImGui::PopStyleVar(2);
         if (!open)
         {
             player->closeCrafting();
