@@ -2,7 +2,13 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V06g：实际水面亮线复现及两隔离对照完成，生产修复仍OPEN，完整V00–V11仍Doing，Goal active。**
+- **当前：2026-10-06 V06h：启动缺邻网格生产修复已实跑原机位，完整V00–V11仍Doing，Goal active。**
+  起点HEAD `d36310f3`；Bootstrap沿用后台完整3×3零加载guard，缺邻section不生成／不标Clean，原loader补齐后生成；进入世界上传总启动现有loader，原临时camera条件保留。Water／World／保存／生成／预算保持。
+  实际存储加载CPU基线122／122复现旧半值角点及内部侧面；guard恢复118／118、raw复核96／96通过。用例是非海平面确定性12chunk，不能直接当自然Water64逐面归因。
+  正常两配置build0／无signal／timeout／首方warning，只有Bootstrap对象变化，145对象／17库保持；Release `37722b6a…563df`、Debug `979c9552…eeb2a2`。标准／兼容原机位各四张2560×1440原图，正常退出；完整原Water shader保持，细亮线消失。标准ROI139→10／9／11，>25像素全0，不声明全连续无闪烁。
+  当前标准RD1水岸六阶段原595项通过，实际编辑／恢复／保存和暖帧绑定保持；合法纯Air模板363项通过，实际各层0启动后Cave记录0／0→188／74、正常退出，原53文件保持。该native玩家高度240.499634与模板70不同，不声明位姿保持。独立复核与最终普通包身份见文末V06h的终态收据。
+  CUA只读重检30.0768秒超时reset，无应用启动或输入；桌面由用户确认可见、连接正常。三张当前升级后及一张冻结基线归档至51轮202图，旧50轮198图／索引前缀保持。全部普通路线／制作／动态／地图往返／整合仍继续，严格性能延期；68项是10月5日旧审计口径，0／12完整方向关闭。
+- **历史检查点：2026-10-06 V06g：当时实际水面亮线复现及两隔离对照完成，生产修复仍OPEN，完整V00–V11仍Doing，Goal active。**
   起点文档HEAD `a7fb140e`；生产运行时仍`7b39402b`／Release `cd47a140…28394`，V06f冻结包135管理项／137原文件保持。仅捕获工具新增generic direct生命周期字段；没有生产C++／shader改动、重编或刷新正式包。
   RD8细亮线相邻RGB差139；geometry-zero降10／9／10，公共viewProj保波对照仍139／139／139。不是正式修复，不关闭World面归因、跨区块持续稳定或普通输入。
   两次新实际捕获PID39079／49669均正常0、signal null、timeout false、reaped true、100秒等待上限，四帧各2560×1440；所有本批游戏采集handle已terminal。generic成功路径经真实客户端验证，timeout／信号清理校准未运行。
@@ -3699,3 +3705,65 @@ CUA公开getState仅只读一次30.0422秒超时reset，未启动应用／输入
 下一步观察Z=−224附近两个相邻Water实际原上传uv0／uv1、同帧uniform、revision及World halo来源，
 再据原因修复；不放宽旧RD1 shore guard。继续全部普通路线／制作／完整UI／动态／音频与必要整合，
 严格配对性能仍DEFERRED_BY_USER，Goal active；两份无关未跟踪规划不暂存，未推送／发布／打标签。
+
+## V06h 启动缺邻网格修复与完整水波原机位复查（2026-10-06）
+
+### 生产问题与修复
+
+V06g已证明几何位移参与细亮线，而公共投影无效。本批检查真实启动：
+`SandboxRuntime(...,false,2)`预加载5×5；Bootstrap原先对包括16个外圈chunk的section直接
+`makeMesh()`并标Clean。后台`beginMeshJob`则要求完整3×3邻域。初始北外圈Z=−224与此前
+图像反投影假设接近，但该位置关联仍不等同实际捕获的World面身份。
+
+真实存储加载反例保留旧CPU网格，而非重新捕获理想输入：非海平面y14–18水柱、两owner邻域并集12chunk，
+仅延迟东邻。旧西mesh合法生成并Clean后，实际begin／prepare／finish加载东邻；旧owner地址、
+incarnation11、revision768、Clean与原数组保持。共享角点`(16,19,8)`的旧uv0约
+`(0.06,0.045)`、uv1`(2.5,0)`，新东侧为`(0.12,0.09)`、`(5,0)`；旧侧另保留96个内部竖向水三角形。
+显式失效后原split worker重建才恢复一致。零加载guard正控在缺邻时保持Dirty／revision768／无CpuReady，
+邻块到齐后第一次后台生成两侧完整属性，内部侧面为0。基线122、guard118、raw消费者96项通过，
+实际编译／链接／两次运行均0／无signal／timeout；原24raw共221952B。
+这是一项确定性非海平面CPU生命周期反例，不改称自然Water64或真实GPU逐面证明。
+
+生产只修改Bootstrap11行：RD过滤后、section循环前调用既有`prepareChunkNeighborhood(x,z,0)`，
+缺邻块时跳过所有层；不加载、不插入、不改revision、不生成或标Clean。初始ready内圈9chunk照常，
+外圈16个留给现有loader。`startBackgroundLoader()`移至独立`if(uploadToOgre)`，
+保留原临时相机`summary.sectionCount>0`条件，防止仅水／空气或solid只在延后边圈时永不启动。
+当前幂等单worker、需求／预载半径、调度／上传／卸载预算、生成与保存规则保持。
+
+### 实际构建、客户端与独立证据
+
+| 证据 | 实际结果与范围 |
+| ---- | -------------- |
+| `normal-build-r1/receipt.json` | 正常生成Xcode Debug／Release各一次build0、无signal／timeout、首方warning0；实际编译/MMD为Bootstrap，146对象中仅它变化，其余145对象和17库保持。Debug `979c9552…eeb2a2`、Release `37722b6a…563df`，x86_64／SDK26.2，在当前macOS15.7.3 arm64宿主实跑；不声明其他平台。 |
+| `candidate-package-r1.json` | 独立新包135管理项／137文件、2965源码。相对V06f source manifest仅Bootstrap改变；原Water.vert／frag／program保持，完整两波幅、原法线、细纹与投影保持。普通705B配置SHA`70d9f6e9…16047`，源包无存档。捕获身份保留nominal d363＋Boot-only dirty `320bcec1…e499`，不重标为提交后实跑。 |
+| `startup-halo-rd8-r1`／`startup-halo-rd8-compatibility-r1` | 当前正常Release原seed42／time7000、player21270−192、rotation10／90、RD8／FOV90、medium shadow／post off、1280×720点／Retina2，5／6／7／8秒各四帧。实际PID62304／2698均正常0、signal null、timeout false、reaped true、GL4.1；四原图各2560×1440。原机位细亮线不再出现，保全水波。 |
+| 原件RGB | 沿用V06g冻结亮线ROI418700px：基线三对max139／139／139、>25像素154／131／86；修复standard10／9／11、compatibility11／9／11，两档>25均0。近水与干沙对照分别小幅动画／最大1。没有图像编辑或重新挑ROI；标准最后一对仍有1个>10像素，不改写为全0。 |
+| `shore-native-standard-r2`及原oracle | 当前RD1六阶段真实Place／Break／诊断恢复、World地图UI事实与保存，实际PID3418正常0／GL4.1，原595项全部通过（含原208）。独立19操作／88属性核对原44B VBO／IBO与暖帧链。仅本次standard session，不冒充新双模式native595。 |
+| 零solid分支 | `cpu-zero-solid-save-r1`真实World保存／无位姿覆盖重开363项：25chunk各5section、512000 Air、合法save12／terrain30、53文件。当前普通生产代码加载该独立模板，PID4338正常0、GL4.1、四原PNG；初始各层0／0／0，Cave从candidates／live0／0到188／74，peak扫描8／更新6。原53模板及25主chunk字节保持，实际主chunk数仍25，不造新增持久化数。native终态玩家y240.499634不同于模板70，不计位姿／脚下／普通玩法。见`zero-solid-startup-proof-r1.json`。 |
+| 独立消费 | `startup-independent-review-r2.json`186／186及`startup-independent-native-archive-addendum-r2.json`166／166，复核真实源码／构建、当前包、原PNG/RGB、CPU raw、native与归档；新零solid独立小收据单列。两个消费者旧版失败均保留：把链接命令误算第二编译TU、把实际`ordinary_input="NOT_RUN"`错当bool。按真实argv／schema修正消费者，没有改变原oracle、生产证据或门槛。 |
+
+后台加载及World时钟／shader相位未冻结，两个5秒前调度不同；本景Cave后续非0，
+standard／compatibility末段均399 candidates／140 live，不能用首条0宣称全程无背景。
+结论限定为启动已证实缺邻网格问题修复及这个自然原机位的四帧亮线改善；
+不关闭全场景波连续、实际逐面World／uniform归因、World原子性／ABA或普通出入水／编辑输入。
+没有通过关波、改投影、删失败或放宽原RD1检查完成精修。
+
+### 保护、交付与恢复
+
+`shore-native-prepare-argument-failure-r1.json`保留首次误传medium shadow的入口exit2；
+该专用旧门禁要求shadow off，拒绝发生在启动前、无native PID；修参数后r2实际运行，未改入口要求。
+本批所有实际游戏和编译句柄已terminal，正常子进程已回收；不重复旧受控崩溃二进制。
+CUA仅公开`getState()`只读重检一次30.0768秒超时reset，无启动或输入，
+`cua-readonly-service-recheck-r1.json`留原错误；用户桌面可见、连接正常，不恢复锁屏归因。
+
+精选目录`.local-evidence/visual-polish-20260928/v06h-startup-water-halo/`保存标准5／8秒、
+兼容5秒三张当前升级后原图及冻结原基线5秒一张。所有copy/source SHA一致、无裁剪／重采样；
+总51轮202图，旧50轮198图manifest对象与index字面前缀保持，没有重扫旧图或覆盖旧原件。
+旧V06f正式包及用户客户端／配置／保存、两份无关规划由聚焦保护保持。
+
+本批中文本地提交与提交后独立普通包`v06h/After.app`的实际commit、135／137身份、源码与配置终态
+以`postcommit-r1.json`和`final-package-r1.json`为准；新包使用同一已构建Release，不刷新旧包。
+普通菜单与实际操作验收仍OPEN；完整12方向仍Doing、0／12关闭，68项计数仍是10月5日
+13限定工程／38实现待验收／12普通连续缺证／5效果未充分证明的历史口径，51／68约75%不是今天总完成度。
+后续继续三种子普通路线、采集制作／建造、地图移动／编辑往返、完整UI与动态、受影响音频回归和必要整合。
+未受影响的旧听感、人类审美／试玩签字和严格配对性能不追加为前置；Goal active，不推送／发布／打标签。

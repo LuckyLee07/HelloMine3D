@@ -2176,6 +2176,15 @@ namespace
                     continue;
                 }
 
+                // Water corner fields and exposed faces need the same complete
+                // halo as background meshing. Leave border sections Dirty until
+                // the existing loader supplies their neighbours.
+                if (!m_world->getChunkManager().prepareChunkNeighborhood(
+                        chunkLocation.x, chunkLocation.y, 0).neighborhoodReady)
+                {
+                    continue;
+                }
+
                 for (std::size_t sectionIndex = 0;
                      sectionIndex < chunk.getSectionCount(); ++sectionIndex)
                 {
@@ -2324,10 +2333,10 @@ namespace
                 m_camera->setPosition(position.x, position.y + 10.0f,
                                       position.z + 14.0f);
                 m_camera->lookAt(position.x, position.y, position.z);
-                m_world->startBackgroundLoader();
             }
             if (uploadToOgre)
             {
+                m_world->startBackgroundLoader();
                 runtimeOperationTimings().markLatestActive(
                     RuntimeOperationKind::WorldEntry);
             }
