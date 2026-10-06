@@ -135,6 +135,21 @@ P95／P99 ≤1.10 和细微调参统一为 `DEFERRED_BY_USER`，不再阻塞本�
 | `C3` Mechanical Topology Model v0 | `tools\validate_mechanical_topology.ps1` + `HELLOMINE3D_WORLD_SMOKE_FOCUS=C3-TOPOLOGY` + 完整 WorldRuntime/VS2017 双配置门禁。必须覆盖 Crusher-only 六面端口、确定性 component id/canonical edge、merge/split/no-op、正常 place/break、malformed/stale、Chunk unload/reload、save/reopen 派生重建、正常 UI 与 Debug 观察；禁止持久化 topology、C4 power、通用网络、物流和 C4+。 |
 | `D1` Simulation Phase Scheduler v0 | `tools\validate_simulation_phase_scheduler.ps1` + `HELLOMINE3D_WORLD_SMOKE_FOCUS=D1-SCHEDULER` + AL-A5/B6/C2/C3 聚焦回归 + 完整 WorldRuntime/VS2017 双配置门禁。保留三类真实 workload、64/4/32 item budget、稳定集合 round-robin/FIFO、单步无 catch-up、mandatory Player/8 phase barrier、copied diagnostics 和 save v12；D2 进入调查不等于已实现 activation。 |
 
+V09d补同对象直接加载动态缺口：仅`CaveBoundarySmokeCases.h`新增8项，使用合法
+Resident→EvictRequested→Absent→Requested→Loading前置，不销毁对象、不在加载前collect。
+Debug／Release实际`CAVE_BOUNDARY`各43／0；去除`loadBlockData`的incarnation更新的单TU
+隔离负控各43项／精确2 FAIL，正常exit1，128原对象及8archives保持。r1非法前置导致的
+Debug SIGABRT与Release非法状态日志保留；不是正常loader已复现缺陷，原预算／oracle未放宽。
+该测试改动不重建普通客户端，不关闭GPU／ABA、普通地下路线或整项Goal。收据见
+[V09d复核](../../build/visual-experience-polish-20260928/v10o/cache-independent-review-r1.json)。
+
+V10o在同4f6普通客户端补1280×720内容、双语×0.85／1.00四个空2×2展开手册单元；
+首个误命名0.85配置实际0.84保留，正确0.85证据为`config-wide-zh-085-corrected.txt`。
+八原PNG、配置与两次正常输入前后保存及活动时点24文件副本见`v10o/`。
+六次W／S短按、Space和drag未证明连续移动或采集；F5角色可见单列。原配置逐字节恢复。
+CUA截图超时、kernel reset后服务启动失败，008实际仍空合成；最终正常保存退出OPEN，
+日志只是前缀，不声明native退出成功。完整UI矩阵、制作、普通路线及音频／稳定性继续OPEN。
+
 ## 完整验证路由
 
 | 验证 | 命令或目标 | 适用改动 |

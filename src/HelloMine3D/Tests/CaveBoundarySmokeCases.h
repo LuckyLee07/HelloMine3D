@@ -382,6 +382,71 @@ void caseCaveBoundaryMasks()
         newMask != nullptr && newChunk != nullptr && newMask->incarnation == newChunk->getIncarnation() &&
         newMask->blockRevision == savedRevision && newMask->rows[6] == (1u << 4) &&
         caveBoundaryBitCount(*newMask) == 1 && reloadBudgetValid);
+
+    // The manager's reload above normalizes the serialized block data and
+    // revision. Reload it directly into the same Chunk now: constructor
+    // identity and a different revision must not conceal a missing load hook.
+    Chunk *const directChunk = reloadManager.findChunk(-5, -4);
+    if (directChunk == nullptr || newMask == nullptr) {
+        throw std::runtime_error("Direct Chunk reload fixture has no baseline.");
+    }
+    const auto directMask = *newMask;
+    const auto directIncarnation = directChunk->getIncarnation();
+    const auto directSectionCount = directChunk->getSectionCount();
+    std::vector<Block_t> directIds;
+    std::vector<BlockMetadata_t> directMetadata;
+    directChunk->collectBlockData(directIds, directMetadata);
+    const auto directBlocks = caveBoundaryBlocks(reloadWorld);
+    const auto directFiles = caveBoundaryFiles(reloadFixture.directory);
+    // Loading consumes Loading -> Resident. Keep the same clean object while
+    // entering that legal state; no snapshot may prune the retained cache in
+    // between these transitions and the direct data load.
+    const bool directLoading = !directChunk->needsSave() &&
+        directChunk->transitionDataResidency(ChunkDataResidencyState::EvictRequested) &&
+        directChunk->transitionDataResidency(ChunkDataResidencyState::Absent) &&
+        directChunk->transitionDataResidency(ChunkDataResidencyState::Requested) &&
+        directChunk->transitionDataResidency(ChunkDataResidencyState::Loading);
+    check("CAVE_BOUNDARY/direct-load-enters-loading-without-replacing-chunk",
+        directLoading && reloadManager.findChunk(-5, -4) == directChunk &&
+        directChunk->getDataResidencyState() == ChunkDataResidencyState::Loading);
+    if (!directLoading) {
+        throw std::runtime_error("Direct Chunk reload fixture cannot enter Loading.");
+    }
+    directChunk->loadBlockData(directSectionCount, directIds, directMetadata);
+    const auto *directSection = directChunk->findSection(CaveBoundarySectionY);
+    check("CAVE_BOUNDARY/direct-load-keeps-same-chunk-and-equal-revision",
+        reloadManager.findChunk(-5, -4) == directChunk && directChunk->hasLoaded() &&
+        directChunk->getSectionCount() == directSectionCount && directSection != nullptr &&
+        directMask.blockRevision != 0 && directSection->getBlockRevision() == directMask.blockRevision);
+    check("CAVE_BOUNDARY/direct-load-refreshes-existing-chunk-incarnation",
+        directIncarnation != 0 && directChunk->getIncarnation() != 0 &&
+        directChunk->getIncarnation() != directIncarnation);
+    std::vector<Block_t> directAfterIds;
+    std::vector<BlockMetadata_t> directAfterMetadata;
+    directChunk->collectBlockData(directAfterIds, directAfterMetadata);
+    check("CAVE_BOUNDARY/direct-load-keeps-exact-block-data-and-metadata",
+        directAfterIds == directIds && directAfterMetadata == directMetadata &&
+        caveBoundaryBlocks(reloadWorld) == directBlocks);
+    const auto directBeforeRescan = reloadWorld.collectSectionMeshSnapshot(false);
+    check("CAVE_BOUNDARY/direct-load-immediately-rejects-old-mask-without-scan",
+        caveBoundaryFind(directBeforeRescan, sides[0], 0) == nullptr &&
+        directBeforeRescan.boundaryMaskFacesScanned == 0 &&
+        directBeforeRescan.boundaryMaskCellsScanned == 0 &&
+        directBeforeRescan.boundaryMaskDeferred > 0 && caveBoundaryBudgetValid(directBeforeRescan));
+    const auto directReady = caveBoundaryDrain(reloadWorld, reloadBudgetValid);
+    const auto *directCurrentMask = caveBoundaryFind(directReady, sides[0], 0);
+    check("CAVE_BOUNDARY/direct-load-rescan-publishes-current-exact-mask-within-budget",
+        directCurrentMask != nullptr && directCurrentMask->rows == directMask.rows &&
+        directCurrentMask->blockRevision == directMask.blockRevision &&
+        directCurrentMask->incarnation == directChunk->getIncarnation() &&
+        caveBoundaryBitCount(*directCurrentMask) == 1 && reloadBudgetValid);
+    const auto directIdle = reloadWorld.collectSectionMeshSnapshot();
+    check("CAVE_BOUNDARY/direct-load-current-cache-is-idle",
+        directIdle.boundaryMaskFacesScanned == 0 && directIdle.boundaryMaskCellsScanned == 0 &&
+        caveBoundarySameMasks(directReady, directIdle));
+    check("CAVE_BOUNDARY/direct-load-observation-does-not-publish-save-files",
+        caveBoundaryFiles(reloadFixture.directory) == directFiles);
+
     const bool finalUnload = reloadManager.unloadChunk(-5, -4);
     const auto absent = reloadWorld.collectSectionMeshSnapshot(false);
     check("CAVE_BOUNDARY/unloaded-coordinate-never-publishes-retained-mask",

@@ -3315,3 +3315,76 @@ FNV1a独立核验有效，backup9的1414B meta与主文件逐字节相同。两�
 专项。普通采集制作、已发现配方／Load、3×3制作、连续路线、失焦、完整双语×三字号×两尺寸
 矩阵、近墙相机、实际听感及全部方向余项继续OPEN。完整V01–V11和Goal保持Doing／active，
 严格配对性能DEFERRED_BY_USER，旧Windows未执行项保持。
+
+## 2026-10-06 V09d／V10o：直接加载缓存回归与普通宽屏空合成限定覆盖
+
+起点`e68ab25ba989b44213da4e33de9444c74d055bdd`。普通包仍为自己的
+`v10m/OrdinaryUiWorkbench.app`，运行时`4f6d0c55`，真实Resources/bin执行文件SHA
+`10c392d388386dd241772b66b8c1b526c8ae4126a395b4b94ab4c32b679e6356`，未改生产代码或重建客户端。
+准备收据`v10o/preparation-r1.json`冻结own163文件、前24保存和上轮119证据。
+准备之后Root另授权仅修改`Tests/CaveBoundarySmokeCases.h`，不沿用准备时“无任何源码／构建变化”说法。
+
+旧V09c的卸载／新对象重载验证不能单独覆盖同一Chunk直接加载。本批新增65行、8项真实
+World回归：对象保持、非零revision相同、合法状态进入Loading、`loadBlockData`更新incarnation；
+加载前没有中间snapshot或manager卸载，旧cache仍在。false确认不扫描且即时拒绝旧mask；
+重扫精确恢复一个暗空气bit，原block／metadata、8面／2048格预算、idle及磁盘文件保持。
+首次r1错误使用Resident→Resident前置，Debug PID50043 SIGABRT(-6)，Release虽42／0却有
+非法转换日志，均不计有效正控。B1合同及生产loader要求Loading→Resident；改用同一clean对象的
+Resident→EvictRequested→Absent→Requested→Loading合法链，未改生产状态机或放宽oracle。
+
+| 实际检查 | 配置／原生结果 | 结论 |
+| --- | --- | --- |
+| r2真实CAVE_BOUNDARY正控 | Release PID51707、Debug PID51807，各43／0、native exit0 | 同对象直接加载动态范围PASS |
+| 仅去load身份更新的源码单TU负控 | Release PID52676、Debug PID52730，各43项、精确2 FAIL、native exit1，无signal／timeout | 准确检出身份不更新及false确认沿用旧mask |
+
+每个负控129链接对象仅替换Chunk.o，128原对象及8archives保持；各144聚焦输入before／after
+SHA一致。r2及负控编译／链接warning0；r1正常构建1227／1216第三方warning保留，不能称
+整批零warning或无崩溃。未运行完整World或Ogre客户端，因为本次仅测试覆盖变化。
+[最终收据](../../build/visual-experience-polish-20260928/v10o/same-chunk-reload-result-r1.json)17／17；
+[Root委派独立复核](../../build/visual-experience-polish-20260928/v10o/cache-independent-review-r1.json)
+及实现代理另一个独立复核均PASS，仅关闭此direct-load动态缺口，不关闭GPU／ABA或普通地下路线。
+
+Root唯一普通窗口操作者，通过公开CUA启动PID46826／主5144，真实1280×748点含标题栏、
+1280×720内容。先正常保存返回主菜单，冻结`before-input-saves/`24文件，再Continue42。
+三W短按、一次Space、三S短按、两次F5及一次drag分别保留001–003准确窗口原图；F5第三人称
+角色可见，W／S／Space／drag未观察可靠持续移动或采挖。正常保存返回菜单后的
+`after-input-saves/`24文件保持位姿`36.2999992 92 56.5`、yaw0、health20及五空材料槽，
+actor_count仍5；world_time／last_played与actor文本、预览及备份轮转有变化，不称存档完全不变。
+未记录实际按住时长／输入帧trace，不能把短按合计位置不变归因为已证实生产输入缺陷。
+
+随后仅通过正式设置、Continue／E与手册展开检查四个新增普通单元：1280×720内容、
+zh-CN／en-US各0.85及1.00，004–007均为2560×1496原PNG；0／10提示、五空材料槽、
+2×2输入、无匹配产物及操作区可见。首个误命名`config-wide-zh-085.txt`实际0.839999974，
+属于Root调滑块的未达目标尝试；原件保留，正确中文0.85为`config-wide-zh-085-corrected.txt`
+的0.850000024，不把0.84当目标证据，也不归为游戏故障。008实际仍中文1.00空合成。
+
+中文1.00应用后的CUA截图124.5116秒超时，007准确窗口重新确认实际中文合成；之后
+Escape／AX请求及getState各30秒超时并kernel reset，目标getApp重连2.5908秒又报
+`Sky Computer Use service startup request failed`。不能断言未观察的Escape执行或正常退出。
+当前自己的客户端仍在空合成，世界活动；公开设置已使705B配置逐字节恢复原SHA
+`70d9f6e90b8c362a232f961cd2f768138a0f0f7245e1cb07b338e48a86316047`。
+Root请求用户协助正常保存退出，未强杀进程或绕过公开输入工具。
+`session1-log-prefix-at-cua-timeout.txt`及`observed-saves-at-cua-timeout/`24文件只作活动时点
+证据；最终保存退出OPEN，native exit不可得，不能称完整日志或会话关闭。
+[当前会话收据](../../build/visual-experience-polish-20260928/v10o/session-r1.json)保留上述状态。
+
+[独立普通证据复核](../../build/visual-experience-polish-20260928/v10o/ordinary-ui-independent-review-r1.json)
+实际85项：81 PASS、1 Root误调0.84的校准FAIL、3 OPEN，产品FAIL0；四个宽屏空合成单元
+限定PASS。实际查看8原PNG，核9配置、72快照文件、24主／备metadata、15manifest的30个
+member独立FNV及长度／总长、24live文件与274行日志前缀。输入前后actor文本变化如实保留；
+after-input→活动时点副本仅last_played变化，world_time与actor文本相同，不能推定之后不再保存。
+该复核不把3 OPEN或错误校准计PASS，不冒称正常最终退出、完整矩阵或AI-06盲玩。
+
+精选新增F5、中文0.85和英文1.00三张未裁剪原图，48轮192张；旧47轮189原对象及图字节保持。
+[Root最终聚焦保护](../../build/visual-experience-polish-20260928/v10o/root-protection-r2.json)35／35
+（文档前r1为26／26），补核用户135管理项、独立85项真实分类及最终精选身份；
+上轮完整保护按SHA复用，未重扫5508构建输入或15包；本轮测试构建产物另按聚焦清单保护。
+本批不关闭非空配方／Load、3×3制作、普通采集制作、持续路线、近墙相机、完整UI矩阵、
+音频／动态／稳定性或GPU余项。完整方向与Goal仍Doing／active，严格性能DEFERRED_BY_USER。
+
+用户进度问题采用两种明确口径：当前完整方向正式关闭0／12，每方向均有尾项；旧
+`v02c/remaining-full-scope-audit-r1.json`共68审计标签，13限定工程关闭、38已有实现待验收、
+12普通／连续验收缺证、5效果未充分证明，审计HEAD445f及2026-10-05早于后续工程／普通补验。
+后续地图跨世界／跨进程、紧凑双语空合成、设置及本批限定成果单列，不把旧分类当今天精确
+完成率，也不把检查数或精选图片数换算整体进度。开发实现大部分落地，普通玩法及整合仍有
+实质缺项，不能称只差最后几项小问题。

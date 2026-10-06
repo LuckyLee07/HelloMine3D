@@ -220,7 +220,17 @@ incarnation／ABA、内部VAO取数、可见像素、连续闪烁及普通输入
 按用户继续授权推进。当前CUA沿用最近实际超时后的UNKNOWN，未因隐藏GPU通过冒充恢复。
 详见[执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)。
 
-**最新：2026-10-06 V10n 普通设置取消、应用与重启持久化专项完成，完整 V01–V11 仍 Doing，Goal active。**
+**最新：2026-10-06 V09d 同对象直接加载缓存回归完成，V10o 新增四个宽屏空合成覆盖；完整 V00–V11 仍 Doing，Goal active。**
+仅测试头文件新增8项：合法Loading前置、同Chunk／同revision、加载incarnation更新、false快照即时拒旧mask、原数据／单bit真值及8面／2048格预算保持。
+Debug／Release实际CAVE_BOUNDARY各43／0；仅移除loadBlockData身份更新的隔离单TU负控各43项／精确2 FAIL，编译链接0、正常exit1，无signal／timeout；两个独立复核通过。
+r1非法Resident→Resident测试前置的Debug SIGABRT与Release错误日志保留，不认定正常loader缺陷；未改生产代码或重建普通客户端。
+同4f6普通PID46826／5144新增1280×720内容、双语×0.85／1.00四个空2×2展开手册，五空槽／网格／产物与操作区可见；第一次误调0.84证据保留、校正后才计0.85。
+六次W／S短按、一次Space及drag未观察可靠移动／采挖；F5第三人称实际可见。原705B配置已逐字节恢复。
+公开CUA随后截图超时、两次30秒kernel reset，重连又报service startup failed；008准确窗口仍在空合成。正常最终保存退出OPEN，已请求用户协助，保留日志前缀及24文件活动时点副本，不冒充完整关闭。
+精选48轮192图、旧47轮189图保持。最近完整68子项审计为13限定工程关闭／38已实现待验收／12普通连续验收缺证／5效果未充分证明，是旧基线而非当前总完成率；后续进展单列，完整方向关闭0／12。
+普通连续路线、采集制作、完整UI矩阵、音频／动态／稳定性及GPU余项继续OPEN，严格性能延期。详见[执行报告](../reports/visual-experience-polish-execution-2026-09-28.md)V09d／V10o。
+
+**历史检查点：2026-10-06 V10n 普通设置取消、应用与重启持久化专项完成，完整 V01–V11 当时仍 Doing，Goal active。**
 用户确认解锁后重新观察同一4f6d0c55普通客户端，再公开CUA Continue42；初次锁屏失败保留为历史收据。
 Cancel丢弃960×540／FOV60／第三人称草稿，重开恢复原值；仅Apply FOV90→60后投影收窄，第三人称角色实际可见。
 新进程PID42949／5011确认960×540内容尺寸及FOV60／第三人称保留；通过公开设置逐字节恢复原705B配置，PID43278／5052最终重启确认宽屏中文菜单。
