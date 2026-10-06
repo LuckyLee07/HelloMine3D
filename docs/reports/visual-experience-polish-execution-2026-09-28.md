@@ -2,7 +2,14 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V08c：高地工位前角单格遮挡修复已验证，完整Goal active。**
+- **当前：2026-10-06 V11d：修复后普通第三人称单跳已核验，完整Goal active。**
+  当前运行包复用clean `f9246ba3`／Release `6cf57bb0…563df`；新普通副本135管理项／137完整文件从V08c逐项复制，初始705B配置保持，无存档或诊断注入。Root唯一公开CUA输入，从普通菜单创建seed42／terrain31、进入、F5、保存返回／继续，最后普通保存退出。
+  Space真实wrapper回执被80帧15.507秒原窗口序列覆盖：051／052腾空、臂腿轮廓变化，053／055恢复站姿。独立12/12、168/168原PNG完整性与时间链核过，只关闭本配置一次原地跳跃，不关闭持续行走。
+  单次W及30次W短按均有公开回执；第二序列88帧16.468秒未观察位移／步姿，前后保存坐标相同、world_time1213→5421。没有公开hold／dwell事实，无位移原因未知；不修改游戏输入来迎合工具，不记普通连续步态PASS。
+  真实PID40741／窗口1159已普通保存退出；沙箱外精确查询新副本与旧V11c／V07g／V08c均无PID／窗口。此前沙箱内空查询不足以证明不存在，另有r2纠正。两个原生采集handle69711／63631均exit0 terminal，没有未收尾游戏会话。
+  两张当前普通原图新增至54轮211图；旧53轮209manifest对象／index字面前缀保持，不重扫旧媒体。交付继续使用V08c普通包，F5只改变owned副本的first→third，不刷新源包；本次文档核验不重建客户端。
+  下一步继续水面共享边连续观察及全部普通路线。三个未提交观察器／consumer文件是下一批初版，尚未Bootstrap／CLI接线、编译或实机捕获，不计当前交付或水域PASS。严格性能仍延期，完整12方向未全闭，详见文末V11d。
+- **历史检查点：2026-10-06 V08c：高地工位前角单格遮挡修复已验证，完整Goal active。**
   起点HEAD `66de1f17`，新默认terrain31仅将Highland工位`across2/depth0/level1`的Stone改为Air；旧1–30、机器／地面／主建筑／奖励／保存规则保持。
   正常客户端与World各Debug／Release构建0、warning0；新专项各28/28，Debug旧22／29及岩柱／探索／生存通过，Release完整2864/2864。生产接线置false的隔离单对象故障28/2、exit1，全部原输入保持。
   旧1–29复用v03b冻结生产CSV、30用本批修改前实跑，最终1–30两CSV均相同；31的463056地表列除version外保持，T0的32区块摘要保持。真实三地点区块id／metadata／实体另核，只高地一格不同。
@@ -3913,3 +3920,50 @@ GL4.1和完整Ogre关闭。旧正式v07g包为clean66de／terrain30／Release03c
 用户此前操作的旧普通副本未刷新、关闭或还原配置。两份无关未跟踪规划保持，不暂存。
 全部Root进程／收据终态见`batch-handoff-r1.json`。本单格工程和固定机位改善不关闭V08
 普通发现／进入／使用、V07持续动作或完整Goal；严格性能继续延期，仅本地中文提交。
+
+## V11d：修复后普通第三人称单跳核验（2026-10-06）
+
+本次只新增正常输入证据与文档，复用V08c clean `f9246ba3fd2c9a8365efbad95b1ab50698120ae1`
+正常Release，SHA `6cf57bb08d0320b3ad8363bcb15dd4442b91af1164b0f97cba11b1aa5a9da85f`。
+独立`v11d/OrdinaryMotion.app`初始135管理项／137完整文件与正式源逐项一致，705B正常配置
+SHA `70d9f6e9…16047`，没有存档或诊断环境。托管clone原本不复制可写配置，首次准备收据发现
+缺少config后补复制源配置，完整核对后才启动；不是客户端运行失败。Source manifest
+`098ba85d…170d6c`含V07g基础步态修复，本次不重建未改客户端或重跑旧纯动作检查。
+
+### 普通流程与原始时间链
+
+公开CUA先一次inventory查询30.0196秒超时reset，没有输入；之后针对新独立副本的getApp
+9.0952秒成功，普通菜单、字段及游戏窗口可读。Root唯一窗口操作者，从菜单实际创建
+`AvatarMotionR1`／seed42／terrain31，进入、F5切第三人称、暂停、保存返回和Continue重开。
+没有Player位姿、库存、速度、步态时钟、World时间或渲染事实注入。实际PID40741／主窗口1159，
+1280×748点含标题栏，原PNG均2560×1496／Retina2，FOV90／standard／medium shadow／post off／Off。
+F5只使owned配置`first→third`，其它行与705B正式源完全一致，终态SHA `d0cfdb62…a4bbfa`；源包不变。
+
+| 原件与动作 | 实际结果及声明边界 |
+| ---------- | ------------------ |
+| `ordinary-motion-sequence-r1/capture-r1.json` | 80张原窗口PNG，07:37:32.048810–07:37:47.555993 UTC，15.507秒，172871747B；helper exit0 terminal。实际Space wrapper07:37:40.938–41.186被序列覆盖；049／050区间重叠，051／052紧随并可见腾空与臂腿轮廓变化，053／055恢复站姿。仅一次原地跳跃scoped PASS，约0.19秒采集间隔不证明每个游戏帧或完整上升／下落关节曲线。 |
+| 公开输入收据 | `ordinary-public-input-receipt-r1.json`逐项转录实际工具回执。Space成功；单W07:37:48.306–48.350在第一段序列结束后，不记成该序列内移动。Wrapper起止不是不可见的实际OS keydown／keyup或按住时长。原capture的PENDING字段保持，由独立补收据关联，不回写原件。 |
+| `ordinary-walk-sequence-r1/capture-r1.json` | 88原PNG、16.468秒，201885969B；每张写完检查192MiB累计阈值后停止，实际允许最后一张跨过阈值，不宣称严格小于192MiB。30次W短按07:38:53.938–55.012均完成，被69–76及前后帧覆盖；原图仍站姿，无观察位移或迈步。不是持续hold，不关闭普通连续步态。 |
+| 原存档摘要 | `saved-before-input-r1/`与`saved-after-input-r1/`同world_id，player位置均`36.2999992 92 56.5`，health20及五空槽保持，world_time1213→5421。落地后的同Y不否认原图跳跃；同X/Z与W原图仅支持这些短按无观察位移，原因未证实，不能据此修改生产输入。spawn40.5与保存36.2999992的差值在动作前已存在，不归因W。 |
+| `ordinary-motion-independent-review-r1.json` | 独立上下文有仓库访问，不称AI-06盲玩；12/12核对、168/168原PNG SHA／CRC／解压／行结构及时间链通过。实际查看Space前中后原图和W69–76完整原图，限定`SCOPED_SPACE_JUMP_PASS_CONTINUOUS_WALK_NOT_PROVEN`，SHA`7b7226d1…`。衣服色mask变化只作辅助，不反推关节角或实际事件时间。 |
+
+### 终态、保护与继续
+
+普通暂停菜单“保存并退出”后公开wrapper返回expected`App quit`；游戏自身exit code不可得，
+不写native exit0。完整Ogre关闭及获准沙箱外精确路径查询确认新副本无PID／窗口，旧V11c／
+V07g／V08c当前也无PID／窗口，见`ordinary-motion-close-r1.json`。先前沙箱内helper空结果
+受进程路径查询边界限制，不足以证明进程不存在；r2真实匹配40741／1159纠正，不改原空收据。
+原生采集session69711／63631均exit0 terminal；没有新受控故障运行、异常弹窗或用户介入拒绝。
+
+两张普通051／055原PNG未裁剪／重采样，新增到精选`v11d-ordinary-third-person-jump/`，
+总54轮211张；旧53轮209manifest对象与index字面前缀保持，未重扫旧媒体。它们是同已修复
+客户端的普通动作核验，不宣称本次新增视觉代码。`selected-archive-r1.json`的`new_images`实际
+为图片列表，r2将计数字段明确为`new_images_count=211`并保留r1；没有改变原PNG或声明范围。
+最新普通交付继续使用`v08c/After.app`；文档提交不重新打包，源包保持原提交／源码／普通配置身份。
+
+当前水缝连续观察初版由代理写入`ShoreEditCapture.h/.cpp`和新consumer，尚未Root接入
+Bootstrap／CLI、编译或实机捕获，保持未提交且不纳入此次文档提交；不能称水缝功能可用／GPU PASS。
+下一步完成实际源列／共享原indexed顶面的有界观察、默认关闭回归和正常双配置，再按实际结果
+决定缺陷修复。普通连续行走、完整周期、停止／反向、坡面／近墙及三种子全部路线继续待验。
+整体Goal active，完整12方向未全闭；历史51/68实现覆盖不改称当前总完成率，严格配对性能
+仍DEFERRED_BY_USER，不加人工签字，不推送／发布／打标签。
