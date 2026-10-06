@@ -1,6 +1,6 @@
 # HelloMine3D 参考画质完整交付 Goal 提示词
 
-日期：2026-10-06。范围：落实[参考画质实现方案](reference-visual-upgrade-plan-2026-10-06.md)的全部五个批次，接续已完成的[技术首版](../reports/reference-visual-prototype-execution-2026-10-06.md)。本文件保存执行提示词；用户已于 2026-10-06 明确启动，宿主 Goal active，进展见[执行记录](../reports/reference-visual-goal-execution-2026-10-06.md)。
+日期：2026-10-06。范围：落实[参考画质实现方案](reference-visual-upgrade-plan-2026-10-06.md)的全部五个批次，接续已完成的[技术首版](../reports/reference-visual-prototype-execution-2026-10-06.md)。本文件保存执行提示词；用户已于 2026-10-06 明确启动，宿主状态与进展见[执行记录](../reports/reference-visual-goal-execution-2026-10-06.md)。
 
 ## 启动提示词
 
