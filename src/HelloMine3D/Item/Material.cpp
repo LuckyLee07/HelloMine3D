@@ -54,6 +54,8 @@ namespace
         "hellomine:forest_floor",
         "hellomine:moss_stone",
         "hellomine:silt",
+        "hellomine:stone_step",
+        "hellomine:stone_window_frame",
     }};
 
     constexpr std::array<Material::IconCoordinate, Material::ID::Count>
@@ -65,7 +67,7 @@ namespace
             {6, 2}, {7, 2}, {8, 2}, {9, 2}, {15, 0}, {10, 2},
             {11, 2}, {12, 2}, {13, 2}, {14, 2}, {6, 1}, {5, 1},
             {7, 1}, {8, 1}, {15, 2}, {15, 3}, {9, 1}, {10, 1},
-            {11, 1}, {6, 8}, {7, 8}, {8, 8}, {9, 8}, {10, 8}, {11, 8},
+            {11, 1}, {6, 8}, {7, 8}, {8, 8}, {9, 8}, {10, 8}, {11, 8}, {3, 0}, {3, 0},
         }};
 }
 
@@ -145,6 +147,8 @@ const Material Material::CLAY_BLOCK(ID::Clay, 99, true, "Clay");
 const Material Material::FOREST_FLOOR_BLOCK(ID::ForestFloor, 99, true, "Forest Floor");
 const Material Material::MOSS_STONE_BLOCK(ID::MossStone, 99, true, "Moss Stone");
 const Material Material::SILT_BLOCK(ID::Silt, 99, true, "Silt");
+const Material Material::STONE_STEP_BLOCK(ID::StoneStep, 99, true, "Stone Step");
+const Material Material::STONE_WINDOW_FRAME_BLOCK(ID::StoneWindowFrame, 99, true, "Stone Window Frame");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name, bool isTool, bool isFood)
@@ -240,6 +244,8 @@ BlockId Material::toBlockID() const
         case ForestFloor: return BlockId::ForestFloor;
         case MossStone: return BlockId::MossStone;
         case Silt: return BlockId::Silt;
+        case StoneStep: return BlockId::StoneStep;
+        case StoneWindowFrame: return BlockId::StoneWindowFrame;
 
 
         default:
@@ -328,6 +334,8 @@ const Material &Material::toMaterial(BlockId id)
         case BlockId::ForestFloor: return FOREST_FLOOR_BLOCK;
         case BlockId::MossStone: return MOSS_STONE_BLOCK;
         case BlockId::Silt: return SILT_BLOCK;
+        case BlockId::StoneStep: return STONE_STEP_BLOCK;
+        case BlockId::StoneWindowFrame: return STONE_WINDOW_FRAME_BLOCK;
 
 
         default:
@@ -469,6 +477,8 @@ const Material &Material::toMaterial(Material::ID id)
         case ForestFloor: return FOREST_FLOOR_BLOCK;
         case MossStone: return MOSS_STONE_BLOCK;
         case Silt: return SILT_BLOCK;
+        case StoneStep: return STONE_STEP_BLOCK;
+        case StoneWindowFrame: return STONE_WINDOW_FRAME_BLOCK;
 
 
         default:

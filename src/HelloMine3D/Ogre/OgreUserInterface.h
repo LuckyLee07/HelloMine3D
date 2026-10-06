@@ -181,6 +181,7 @@ class OgreUserInterface final : public Ogre::RenderTargetListener
     // Optional diagnostic observer; non-owning, normal client remains null.
     void setPauseNotificationCapture(PauseNotificationCapture* observer) noexcept;
     void setStatusMessage(std::string message);
+    void setRenderPipelineFallback(bool fallback) noexcept;
     void showWorldBackups(const std::string& worldId);
     void setAudioCaption(std::string cueId, std::string caption);
     bool dismissSettings() noexcept;

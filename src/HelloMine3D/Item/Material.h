@@ -70,6 +70,8 @@ struct Material : public NonCopyable {
         ForestFloor,
         MossStone,
         Silt,
+        StoneStep,
+        StoneWindowFrame,
         Count
     };
 
@@ -83,7 +85,8 @@ struct Material : public NonCopyable {
         CACTUS_SALAD, TRAIL_RATION, PLANT_FIBER, TORCH, OAK_PLANK_BLOCK,
         COBBLESTONE_BLOCK, OAK_DOOR, WOODEN_AXE, WOODEN_SHOVEL,
         ANCIENT_COMPASS, RAIDER_WARD, CRUSHER_BLOCK,
-        SNOW_BLOCK, GRAVEL_BLOCK, CLAY_BLOCK, FOREST_FLOOR_BLOCK, MOSS_STONE_BLOCK, SILT_BLOCK;
+        SNOW_BLOCK, GRAVEL_BLOCK, CLAY_BLOCK, FOREST_FLOOR_BLOCK, MOSS_STONE_BLOCK, SILT_BLOCK,
+        STONE_STEP_BLOCK, STONE_WINDOW_FRAME_BLOCK;
 
     Material(Material::ID id, int maxStack, bool isBlock, std::string &&name,
              bool isTool = false, bool isFood = false);

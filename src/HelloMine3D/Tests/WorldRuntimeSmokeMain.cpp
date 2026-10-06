@@ -948,7 +948,7 @@ void caseRuntimeConfigOwnership()
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
         check("B8/settings-file-is-versioned-with-camera-perspective",
-               text.find("settings_version 11\n") != std::string::npos &&
+               text.find("settings_version 12\n") != std::string::npos &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -1000,7 +1000,7 @@ void caseRuntimeConfigOwnership()
                        PostProcessingQuality::Off &&
                    customised.cameraPerspective ==
                        CameraPerspective::FirstPerson &&
-                   text.find("settings_version 11\n") == 0 &&
+                   text.find("settings_version 12\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos &&
                    text.find("postprocessingquality off\n") !=
@@ -1039,7 +1039,7 @@ void caseRuntimeConfigOwnership()
                       PostProcessingQuality::Off &&
                   versionOne.cameraPerspective ==
                       CameraPerspective::FirstPerson &&
-                  text.find("settings_version 11\n") == 0,
+                  text.find("settings_version 12\n") == 0,
               text);
     }
 
@@ -1068,7 +1068,7 @@ void caseRuntimeConfigOwnership()
                       PostProcessingQuality::Off &&
                   versionTwo.cameraPerspective ==
                       CameraPerspective::FirstPerson &&
-                  text.find("settings_version 11\n") == 0 &&
+                  text.find("settings_version 12\n") == 0 &&
                   text.find("locale en-US\n") != std::string::npos,
               text);
     }
@@ -1097,7 +1097,7 @@ void caseRuntimeConfigOwnership()
                       PostProcessingQuality::Off &&
                   versionThree.cameraPerspective ==
                       CameraPerspective::FirstPerson &&
-                  text.find("settings_version 11\n") == 0 &&
+                  text.find("settings_version 12\n") == 0 &&
                   text.find("musicvolume 0.649") != std::string::npos,
               text);
     }
@@ -1123,7 +1123,7 @@ void caseRuntimeConfigOwnership()
                       PostProcessingQuality::Off &&
                   versionFour.cameraPerspective ==
                       CameraPerspective::FirstPerson &&
-                  text.find("settings_version 11\n") == 0 &&
+                  text.find("settings_version 12\n") == 0 &&
                    text.find("directionalshadowquality off\n") !=
                        std::string::npos,
               text);
@@ -1149,7 +1149,7 @@ void caseRuntimeConfigOwnership()
                       PostProcessingQuality::Off &&
                   versionFive.cameraPerspective ==
                       CameraPerspective::FirstPerson &&
-                  text.find("settings_version 11\n") == 0 &&
+                  text.find("settings_version 12\n") == 0 &&
                   text.find("postprocessingquality off\n") !=
                       std::string::npos,
               text);
@@ -1187,7 +1187,7 @@ void caseRuntimeConfigOwnership()
                       GameplayMouseButton::Secondary &&
                   versionSix.cameraPerspective ==
                       CameraPerspective::FirstPerson &&
-                  text.find("settings_version 11\n") == 0 &&
+                  text.find("settings_version 12\n") == 0 &&
                   versionSix.feedbackIntensity ==
                       GameplayFeedbackIntensity::Full,
               text);
@@ -1219,7 +1219,7 @@ void caseRuntimeConfigOwnership()
                       GameplayFeedbackIntensity::Full &&
                   versionSeven.cameraPerspective ==
                       CameraPerspective::FirstPerson &&
-                  text.find("settings_version 11\n") == 0 &&
+                  text.find("settings_version 12\n") == 0 &&
                   text.find("feedbackintensity full\n") !=
                       std::string::npos,
               text);
@@ -1553,7 +1553,7 @@ void caseRuntimeConfigOwnership()
             std::istreambuf_iterator<char>()};
         check("B8/v10-migrates-to-first-person-request",
               migrated.cameraPerspective == CameraPerspective::FirstPerson &&
-                  rewritten.find("settings_version 11\n") == 0 &&
+                  rewritten.find("settings_version 12\n") == 0 &&
                   rewritten.find("cameraperspective first\n") !=
                       std::string::npos,
               rewritten);
@@ -1661,7 +1661,7 @@ void caseWorldOutcomeAndLocalizedText()
           registry.isFrozen() && registry.hasLocale("en-US") &&
               registry.hasLocale("zh-CN") &&
               registry.keys("en-US") == registry.keys("zh-CN") &&
-              registry.keys("en-US").size() == 722 &&
+              registry.keys("en-US").size() == 729 &&
               registry.lookup("en-US", "map.marker_name_hint") ==
                   "Up to 24 characters; no spaces at either end." &&
               registry.lookup("zh-CN", "map.marker_invalid_name") ==
@@ -1756,6 +1756,28 @@ void caseWorldOutcomeAndLocalizedText()
                   "Music" &&
               registry.lookup("zh-CN", "settings.music_volume") !=
                   registry.lookup("en-US", "settings.music_volume"));
+    check("N7A/reference-material-ids-resolve-in-both-locales",
+          std::string(Material::toStringId(Material::StoneStep)) ==
+              "hellomine:stone_step" &&
+          std::string(Material::toStringId(Material::StoneWindowFrame)) ==
+              "hellomine:stone_window_frame" &&
+          registry.lookup("en-US", "material.stone_step.name") == "Stone Step" &&
+          registry.lookup("zh-CN", "material.stone_step.name") == "石台阶" &&
+          registry.lookup("en-US", "material.stone_window_frame.name") == "Stone Window Frame" &&
+          registry.lookup("zh-CN", "material.stone_window_frame.name") == "石窗框");
+    const std::array<const char*, 5> hdrTextKeys = {{
+        "settings.render_pipeline", "settings.render_pipeline_legacy",
+        "settings.render_pipeline_hdr", "settings.render_pipeline_help",
+        "settings.render_pipeline_fallback"}};
+    bool hdrTextComplete = true;
+    for (const char* key : hdrTextKeys) {
+        const std::string en = registry.lookup("en-US", key);
+        const std::string zh = registry.lookup("zh-CN", key);
+        hdrTextComplete = hdrTextComplete &&
+            registry.hasKey("en-US", key) && registry.hasKey("zh-CN", key) &&
+            !en.empty() && !zh.empty() && en != key && zh != key && en != zh;
+    }
+    check("N7A/hdr-settings-keys-resolve-in-both-locales", hdrTextComplete);
     check("N7A/compact-machine-keys-resolve-in-both-locales",
           registry.lookup("en-US", "machine.progress_short") == "Progress" &&
           registry.lookup("zh-CN", "machine.progress_short") == "进度" &&
@@ -21246,6 +21268,8 @@ void caseWorldManager()
 #include "AdventureExplorationSmokeCases.h"
 #include "AdventureSurvivalSmokeCases.h"
 #include "AdventureWildlifeSmokeCases.h"
+#include "ReferenceShapeSmokeCases.h"
+#include "HdrConfigSmokeCases.h"
 
 int main()
 {
@@ -21287,6 +21311,13 @@ int main()
             check(landmarks ? "Landmark/survey-complete" : "T0/survey-complete",
                   count == (landmarks ? (std::stoi(version) == 2 ? 16u : 48u) : 463056u),
                   "samples=" + std::to_string(count));
+        }
+        else if (focus != nullptr && std::string(focus) == "REFERENCE_SHAPE") {
+            caseReferenceShapes();
+        }
+        else if (focus != nullptr && std::string(focus) == "HDR_PIPELINE") {
+            caseRuntimeConfigOwnership();
+            caseHdrConfig();
         }
         else if (focus != nullptr && std::string(focus) == "CHEST_CONTAINER") {
             caseChestContainer();
@@ -21726,6 +21757,8 @@ int main()
         caseWorldEnvironment();
         caseBlockTextureCoordinates();
         caseRuntimeConfigOwnership();
+        caseHdrConfig();
+        caseReferenceShapes();
         caseP11ACoreInput();
         caseP11BActionFeedback();
         caseEventCommandQueryBoundary();

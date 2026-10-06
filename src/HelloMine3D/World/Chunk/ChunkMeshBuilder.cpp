@@ -760,9 +760,9 @@ bool ChunkMeshBuilder::isAmbientOccluder(
     // Water, glass and resource flora are transparent in the block contract,
     // so they do not become solid AO walls. Out-of-halo and unloaded samples
     // resolve to Air through SectionMeshInput and follow the same rule.
-    return !BlockDatabase::get()
+    return BlockDatabase::get()
                 .getDefinition(static_cast<BlockId>(block.id))
-                .transparent;
+                .aoOccluder;
 }
 
 void ChunkMeshBuilder::addVertexLitFace(
@@ -909,6 +909,15 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
         }
         return;
     }
+    if (shape.isCompound()) {
+        const auto &render=BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id)).render;
+        for(const auto &face:shape.variants[block.metadata & 3u].surfaces) {
+            const auto tile=face.material==0?render.texTopCoord:face.material==2?render.texBottomCoord:render.texSideCoord;
+            m_pActiveMesh->addFace(face.positions,BlockTextureCoordinates::get(tile.x,tile.y),
+                m_pInput->getLocation(),blockPosition,{light,light,light,light},false,face.repeat,&sources,rootTag);
+        }
+        return;
+    }
     for (const BlockShapeFace &face : shape.faces) {
         BlockShapeFace scaledFace = face;
         for (std::size_t y = 1; y < scaledFace.size(); y += 3) {
@@ -1017,7 +1026,7 @@ bool ChunkMeshBuilder::shouldMakeFace(ChunkBlock block,
         return true;
     }
 
-    if (!adjacentDefinition.transparent) {
+    if (adjacentDefinition.occludesFaces) {
         return false;
     }
 

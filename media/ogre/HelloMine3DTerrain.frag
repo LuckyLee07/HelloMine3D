@@ -1,5 +1,17 @@
 #version 150
 
+// The legacy branch keeps authored display colours untouched. HDR scene
+// shaders decode colour inputs before lighting/blending; alpha/data stay raw.
+uniform float linearHdrMode;
+vec3 sceneColour(vec3 authored)
+{
+    if (linearHdrMode < 0.5) return authored;
+    vec3 c = max(authored, vec3(0.0));
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)),
+               step(vec3(0.04045), c));
+}
+
+
 in vec2 terrainTileUv;
 in vec2 terrainRepeat;
 in float terrainLight;
@@ -75,7 +87,7 @@ vec3 directionalFogColour(vec3 viewDirection)
     float directionLength = length(viewDirection);
     if (directionLength < 0.00001)
     {
-        return fogColour;
+        return sceneColour(fogColour);
     }
     vec3 normalisedView = viewDirection / directionLength;
     vec2 viewHorizontal = normalisedView.xz;
@@ -84,7 +96,7 @@ vec3 directionalFogColour(vec3 viewDirection)
     float sunLength = length(sunHorizontal);
     if (viewLength < 0.00001 || sunLength < 0.00001)
     {
-        return fogColour;
+        return sceneColour(fogColour);
     }
     float horizonAmount = 1.0 - smoothstep(
         0.12, 0.65, abs(normalisedView.y));
@@ -92,7 +104,7 @@ vec3 directionalFogColour(vec3 viewDirection)
                               sunHorizontal / sunLength), 0.0);
     float amount = clamp(fogDirectionalStrength * horizonAmount *
                          alignment * alignment * alignment, 0.0, 1.0);
-    return mix(fogColour, fogSunwardColour, amount);
+    return sceneColour(mix(fogColour, fogSunwardColour, amount));
 }
 
 // Low-frequency world-space colour breaks up the tiled ground without
@@ -263,6 +275,7 @@ void main()
     balancedColour = pow(
         max(balancedColour, vec3(0.0)), vec3(toneGamma));
     balancedColour = naturalPalette(balancedColour, tileIndex, face, footprint);
+    balancedColour = sceneColour(balancedColour);
     float shapedLight = mix(0.24, 1.0, clamp(terrainLight, 0.0, 1.0));
     float environmentExposure = mix(
         0.34, 1.0, clamp(environmentLight, 0.0, 1.0));
@@ -273,8 +286,8 @@ void main()
     float facingSun = max(dot(face, sunDirection), 0.0);
     float sunlight = clamp(terrainLight, 0.0, 1.0) *
         (0.35 + 0.65 * facingSun);
-    vec3 warmLight = mix(vec3(1.0), clamp(sunColour, 0.0, 1.0), 0.35) * 1.06;
-    vec3 lightTint = mix(vec3(0.84, 0.93, 1.0), warmLight, sunlight);
+    vec3 warmLight = mix(vec3(1.0), sceneColour(clamp(sunColour, 0.0, 1.0)), 0.35) * 1.06;
+    vec3 lightTint = mix(sceneColour(vec3(0.84, 0.93, 1.0)), warmLight, sunlight);
     litColour *= mix(vec3(1.0), lightTint,
         clamp(sunIntensity * surfaceLightingStrength, 0.0, 1.0));
     // World meshes retain both propagated sources. Only sky light follows
@@ -293,25 +306,25 @@ void main()
         float localShare = local / max(sky + local, 0.00001);
         vec3 skyTint = mix(vec3(1.0), lightTint,
             clamp(sunIntensity * surfaceLightingStrength, 0.0, 1.0));
-        vec3 localTint = mix(vec3(1.0), vec3(1.04, 0.94, 0.80),
+        vec3 localTint = mix(vec3(1.0), sceneColour(vec3(1.04, 0.94, 0.80)),
             clamp(surfaceLightingStrength, 0.0, 1.0));
         vec3 sourceTint = sourceMaximum > 0.00001 ?
-            mix(skyTint, localTint, localShare) : vec3(0.90, 0.93, 1.0);
+            mix(skyTint, localTint, localShare) : sceneColour(vec3(0.90, 0.93, 1.0));
         litColour = balancedColour * shapedLight * exposure * sourceTint;
     }
-    litColour += fogColour * (1.0 - environmentLight) * 0.035 * skyAvailability;
+    litColour += sceneColour(fogColour) * (1.0 - environmentLight) * 0.035 * skyAvailability;
     // The existing luminous Waystone core keeps its turquoise in moonlight.
     // Only its cyan inset emits; the masonry frame still receives AO/shadow.
     if (surfaceLightingStrength > 0.5 && tileIndex == vec2(15.0, 0.0)) {
         float core = clamp((texel.b - texel.r) * 2.0, 0.0, 1.0);
-        litColour = max(litColour, texel.rgb * core * 0.74);
+        litColour = max(litColour, sceneColour(texel.rgb) * core * 0.74);
     }
     float fogVisibility = clamp(
         exp(-terrainDistance * terrainDistance * fogDensity * fogDensity),
         0.0, 1.0);
     vec3 localFogColour = directionalFogColour(
         terrainWorldPosition - cameraPosition);
-    localFogColour = mix(vec3(0.035, 0.043, 0.054), localFogColour, skyAvailability);
+    localFogColour = mix(sceneColour(vec3(0.035, 0.043, 0.054)), localFogColour, skyAvailability);
     fragmentColour = vec4(
         mix(localFogColour, litColour, fogVisibility), texel.a);
     applyViewRangeFade(terrainWorldPosition,

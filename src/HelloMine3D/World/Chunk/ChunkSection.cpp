@@ -1,4 +1,6 @@
 #include "ChunkSection.h"
+#include "../Block/BlockGeometry.h"
+#include <stdexcept>
 
 #include "../Block/BlockBehavior.h"
 #include "../Block/BlockDatabase.h"
@@ -29,6 +31,8 @@ ChunkSection::ChunkSection(const glm::ivec3 &location, World &world,
 
 void ChunkSection::setBlock(int x, int y, int z, ChunkBlock block)
 {
+    if(!BlockGeometry::validMetadata(block))
+        throw std::invalid_argument("Architectural block metadata must be in [0,3].");
     if (outOfBounds(x) || outOfBounds(y) || outOfBounds(z)) {
         auto location = toWorldPosition(x, y, z);
         m_pWorld->setBlock(location.x, location.y, location.z, block);

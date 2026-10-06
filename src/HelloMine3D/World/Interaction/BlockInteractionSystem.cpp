@@ -8,6 +8,7 @@
 #include "../Block/BlockDatabase.h"
 #include "../Block/BlockBehavior.h"
 #include "../Block/BlockDefinition.h"
+#include "../Block/BlockGeometry.h"
 #include "../World.h"
 
 #include <algorithm>
@@ -133,14 +134,19 @@ bool BlockInteractionSystem::placeBlock(World &world, Player &player,
         return false;
     }
 
-    world.setBlock(x, y, z, placedBlock);
-    const ChunkBlock placedChunkBlock(placedBlock);
+    const ChunkBlock placedChunkBlock(placedBlock,BlockGeometry::usesCompound(placedBlock)
+        ?BlockGeometry::orientationFromYaw(player.rotation.y):0);
+    // Reject placing a v2 solid part through the player, using the final yaw.
+    if(BlockGeometry::usesCompound(placedBlock) && BlockGeometry::collides(definition,
+            placedChunkBlock,blockPosition,{player.position-player.box.dimensions,player.position+player.box.dimensions}))
+        return false;
+    world.setBlock(x, y, z, placedChunkBlock);
     definition.behavior->onPlaced(world, player, blockPosition,
                                   existingBlock, placedChunkBlock);
     player.removeHeldItem();
     world.getEventBus().publish(PlayerInventoryChangedEvent(
         DefaultPlayerActorId, material.id, -1, "block_place"));
-    world.getEventBus().publish(BlockPlaceEvent(blockPosition, placedBlock));
+    world.getEventBus().publish(BlockPlaceEvent(blockPosition, placedBlock, placedChunkBlock.metadata));
     world.getEventBus().publish(
         BlockChangedEvent(blockPosition, existingBlockId, placedBlock));
     return true;

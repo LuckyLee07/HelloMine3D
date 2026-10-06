@@ -38,6 +38,7 @@ P95／P99 ≤1.10 和细微调参统一为 `DEFERRED_BY_USER`，不再阻塞本�
 
 | 改动 | 最低必要验证 |
 | ---- | ------------ |
+| 参考画质首版（线性 HDR 与单格子形状） | `verify_reference_shapes.sh Debug/Release`；双配置 World `HDR_PIPELINE`／`REFERENCE_SHAPE` 聚焦、语言覆盖及 Release 完整世界；受影响客户端和资源双配置。macOS `validate_hdr_shader_macos.cpp` 检查生产颜色函数、浮点信号、resolve、透明混合和数据通道，另跑旧水面／阴影／角色／反馈 GPU 回归。新包实际 Ogre RGBA16F probe、legacy／HDR 同机位、HDR Off／On、强制能力回退及超预算拒绝分配单列；截图不能代替普通输入、resize 和持续资源观测。见[首版合同](../contracts/reference-visual-prototype-contract-v1.md)。 |
 | 所有 C++ 改动 | 受影响目标能够编译；运行对应定向自动测试。 |
 | 世界、区块、实体或持久化 | 定向自动测试 + `HelloMine3DWorldRuntimeSmoke`。 |
 | 冒险地图区域规划 | `bash scripts/verify_adventure_terrain.sh Debug` / `Release`；`HELLOMINE3D_WORLD_SMOKE_FOCUS=ADVENTURE` 生产区块、水柱、植被、正逆加载与默认版本保存重开；v1–v15 T0 生产摘要对照、完整世界回归、双配置客户端及适用视觉/性能。地区覆盖不代替实机效果，参见[区域骨架合同](../contracts/adventure-terrain-v16-contract-v1.md)。 |

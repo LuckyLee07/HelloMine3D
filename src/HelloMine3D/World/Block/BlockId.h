@@ -43,6 +43,9 @@ enum class BlockId : Block_t {
     MossStone = 31,
     Silt = 32,
 
+    StoneStep = 33,
+    StoneWindowFrame = 34,
+
     NUM_TYPES
 };
 

@@ -29,6 +29,10 @@ struct BlockDefinition {
     bool wrongToolDrops = true;
     bool solid = false;
     bool collidable = false;
+    bool occludesFaces = false;
+    bool fullCellSolid = false;
+    bool aoOccluder = false;
+    bool blocksLight = false;
     bool transparent = true;
     bool liquid = false;
     int light = 0;

@@ -48,6 +48,13 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 ## 当前批准批次
 
+**2026-10-06 目标画质首版：用户授权从 master 建立 `codex/reference-visual-v1` 实现可查看版本。**
+本分支范围为独立线性 HDR、石台阶与石窗框的完整技术样件、可编辑保存的临水小屋。
+当前 `Engineering Done`：双配置构建、相关检查和最终包原图通过；普通输入因 Computer Use 服务不可用为 `BLOCKED`，结果分别记录，见[首版执行记录](../reports/reference-visual-prototype-execution-2026-10-06.md)
+及[合同](../contracts/reference-visual-prototype-contract-v1.md)。后续完整材质、倒影和套件按[方案](reference-visual-upgrade-plan-2026-10-06.md)推进，不把尚未实现部分写成完成。
+**2026-10-06 完整交付 Goal 已获用户明确启动，宿主 active。** 按[提示词](reference-visual-goal-prompt-2026-10-06.md)推进 A–E 全部范围，独立[执行记录](../reports/reference-visual-goal-execution-2026-10-06.md)维护完整材质、套件、真实倒影、植被／抗锯齿、第二样板及普通输入退出条件。
+本分支不重置既有视觉 Goal 的状态和历史缺项。
+
 **2026-09-28 视觉精修 Goal 已启动，按方向分批推进。** 用户在文档同步后明确要求直接执行。
 [0925 规划](visual-experience-polish-plan-2026-09-25.md)保留 V01–V10 全部范围，已更新地下、玩家、
 声音与界面的实现基线及旧 Goal 阶段边界；[新提示词](visual-experience-polish-goal-prompt-2026-09-28.md)

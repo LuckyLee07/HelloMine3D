@@ -51,6 +51,8 @@ block|media/blocks/Sand.block
 block|media/blocks/Silt.block
 block|media/blocks/Snow.block
 block|media/blocks/Stone.block
+block|media/blocks/StoneStep.block
+block|media/blocks/StoneWindowFrame.block
 block|media/blocks/TallGrass.block
 block|media/blocks/Torch.block
 block|media/blocks/Water.block
@@ -74,6 +76,9 @@ recipe|media/recipes/Base.recipe
 resource-script|media/ogre/HelloMine3D.compositor
 resource-script|media/ogre/HelloMine3D.material
 resource-script|media/ogre/HelloMine3D.program
+resource-script|media/ogre/HelloMine3DHdr.compositor
+resource-script|media/ogre/HelloMine3DHdr.material
+resource-script|media/ogre/HelloMine3DHdr.program
 runtime-template|bin/Mine.cfg
 runtime-template|bin/MineResources.cfg
 runtime-template|bin/resource-packs.txt
@@ -90,6 +95,7 @@ shader|media/ogre/HelloMine3DDirectionalShadowCaster.frag
 shader|media/ogre/HelloMine3DDirectionalShadowCaster.vert
 shader|media/ogre/HelloMine3DFlora.vert
 shader|media/ogre/HelloMine3DFloraShadow.vert
+shader|media/ogre/HelloMine3DHdrResolve.frag
 shader|media/ogre/HelloMine3DPostProcess.frag
 shader|media/ogre/HelloMine3DPostProcess.vert
 shader|media/ogre/HelloMine3DSkybox.frag
@@ -103,6 +109,8 @@ shader|media/ogre/HelloMine3DWater.vert
 shape|media/shapes/Cross.shape
 shape|media/shapes/OakDoorClosed.shape
 shape|media/shapes/OakDoorOpen.shape
+shape|media/shapes/StoneStep.shape
+shape|media/shapes/StoneWindowFrame.shape
 smelting|media/smelting/Base.smelting
 texture|media/textures/DefaultPack.png
 texture|media/textures/SandboxGlyphs.png

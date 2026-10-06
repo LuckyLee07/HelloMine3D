@@ -25,8 +25,10 @@ inline bool itemVisualUsesCube(Material::ID id)
 {
     if (id <= Material::Nothing || id >= Material::Count) return false;
     const auto& material = Material::toMaterial(id);
-    return material.isBlock && BlockDatabase::get().getDefinition(
-        material.toBlockID()).render.meshType == BlockMeshType::Cube;
+    if(!material.isBlock) return false;
+    const auto &render=BlockDatabase::get().getDefinition(material.toBlockID()).render;
+    // Existing callers use this flag for block grip/pose (versus a thin icon).
+    return render.meshType==BlockMeshType::Cube || render.shape.isCompound();
 }
 
 // One bounded, resource-pack-aware CPU cache shared by hand and world drops.
@@ -64,7 +66,12 @@ inline const ItemVisualGeometry::Mesh& itemVisualGeometry(Material::ID id)
         const auto& material = Material::toMaterial(id);
         const auto icon = Material::iconCoordinate(id);
         if (!icon.available()) return empty;
-        if (itemVisualUsesCube(id)) {
+        if(material.isBlock) {
+            const auto &render=BlockDatabase::get().getDefinition(material.toBlockID()).render;
+            if(render.shape.isCompound())
+                cache.meshes[id]=ItemVisualGeometry::compound(render.shape,render.texTopCoord,render.texSideCoord,render.texBottomCoord);
+        }
+        if (itemVisualUsesCube(id) && cache.meshes[id].empty()) {
             const auto& render = BlockDatabase::get().getDefinition(material.toBlockID()).render;
             cache.meshes[id] = ItemVisualGeometry::cube(render.texTopCoord, render.texSideCoord, render.texBottomCoord);
         }

@@ -26,8 +26,8 @@ class ChunkSection : public IChunk {
       public:
         void update(ChunkBlock previous, ChunkBlock current)
         {
-            const bool wasSolid = previous.getData().isOpaque;
-            const bool isSolid = current.getData().isOpaque;
+            const bool wasSolid = previous.getData().occludesFaces;
+            const bool isSolid = current.getData().occludesFaces;
             if (wasSolid == isSolid) {
                 return;
             }

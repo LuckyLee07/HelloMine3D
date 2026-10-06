@@ -4,6 +4,8 @@
 #include "OgreThirdPersonCameraRig.h"
 #include "OgreCameraDiagnostics.h"
 #include "OgreCaveBoundaryRenderer.h"
+#include "HdrPipeline.h"
+#include "HdrShaderContract.h"
 #include "../Actor/EnemyPresentationGallery.h"
 #include "../Presentation/DirectionalShadowPresentation.h"
 #include "ChunkSectionRenderable.h"
@@ -73,6 +75,7 @@
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
 #include "../Diagnostics/VisualCameraSweep.h"
+#include "../Diagnostics/ReferenceVisualScene.h"
 #include "../Gameplay/ObjectiveRegistry.h"
 #include "../Item/FoodRegistry.h"
 #include "../Item/RecipeRegistry.h"
@@ -605,6 +608,8 @@ namespace
         int run()
         {
             loadGameConfig();
+            if (m_config.renderPipeline == RenderPipeline::LinearHdr)
+                validateHdrSceneShaderContract(runtimeResourcePackResolver());
             initializeAudio();
             initializeMusic();
             createRoot();
@@ -613,6 +618,30 @@ namespace
             const char* catalogueOverride =
                 std::getenv("HELLOMINE3D_CATALOGUE_DIR");
             const char* saveOverride = std::getenv("HELLOMINE3D_SAVE_DIR");
+            m_referenceVisualRequested = isTrueValue(
+                std::getenv("HELLOMINE3D_REFERENCE_VISUAL_SCENE"));
+            if (m_referenceVisualRequested)
+            {
+                // Scene edits are allowed only once, inside an explicit fresh
+                // save. Reject before catalogue/Sandbox construction can write.
+                if (!saveOverride || !saveOverride[0] ||
+                    !catalogueOverride || !catalogueOverride[0])
+                    throw std::runtime_error("Reference visual scene requires explicit fresh save and catalogue directories.");
+                const auto save = std::filesystem::weakly_canonical(saveOverride);
+                const auto catalogue = std::filesystem::weakly_canonical(catalogueOverride);
+                const auto fresh = [](const std::filesystem::path& path) {
+                    return !std::filesystem::exists(path) ||
+                        (std::filesystem::is_directory(path) && std::filesystem::is_empty(path));
+                };
+                const auto contains = [](const std::filesystem::path& parent,
+                                         const std::filesystem::path& child) {
+                    const auto relative = child.lexically_relative(parent);
+                    return !relative.empty() && *relative.begin() != "..";
+                };
+                if (!fresh(save) || !fresh(catalogue) ||
+                    contains(save, catalogue) || contains(catalogue, save))
+                    throw std::runtime_error("Reference visual scene save/catalogue must be fresh, separate directories; saved worlds are never edited.");
+            }
             // Reject existing/shared paths and all other diagnostics before
             // WorldManagementService or any actual World can create files.
             m_pauseNotificationOutput = PauseNotificationCapture::validateEnvironment(userSettings(m_config));
@@ -701,6 +730,7 @@ namespace
                         m_audio->emitUiClick();
                     }
                 }, std::move(m_pendingCrashReports));
+            m_userInterface->setRenderPipelineFallback(m_hdrPipeline->fallback());
             if (!m_pauseNotificationOutput.empty())
             {
                 m_pauseNotificationCapture = std::make_unique<PauseNotificationCapture>(
@@ -1038,6 +1068,9 @@ namespace
                                  m_config.isFullscreen ? "Yes" : "No");
             setOptionIfAvailable(*selected, "VSync", "Yes");
             setOptionIfAvailable(*selected, "FSAA", "0");
+            // Both pipelines output display encoded RGB explicitly. HUD shares
+            // that window, so hardware gamma must not encode either one again.
+            setOptionIfAvailable(*selected, "sRGB Gamma Conversion", "No");
             selectWindowSize(
                 *selected, std::to_string(m_config.windowX) + " x " +
                                std::to_string(m_config.windowY));
@@ -1296,6 +1329,7 @@ namespace
                 Ogre::NameValuePairList windowParameters;
                 windowParameters["hidden"] = "true";
                 windowParameters["noActivate"] = "true";
+                windowParameters["gamma"] = "false";
                 m_window = m_root->createRenderWindow(
                     WindowTitle,
                     static_cast<unsigned int>(m_config.windowX),
@@ -1338,6 +1372,9 @@ namespace
 
             Ogre::ResourceGroupManager::getSingleton()
                 .initialiseAllResourceGroups();
+            m_hdrPipeline = std::make_unique<HdrPipeline>();
+            m_hdrPipeline->initialize(*viewport, *m_root->getRenderSystem(),
+                                      m_config.renderPipeline);
             configureTerrainAppearance();
             selectAtmosphereMode();
             syncTerrainMaterialParameters();
@@ -1385,6 +1422,7 @@ namespace
                 std::make_unique<OgreCaveBoundaryRenderer>(*m_sceneManager);
             m_blockFeedback =
                 std::make_unique<OgreBlockFeedback>(*m_sceneManager);
+            m_hdrPipeline->applySceneParameters();
             TerrainBuildSummary terrain;
             if (!initialSaveDirectory.empty())
             {
@@ -1445,6 +1483,11 @@ namespace
             {
                 throw std::runtime_error(
                     "Sandbox did not create an active world.");
+            }
+            if (uploadToOgre && m_referenceVisualRequested && !m_referenceVisualApplied)
+            {
+                m_referenceVisualApplied = buildReferenceVisualScene(
+                    *m_world, *m_worldPlayer, *m_logicCamera);
             }
             resetAdventureAudioPresentation(true);
             if (m_audio != nullptr)
@@ -2683,6 +2726,13 @@ namespace
                 m_window->isClosed())
             {
                 return false;
+            }
+
+            if (m_hdrPipeline)
+            {
+                m_hdrPipeline->beforeFrame();
+                if (m_userInterface)
+                    m_userInterface->setRenderPipelineFallback(m_hdrPipeline->fallback());
             }
 
             if (m_e2BatchEnabled &&
@@ -6133,6 +6183,9 @@ namespace
                 parameters->setNamedConstant(
                     "toneGamma", profile.toneGamma);
             }
+            // Program switches (including shadow On/Off) replace parameter
+            // sets. Rebind the frozen active colour mode after every switch.
+            if (m_hdrPipeline) m_hdrPipeline->applySceneParameters();
         }
 
         void syncEnvironment(const WorldEnvironmentState& air, float deltaSeconds)
@@ -6993,6 +7046,7 @@ namespace
             m_pauseNotificationCapture.reset();
             m_userInterface.reset();
             destroyPostProcessingResources();
+            m_hdrPipeline.reset();
             m_blockFeedback.reset();
             m_actorRenderer.reset();
             m_playerRenderer.reset();
@@ -7034,6 +7088,9 @@ namespace
         }
 
         std::unique_ptr<Ogre::Root> m_root;
+        std::unique_ptr<HdrPipeline> m_hdrPipeline;
+        bool m_referenceVisualRequested = false;
+        bool m_referenceVisualApplied = false;
         std::unique_ptr<TerrainArrayLoader> m_terrainArrayLoader;
         Ogre::TexturePtr m_terrainArray;
         Config m_config;
@@ -7278,6 +7335,7 @@ int runOgreBootstrap(bool validateOnly,
             runtimeResourcePackResolver());
         validatePostProcessingShaderContract(
             runtimeResourcePackResolver());
+        validateHdrShaderContract(runtimeResourcePackResolver());
         validateCaveBoundaryShaderContract(
             runtimeResourcePackResolver());
         BlockDatabase::get();

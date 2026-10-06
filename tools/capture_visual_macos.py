@@ -102,6 +102,9 @@ def main():
                         help="Hidden render-only avatar motion facts; does not move the player or exercise input")
     parser.add_argument("--shadow", choices=("off", "medium", "high"), default="off")
     parser.add_argument("--post", choices=("off", "on"), default="off")
+    parser.add_argument("--render-pipeline", choices=("legacy", "linear-hdr"))
+    parser.add_argument("--reference-scene", choices=("street", "interior", "details"),
+                        help="Build the bounded reference sample in a fresh save; normal reopening preserves edits")
     parser.add_argument("--locale", choices=("en-US", "zh-CN"), default="zh-CN")
     parser.add_argument("--ui-scale", type=float, choices=(0.85, 1.0, 1.25), default=1.0)
     parser.add_argument("--feedback", choices=("off", "reduced", "full"), default="full")
@@ -146,6 +149,13 @@ def main():
     parser.add_argument("--reuse-app", action="store_true",
                         help="Run the supplied stable app in place; its diagnostic config is updated")
     args = parser.parse_args()
+    if "HELLOMINE3D_REFERENCE_VISUAL_SCENE" in os.environ and not args.reference_scene:
+        parser.error("Inherited reference scene requires explicit --reference-scene")
+    if args.reference_scene and (args.scene == "menu" or args.save_template or
+            args.performance or args.material_identity or args.camera_diagnostics or
+            args.fern_wind or args.shore_edit or args.player_motion or args.hud_fixture or
+            args.pause_notifications or args.actor_visual or args.panel):
+        parser.error("--reference-scene requires a fresh world without other diagnostic fixtures")
     try:
         capture_times = [int(value) for value in args.capture_ms.split(',')]
         if (not 1 <= len(capture_times) <= 8 or
@@ -348,6 +358,14 @@ seed random
         if not args.minimap_range:
             settings += "minimaprange 128\n"
         settings += f"cameraperspective {args.perspective}\n"
+    if args.render_pipeline is not None:
+        settings = settings.replace(settings.splitlines()[0], "settings_version 12", 1)
+        present = {line.split()[0] for line in settings.splitlines() if line.strip()}
+        for key, default in (("visualdetail", "standard"), ("minimaprange", "128"),
+                             ("cameraperspective", "first")):
+            if key not in present:
+                settings += f"{key} {default}\n"
+        settings += f"renderpipeline {args.render_pipeline}\n"
     (root / "bin/config.txt").write_text(settings)
     environment = {
         "HELLOMINE3D_ROOT": str(root),
@@ -360,6 +378,9 @@ seed random
         "HELLO_RENDER_CAPTURE_MAX_DELTA_MS": "5000",
         "HELLO_RENDER_CAPTURE_EXIT": "0" if args.performance else "1",
     }
+    if args.reference_scene:
+        environment["HELLOMINE3D_REFERENCE_VISUAL_SCENE"] = "1"
+        environment["HELLOMINE3D_REFERENCE_VISUAL_VIEW"] = args.reference_scene
     if args.material_identity:
         environment["HELLOMINE3D_MATERIAL_IDENTITY_CAPTURE_DIR"] = str(output / "material-identity")
         environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
@@ -472,6 +493,9 @@ seed random
               "platform": platform.platform(), "host_architecture": platform.machine(),
               "command": command, "launch_method": args.launch_method,
               "started_unix": time.time(), "result": "RUNNING"}
+    if args.reference_scene:
+        record["diagnostic_fixture"] = "reference-visual-scene-v1"
+        record["reference_view"] = args.reference_scene
     record_path = output / "capture.json"
     record_path.write_text(json.dumps(record, indent=2) + "\n")
     try:

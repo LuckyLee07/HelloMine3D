@@ -7,6 +7,8 @@
 #include "../../Actor/LivingActor.h"
 #include "../../Maths/Ray.h"
 #include "../World.h"
+#include "../Block/BlockDatabase.h"
+#include "../Block/BlockGeometry.h"
 
 namespace {
 glm::ivec3 toBlockPosition(const glm::vec3 &position)
@@ -60,6 +62,11 @@ BlockSelectionSystem::pick(World &world, const glm::vec3 &origin,
         return std::nullopt;
     }
 
+    Ray directionRay(origin,rotation);directionRay.step(1.f);
+    const glm::vec3 rawDirection=directionRay.getEnd()-origin;
+    if(!std::isfinite(rawDirection.x)||!std::isfinite(rawDirection.y)||!std::isfinite(rawDirection.z) || glm::length(rawDirection)<0.000001f)
+        return std::nullopt;
+    const glm::vec3 direction=glm::normalize(rawDirection);
     glm::ivec3 previousPosition = toBlockPosition(origin);
     glm::ivec3 testedPosition = previousPosition + glm::ivec3(1, 1, 1);
 
@@ -75,6 +82,15 @@ BlockSelectionSystem::pick(World &world, const glm::vec3 &origin,
                                           blockPosition.z);
         const auto blockId = static_cast<BlockId>(block.id);
         if (blockId != BlockId::Air && blockId != BlockId::Water) {
+            if(BlockGeometry::usesCompound(blockId)) {
+                float distance=0;glm::ivec3 normal(0);
+                if(BlockGeometry::pick(BlockDatabase::get().getDefinition(blockId),block,blockPosition,
+                        origin,direction,maxDistance,distance,normal)) {
+                    return BlockSelection{blockPosition,blockPosition+normal,
+                        origin+direction*distance,blockId,block.metadata};
+                }
+                previousPosition=blockPosition;continue;
+            }
             return BlockSelection{blockPosition, previousPosition,
                                   ray.getEnd(), blockId, block.metadata};
         }

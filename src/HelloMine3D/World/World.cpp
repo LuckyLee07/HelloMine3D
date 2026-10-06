@@ -1,4 +1,5 @@
 #include "World.h"
+#include "Block/BlockGeometry.h"
 
 #include <algorithm>
 #include <array>
@@ -644,7 +645,7 @@ void World::propagateBlockLight(
         LightLevel current =
             getBlockLightUnlocked(position.x, position.y, position.z);
         LightLevel desired = blockEmission(block);
-        if (!block.getData().isOpaque) {
+        if (!block.getData().blocksLight) {
             for (const glm::ivec3 &offset : LightOffsets) {
                 const glm::ivec3 adjacent = position + offset;
                 const LightLevel adjacentLight = getBlockLightUnlocked(
@@ -674,7 +675,7 @@ void World::propagateBlockLight(
             const glm::ivec3 adjacent = position + offset;
             const ChunkBlock adjacentBlock =
                 getBlockUnlocked(adjacent.x, adjacent.y, adjacent.z);
-            if (adjacentBlock.getData().isOpaque ||
+            if (adjacentBlock.getData().blocksLight ||
                 getBlockLightUnlocked(adjacent.x, adjacent.y, adjacent.z) >=
                     propagated) {
                 continue;
@@ -886,6 +887,8 @@ void World::reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
 
 void World::setBlock(int x, int y, int z, ChunkBlock block)
 {
+    if(!BlockGeometry::validMetadata(block))
+        throw std::invalid_argument("Architectural block metadata must be in [0,3].");
     if (y <= 0)
         return;
 
@@ -2431,7 +2434,9 @@ bool World::canOccupyCombatPosition(const MobActor &mob,
                 const BlockDefinition &definition =
                     BlockDatabase::get().getDefinition(
                         static_cast<BlockId>(block.id));
-                if (definition.collidable) {
+                if (BlockGeometry::collides(definition,block,{x,y,z},
+                    {{candidate.x-mob.box.dimensions.x,candidate.y,candidate.z-mob.box.dimensions.z},
+                     {candidate.x+mob.box.dimensions.x,candidate.y+mob.box.dimensions.y*2.f,candidate.z+mob.box.dimensions.z}})) {
                     return false;
                 }
             }
@@ -2474,8 +2479,9 @@ bool World::hasCombatLineOfSight(const MobActor &attacker,
         const ChunkBlock block = getBlock(
             toBlockCoord(sample.x), toBlockCoord(sample.y),
             toBlockCoord(sample.z));
-        if (BlockDatabase::get().getDefinition(
-                static_cast<BlockId>(block.id)).collidable) {
+        const glm::ivec3 cell(toBlockCoord(sample.x),toBlockCoord(sample.y),toBlockCoord(sample.z));
+        const auto &definition=BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
+        if (BlockGeometry::collides(definition,block,cell,{sample-glm::vec3(.001f),sample+glm::vec3(.001f)})) {
             return false;
         }
     }
@@ -2761,8 +2767,8 @@ CombatProjectileRemovalReason World::stepCombatProjectile(
             for (int y = minimumY; y <= maximumY; ++y) {
                 for (int z = minimumZ; z <= maximumZ; ++z) {
                     const ChunkBlock block = getBlock(x, y, z);
-                    if (BlockDatabase::get().getDefinition(
-                            static_cast<BlockId>(block.id)).collidable) {
+                    if (BlockGeometry::collides(BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id)),block,{x,y,z},
+                            {sample-glm::vec3(projectile.radius),sample+glm::vec3(projectile.radius)})) {
                         projectile.position = sample;
                         return CombatProjectileRemovalReason::Blocked;
                     }
@@ -3305,6 +3311,18 @@ World::WildlifeStepResult World::tryWildlifeStep(
     if (current[0] > current[1] || current[2] > current[3] ||
         target[0] > target[1] || target[2] > target[3])
         return WildlifeStepResult::Blocked;
+    const auto supportTop=[&](const ChunkBlock &block,int x,int y,int z,const glm::vec3 &point) {
+        float top=-std::numeric_limits<float>::infinity();
+        const auto &definition=BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
+        BlockGeometry::collisionBoxes(definition,block,{x,y,z},[&](const BlockGeometry::Bounds &part) {
+            if(point.x+halfDimensions.x>part.minimum.x+epsilon && point.x-halfDimensions.x<part.maximum.x-epsilon &&
+               point.z+halfDimensions.z>part.minimum.z+epsilon && point.z-halfDimensions.z<part.maximum.z-epsilon)
+                top=std::max(top,part.maximum.y);
+        });return top;
+    };
+    const auto bodyHits=[&](const ChunkBlock &block,int x,int y,int z,const glm::vec3 &minimum,const glm::vec3 &maximum) {
+        return BlockGeometry::collides(BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id)),block,{x,y,z},{minimum,maximum});
+    };
     const int below = toBlockCoord(from.y - epsilon);
     bool supported = false;
     for (int x = current[0]; x <= current[1]; ++x)
@@ -3313,7 +3331,8 @@ World::WildlifeStepResult World::tryWildlifeStep(
             if (block == nullptr) return failure();
             if (block->id == static_cast<Block_t>(BlockId::Water))
                 return WildlifeStepResult::Blocked;
-            supported |= block->getData().isCollidable;
+            supported |= BlockGeometry::usesCompound(static_cast<BlockId>(block->id))
+                ?std::abs(supportTop(*block,x,below,z,from)-from.y)<=epsilon:block->getData().isCollidable;
         }
     if (!supported) {
         // A removed support must cause a fall even while resting. Only inspect
@@ -3326,9 +3345,9 @@ World::WildlifeStepResult World::tryWildlifeStep(
                 for (int z = current[2]; z <= current[3]; ++z) {
                     const auto* block = read(x, y, z);
                     if (block == nullptr) return failure();
-                    if (block->getData().isCollidable ||
-                        block->id == static_cast<Block_t>(BlockId::Water)) {
-                        landing = std::max(landing, float(y + 1));
+                    const float top=supportTop(*block,x,y,z,from);
+                    if ((top<=from.y+epsilon && top>=landing) || block->id == static_cast<Block_t>(BlockId::Water)) {
+                        landing = std::max(landing, block->id==static_cast<Block_t>(BlockId::Water)?float(y+1):top);
                         landed = true;
                     }
                 }
@@ -3353,7 +3372,8 @@ World::WildlifeStepResult World::tryWildlifeStep(
             for (int y = sourceFeet; y <= sourceTop; ++y) {
                 const auto* block = read(x, y, z);
                 if (block == nullptr) return failure();
-                if (block->getData().isCollidable ||
+                if (bodyHits(*block,x,y,z,{from.x-halfDimensions.x,from.y,from.z-halfDimensions.z},
+                             {from.x+halfDimensions.x,from.y+halfDimensions.y*2.f,from.z+halfDimensions.z}) ||
                     block->id == static_cast<Block_t>(BlockId::Water))
                     return WildlifeStepResult::Blocked;
             }
@@ -3362,11 +3382,11 @@ World::WildlifeStepResult World::tryWildlifeStep(
     // local support probes. All corners need real, dry support; when straddling
     // an ordinary one-block stair, use its highest support rather than requiring
     // all corners to change floor height in a single horizontal movement.
-    int lowestFeet = std::numeric_limits<int>::max();
-    int highestFeet = 0;
+    float lowestFeet = std::numeric_limits<float>::max();
+    float highestFeet = 0;
     for (int x = target[0]; x <= target[1]; ++x)
         for (int z = target[2]; z <= target[3]; ++z) {
-            int cornerFeet = 0;
+            float cornerFeet = 0;
             for (int supportFeet : {base + 1, base, base - 1}) {
                 if (supportFeet < 1 || supportFeet > 254) continue;
                 const auto* block = read(x, supportFeet - 1, z);
@@ -3374,8 +3394,9 @@ World::WildlifeStepResult World::tryWildlifeStep(
                 if (block->id == static_cast<Block_t>(BlockId::Water) ||
                     block->id == static_cast<Block_t>(BlockId::OakLeaf))
                     return WildlifeStepResult::Blocked;
-                if (block->getData().isCollidable) {
-                    cornerFeet = supportFeet;
+                const float top=supportTop(*block,x,supportFeet-1,z,to);
+                if (std::isfinite(top) && top<=from.y+1.f+epsilon) {
+                    cornerFeet = top;
                     break;
                 }
             }
@@ -3384,17 +3405,19 @@ World::WildlifeStepResult World::tryWildlifeStep(
             highestFeet = std::max(highestFeet, cornerFeet);
         }
     if (highestFeet - lowestFeet > 1) return WildlifeStepResult::Blocked;
-    const int feet = highestFeet;
+    const float feet = highestFeet;
 
     // Descents still cross at the source height before lowering at the target.
     // The destination's lower slab must be clear; its probes are cached from
     // the support search. Ascents clear the current vertical channel first.
     for (int x = target[0]; x <= target[1]; ++x)
         for (int z = target[2]; z <= target[3]; ++z)
-            for (int y = feet; y < base; ++y) {
+            for (int y = toBlockCoord(feet); feet < from.y - epsilon &&
+                 y <= toBlockCoord(from.y - epsilon); ++y) {
                 const auto* block = read(x, y, z);
                 if (block == nullptr) return failure();
-                if (block->getData().isCollidable ||
+                if (bodyHits(*block,x,y,z,{to.x-halfDimensions.x,feet,to.z-halfDimensions.z},
+                             {to.x+halfDimensions.x,from.y+halfDimensions.y*2.f,to.z+halfDimensions.z}) ||
                     block->id == static_cast<Block_t>(BlockId::Water))
                     return WildlifeStepResult::Blocked;
             }
@@ -3402,20 +3425,21 @@ World::WildlifeStepResult World::tryWildlifeStep(
          x <= std::max(current[1], target[1]); ++x)
         for (int z = std::min(current[2], target[2]);
              z <= std::max(current[3], target[3]); ++z)
-            for (int y = std::max(base, feet);
-                 y <= toBlockCoord(std::max(base, feet) +
+            for (int y = toBlockCoord(std::max(from.y, feet));
+                 y <= toBlockCoord(std::max(from.y, feet) +
                      halfDimensions.y * 2.f - epsilon); ++y) {
                 const auto* block = read(x, y, z);
                 if (block == nullptr) return failure();
-                if (block->getData().isCollidable ||
+                if (bodyHits(*block,x,y,z,{std::min(from.x,to.x)-halfDimensions.x,std::max(from.y,feet),std::min(from.z,to.z)-halfDimensions.z},
+                             {std::max(from.x,to.x)+halfDimensions.x,std::max(from.y,feet)+halfDimensions.y*2.f,std::max(from.z,to.z)+halfDimensions.z}) ||
                     block->id == static_cast<Block_t>(BlockId::Water))
                     return WildlifeStepResult::Blocked;
             }
     settled = {to.x, float(feet), to.z};
     if (grounded != nullptr) *grounded = true;
     if (pathKind != nullptr)
-        *pathKind = feet > base ? WildlifeMotionPath::SupportRise :
-            feet < base ? WildlifeMotionPath::SupportDescent :
+        *pathKind = feet > from.y + epsilon ? WildlifeMotionPath::SupportRise :
+            feet < from.y - epsilon ? WildlifeMotionPath::SupportDescent :
             WildlifeMotionPath::GroundedLevel;
     return WildlifeStepResult::Allowed;
 }

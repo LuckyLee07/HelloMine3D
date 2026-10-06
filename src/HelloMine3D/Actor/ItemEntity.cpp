@@ -4,9 +4,12 @@
 #include "../Sandbox/Events/EntityEvents.h"
 #include "../Sandbox/Events/PlayerEvents.h"
 #include "../World/World.h"
+#include "../World/Block/BlockGeometry.h"
+#include "../World/Block/BlockDatabase.h"
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 ItemEntity::ItemEntity(ActorId id, Material::ID materialId, int amount,
                        const glm::vec3 &actorPosition)
@@ -127,15 +130,42 @@ void ItemEntity::applyPickupAttraction(World &world, float dt)
 
 void ItemEntity::updatePhysics(World &world, float dt)
 {
+    const float previousBottom = position.y - 0.05f;
     velocity.y -= 20.f * dt;
     position += velocity * dt;
 
     const int x = World::toBlockCoord(position.x);
     const int y = World::toBlockCoord(position.y - 0.05f);
     const int z = World::toBlockCoord(position.z);
-    auto block = world.getBlock(x, y, z);
-    if (block != 0 && block.getData().isCollidable && velocity.y <= 0.f) {
-        position.y = static_cast<float>(y) + 1.05f;
+    const auto block = world.getBlock(x, y, z);
+    float support = -std::numeric_limits<float>::infinity();
+    if (velocity.y <= 0.f) {
+        // Keep the legacy point footprint and padding, but use actual part
+        // tops for architectural cells. The bounded vertical sweep also catches
+        // a thin rim or half step crossed within this simulation tick.
+        const float bottom = position.y - 0.05f;
+        for (int cellY = std::max(0, y);
+             cellY <= std::min(255, World::toBlockCoord(previousBottom)); ++cellY) {
+            const auto candidate = cellY == y ? block : world.getBlock(x, cellY, z);
+            if (!BlockGeometry::usesCompound(static_cast<BlockId>(candidate.id)))
+                continue;
+            const auto &definition = BlockDatabase::get().getDefinition(
+                static_cast<BlockId>(candidate.id));
+            BlockGeometry::collisionBoxes(definition, candidate, {x, cellY, z},
+                [&](const BlockGeometry::Bounds &part) {
+                    if (position.x >= part.minimum.x && position.x < part.maximum.x &&
+                        position.z >= part.minimum.z && position.z < part.maximum.z &&
+                        bottom <= part.maximum.y &&
+                        (previousBottom >= part.maximum.y || bottom >= part.minimum.y))
+                        support = std::max(support, part.maximum.y);
+                });
+        }
+        if (!BlockGeometry::usesCompound(static_cast<BlockId>(block.id)) &&
+            block != 0 && block.getData().isCollidable)
+            support = std::max(support, static_cast<float>(y) + 1.f);
+    }
+    if (std::isfinite(support)) {
+        position.y = support + 0.05f;
         if (velocity.y < -1.f && m_groundBounces < MaxGroundBounces) {
             velocity.y = -velocity.y * 0.24f;
             ++m_groundBounces;

@@ -1,5 +1,17 @@
 #version 150
 
+// The legacy branch keeps authored display colours untouched. HDR scene
+// shaders decode colour inputs before lighting/blending; alpha/data stay raw.
+uniform float linearHdrMode;
+vec3 sceneColour(vec3 authored)
+{
+    if (linearHdrMode < 0.5) return authored;
+    vec3 c = max(authored, vec3(0.0));
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)),
+               step(vec3(0.04045), c));
+}
+
+
 in vec3 waterWorldPosition;
 in vec3 waterWorldNormal;
 in float waterLight;
@@ -48,7 +60,7 @@ vec3 directionalFogColour(vec3 viewDirection)
     float directionLength = length(viewDirection);
     if (directionLength < 0.00001)
     {
-        return fogColour;
+        return sceneColour(fogColour);
     }
     vec3 normalisedView = viewDirection / directionLength;
     vec2 viewHorizontal = normalisedView.xz;
@@ -57,7 +69,7 @@ vec3 directionalFogColour(vec3 viewDirection)
     float sunLength = length(sunHorizontal);
     if (viewLength < 0.00001 || sunLength < 0.00001)
     {
-        return fogColour;
+        return sceneColour(fogColour);
     }
     float horizonAmount = 1.0 - smoothstep(
         0.12, 0.65, abs(normalisedView.y));
@@ -65,7 +77,7 @@ vec3 directionalFogColour(vec3 viewDirection)
                               sunHorizontal / sunLength), 0.0);
     float amount = clamp(fogDirectionalStrength * horizonAmount *
                          alignment * alignment * alignment, 0.0, 1.0);
-    return mix(fogColour, fogSunwardColour, amount);
+    return sceneColour(mix(fogColour, fogSunwardColour, amount));
 }
 
 float surfaceStreak(vec2 position)
@@ -89,13 +101,13 @@ void main()
     // The environment palette already contains outdoor daylight. A sealed
     // pool needs a stable material colour before its propagated local light
     // is applied; otherwise torch-lit water still goes dark every night.
-    vec3 shallowColour = mix(vec3(0.12, 0.43, 0.53), waterShallowColour, skyAvailability);
-    vec3 deepColour = mix(vec3(0.018, 0.15, 0.24), waterDeepColour, skyAvailability);
+    vec3 shallowColour = mix(sceneColour(vec3(0.12, 0.43, 0.53)), sceneColour(waterShallowColour), skyAvailability);
+    vec3 deepColour = mix(sceneColour(vec3(0.018, 0.15, 0.24)), sceneColour(waterDeepColour), skyAvailability);
     vec3 bodyColour = mix(shallowColour, deepColour, depthAmount);
 
     float skyAmount = clamp(normal.y * 0.72 + (1.0 - facing) * 0.28,
                             0.0, 1.0);
-    vec3 reflectedSky = mix(bodyColour * 0.72, mix(skyHorizonColour, skyZenithColour, skyAmount), skyAvailability);
+    vec3 reflectedSky = mix(bodyColour * 0.72, mix(sceneColour(skyHorizonColour), sceneColour(skyZenithColour), skyAmount), skyAvailability);
     vec3 colour = mix(bodyColour, reflectedSky, fresnel * 0.72);
 
     float motion = clamp(length(waterSurfaceDrift), 0.0, 1.0);
@@ -110,7 +122,7 @@ void main()
         shore * (1.0 - shore) * waterDetailStrength *
         mix(0.35, 1.0, motion) * detailVisibility;
     colour *= 1.0 - shore * 0.08 * waterDetailStrength;
-    colour += mix(shallowColour, vec3(0.73, 0.85, 0.81), 0.65) * ripple * 0.38;
+    colour += mix(shallowColour, sceneColour(vec3(0.73, 0.85, 0.81)), 0.65) * ripple * 0.38;
 
     // Two overlapping advection phases reset only at zero weight. Their
     // bounded offsets avoid long-session stretching or a visible time seam.
@@ -126,7 +138,7 @@ void main()
     vec3 halfDirection = normalize(viewDirection + normalize(sunDirection));
     float sunSparkle = pow(max(dot(normal, halfDirection), 0.0), 48.0) *
                        sunIntensity * skyAvailability;
-    colour += sunColour * sunSparkle * 0.20;
+    colour += sceneColour(sunColour) * sunSparkle * 0.20;
 
     float diffuseLight = mix(0.70, 1.0, clamp(waterLight, 0.0, 1.0));
     float exposure = mix(0.48, 1.0, environmentLight);
@@ -148,7 +160,7 @@ void main()
         0.0, 1.0);
     vec3 localFogColour = directionalFogColour(
         waterWorldPosition - cameraPosition);
-    localFogColour = mix(vec3(0.035, 0.043, 0.054), localFogColour, skyAvailability);
+    localFogColour = mix(sceneColour(vec3(0.035, 0.043, 0.054)), localFogColour, skyAvailability);
     colour = mix(localFogColour, colour, fogVisibility);
     float surfaceAlpha = clamp(mix(0.36, 0.84, depthAmount) + fresnel * 0.12,
                                0.36, 0.94);
@@ -160,6 +172,6 @@ void main()
     // of the sky. Shared surface heights preserve chunk continuity.
     float crossingWidth = mix(1.0, 0.35, aboveSurface);
     alpha *= smoothstep(0.10, crossingWidth, abs(eyeHeight));
-    fragmentColour = vec4(clamp(colour, 0.0, 1.0),
+    fragmentColour = vec4(linearHdrMode > 0.5 ? max(colour, vec3(0.0)) : clamp(colour, 0.0, 1.0),
         alpha * viewRangeCoverage(waterWorldPosition));
 }

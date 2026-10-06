@@ -424,10 +424,14 @@ BlockDefinition makeDefinition(const std::string &fileName,
     definition.requiredToolTier = data.requiredToolTier;
     definition.wrongToolDrops = data.wrongToolDrops;
     definition.collidable = data.isCollidable;
-    definition.transparent = !data.isOpaque;
+    definition.occludesFaces = data.occludesFaces;
+    definition.fullCellSolid = data.fullCellSolid;
+    definition.aoOccluder = data.aoOccluder;
+    definition.blocksLight = data.blocksLight;
+    definition.transparent = !data.occludesFaces;
     definition.liquid = data.id == BlockId::Water ||
                         data.shaderType == BlockShaderType::Liquid;
-    definition.solid = data.isOpaque && data.isCollidable;
+    definition.solid = data.fullCellSolid;
     definition.light = data.light;
     definition.defaultDrop = Material::toMaterial(data.id).id;
     definition.render.texTopCoord = data.texTopCoord;
@@ -520,6 +524,8 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::ForestFloor, "ForestFloor");
     addBlock(BlockId::MossStone, "MossStone");
     addBlock(BlockId::Silt, "Silt");
+    addBlock(BlockId::StoneStep, "StoneStep");
+    addBlock(BlockId::StoneWindowFrame, "StoneWindowFrame");
 }
 
 BlockDatabase &BlockDatabase::get()

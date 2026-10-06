@@ -52,7 +52,7 @@ Premake 从共享的 `src/HelloMine3D` 与资源边界生成 `build/` 下工程�
 | `Maths/` | 13 / 375 | GLM 边界、矩阵、frustum、ray、坐标与噪声算法。 | 以纯值/纯算法为主，无运行时组合根。 | 被各层使用；个别旧 helper 仍引用 Camera/Entity/World 常量。 |
 | `Util/` | 11 / 823 | 文件、路径、资源包解析、随机和通用容器/生命周期 helper。 | effective resource view 从磁盘资源派生；随机单例只用于明确允许的非确定性入口。 | 被多数数据/运行时模块使用，不拥有 Gameplay。 |
 | `Tests/` | 16 / 20,868 | 13 个 headless/Smoke/Soak 目标及崩溃符号化工具。 | 仅验证证据；fixture 和注入不构成真实窗口可玩性。 | 可依赖所有受测模块；生产模块不得依赖 Tests。 |
-| root `Config.h`, `GameplayInput.*`, `RuntimeConfig.*` | 5 / 1,373 | 平台无关输入语义、绑定/冲突/hold-mode、内存配置和 settings v11 解析/原子发布。 | 已加载 `Config` 是应用配置真值；磁盘 `settings.txt` 是持久来源，UI draft 是派生/待提交。 | 被 Ogre 输入壳、Sandbox、Core、Audio/Feedback 和 World 创建入口消费。 |
+| root `Config.h`, `GameplayInput.*`, `RuntimeConfig.*` | 5 / 1,373 | 平台无关输入语义、绑定/冲突/hold-mode、内存配置和 settings v12 解析/原子发布。 | 已加载 `Config` 是应用配置真值；磁盘 `settings.txt` 是持久来源，UI draft 是派生/待提交。 | 被 Ogre 输入壳、Sandbox、Core、Audio/Feedback 和 World 创建入口消费。 |
 
 ## 3. Current Dependency Direction
 
@@ -635,7 +635,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；新世界 terrain generation 为独立 v28，旧 v1–v27 身份保留；settings 当前为独立 v11（新增可持久化第一/第三人称请求，含 v10 三档小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v28，旧 v1–v27 身份保留；settings 当前为独立 v12（新增 legacy／linear-hdr 管线请求；含 v11 第一/第三人称、v10 小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。
@@ -1028,6 +1028,24 @@ live section revision 和 GpuResident 状态，不用预置 revision 代替生�
 shader 重放与正常着色分开。每次 GPU 读取／重放后重新查询并核对状态恢复，包括独立 draw/read
 FBO 的 read selector。最多 24 帧、每帧 256 UI 标记／32 操作、64 个纹理身份、不可变观察载荷 512 MiB；
 index.json重写与Root原图另计，本批九帧、实际2560×1440帧尺寸另行约束。库存注入、静态地图和冻结模拟不证明普通采集、使用或连续移动。
+
+### 参考画质首版边界
+
+`HdrPipeline` 只持有 Ogre viewport 的视觉资源。新 `linear-hdr` 请求在实际 RGBA16F 探测保留大于 1
+的颜色后启用；固定尺寸 scene RTT 防止 Ogre 自动 resize 提前分配，重建前检查最多 3840×2160
+像素，失败完整退回 legacy，并同步天空、洞界等克隆材质。场景 shader 显式转到线性颜色，固定
+曝光 resolve 完成显示转换；HUD 继续在主窗口末绘。legacy 的旧 Off／On 保持，HDR Off 仍需
+resolve。切换管线保存 settings v12 请求并要求重启，能力回退不改写请求。
+
+`BlockShape` v2 是单格内最多八个按 1/8 m 离散的盒，缓存四向表面和碰撞盒。新增 `StoneStep`
+与 `StoneWindowFrame` 追加 ID 33／34，metadata 0–3 保存朝向；已有 ID 和 metadata 语义保持。
+`BlockGeometry` 被地形、选取、碰撞、反馈和物品视觉共同消费。部分形状不当作整格面遮挡、AO
+遮挡或实心层；光传播首版仍按格处理。掉落物支撑与野生动物半格路径使用实际盒面。
+
+`ReferenceVisualScene` 仅在明确新建且 save/catalogue 为空时通过 World 编辑固定临水样板。
+普通重新打开读取已保存世界，不重复注入。范围和证据见
+[首版合同](../contracts/reference-visual-prototype-contract-v1.md)与
+[执行记录](../reports/reference-visual-prototype-execution-2026-10-06.md)。
 
 ## 12. Frozen Version and Boundary Facts
 
