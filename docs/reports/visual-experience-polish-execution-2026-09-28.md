@@ -2,7 +2,11 @@
 
 ## 恢复区
 
-- **当前检查点：2026-10-06 V10s：小窗口制作、暂停与设置布局修复并限定复验通过；完整 Goal active。**
+- **当前检查点：2026-10-06 V07i：当前自然林兔辨识与短时运动补证；完整 Goal active。**
+  复用clean `823a2086`／V10s Release `a2e36575…34dd2`，三次独立自然森林诊断各八原PNG，native均正常0／无signal或timeout／已回收。第二、三会话只沿既有有界诊断相机移近；玩家保持原位，无动物／库存／块注入。自然兔双耳与短身可辨，多时点位置改变；短序列请求100毫秒，但实际仅43.002／43.298／43.852秒三个不同画面，重复帧保留。不关闭具体AI state、实测近距、完整脚掌步态、滑步或连续GPU跨阶。
+  没有生产源码／资源变化或重建；旧工程门禁复用，普通交付包保持V10s身份。三精选原图追加至63轮243图，旧62轮240对象与index字面前缀保持；本批会话／采集handle已终态。当前CUA没有持续hold API，准备的原生辅助器只作dry-run、系统输入权限为false，没有发送输入或变更系统权限；继续其他自然动物／场景动态与全部普通路线余项，不追加人工核验或其他角度全无遮挡门槛。
+
+- **历史检查点：2026-10-06 V10s：小窗口制作、暂停与设置布局修复并限定复验通过；完整 Goal active。**
   起点`028638ef`，仅OgreUserInterface.cpp布局改变；最终r4 Release `a2e36575…34dd2`／Debug `b1786887…0352`正常构建通过、首方warning0，424输入及2967源快照保持。旧V10p领域／资源／反馈门禁按未变输入复用，不标成此次重跑。
   独立`v10s/Workbench.app`复制实际V10r最终15保存文件，无新库存／位姿／token注入。640×480点／1.75中英文制作Load和九格完整、当前与短时反馈分离，ClearGrid／材料滚动可达；暂停Resume／Settings、固定Esc及滚动SaveMain／SaveQuit实际点通；设置首个编辑行与三个按钮完整，错误首末行独立滚动，无效Apply配置保持、Cancel恢复草稿、字幕位于面板下方。
   原制作正文裁切、r1制作字幕重叠和r3设置字幕重叠均保留，r2／r3／r4分别修复，真实producer身份不回写。最终公开设置恢复1280×720／zh-CN／ui1，配置SHA逐字节恢复`70d9f6e9…16047`；新PID23103普通Continue后的Pause／Settings／Workbench另验，箱子1／木板8、18继承token及Workbench块保持。全部Root会话公开保存退出，精确PID无进程，native退出码不可得。
@@ -4436,3 +4440,52 @@ CUA首次绑定1145.65秒归工具延迟；首次普通open的LS −10827与正�
 地表林地／河岸／岩坡和代表地标、三种子地下资源往返、四水域进入退出、材质／天空阴影／植被／动物动态，
 以及受影响的近墙／坡面与最终覆盖整合。复用既有有效证据，不新增全页面×状态×尺寸组合或旧未受影响声音／盲玩签字门槛；
 用户持续行走确认保持，严格配对性能DEFERRED_BY_USER。
+
+
+## V07i：当前自然林兔辨识与短时位置观察（2026-10-06）
+
+复用中文提交`823a2086`的干净V10s普通交付包；Release native
+`a2e36575d224a13bda4c086eaef17240c740af8db55214297c80525f2e634dd2`。
+没有生产源码、资源或生成修改，没有重建或重跑已保持的工程门禁。
+Root唯一GPU操作者，用现有`capture_visual_macos.py`复制新的独立诊断世界，不启动用户After或读取其新世界。
+
+### 实际场景与终态
+
+三会话均seed20260807／terrain31、初始time6000，player`976.5 82 -3.5`、rotation`12 0 0`，
+FOV90／RD8／Medium阴影／postOff／feedbackOff／first／中文1倍，1280×720点／Retina2。
+没有gallery、动物、库存或方块夹具，也没有正常移动输入；动物沿真实World自然种群及Actor帧链运行。
+每个原PNG均2560×1440，不裁切、放大或调色。
+
+| 会话 | 真实原件与结果 |
+| --- | --- |
+| `forest-natural-current-r1` | PID27810、61.641秒，6／12／18／24／30／36／48／56秒八原图。36秒起左侧兔双长耳／短身可辨，48／56秒树前与右中距可见，位置改变。12秒未确认，不能从早期未辨认到动物断言未生成。 |
+| `forest-natural-close-r2` | PID28384、61.173秒，24／28／32／36／40／44／48／56秒八原图。仅使用已有相机sweep`-4 0 -4 -25 4 20`；24秒后render camera固定`972.5 82.6 -7.5`／`16 -25`，player始终原位。40／44／48秒兔在树前向左，外观可辨，仍未实测兔与相机距离。 |
+| `forest-natural-motion-r3` | PID28636、48.547秒，相同相机条件。请求43000…43700ms的八个目标，实际日志为43002、43298、43298、43852×5；仅三个不同PNG SHA，独立画面相隔296／554ms。可见短时左移与少量姿态变化，不能称八个独立100ms运动帧或连续动作通过。所有重复原件保留，未改采集guard或再采。 |
+
+三个native均正常exit0、signal null、无timeout且已reaped；完整Ogre关闭日志保留。
+`session-r1.json` SHA `7220c056…faf1`保存实际命令、时刻、原帧SHA、存档与终态。
+三世界保存的player position／rotation／health20及空库存保持；natural wildlife不持久化，
+`actor_count0`不能用来推断不存在自然兔。源码映射中LightForest与TemperateForest共同返回Rabbit，
+不会把只读检索遗漏相邻case的初步判断写成栖息地缺陷。
+
+### 限定独立复核与保留
+
+`forest-natural-independent-review-r1.json` SHA `cb627bd5…efd09`：13/13有限检查，
+实际看完八图、SHA／CRC／完整RGB解码、真实native／config／log与源包保护。
+扩展`forest-natural-independent-review-r2.json` SHA `2d2a5680…5d82d`：18/18收据身份／范围检查，
+实际看完r2／r3的16图及相应完整性；复用r1，不重复扫描其PNG。
+复核明确保留r3三个不同渲染画面的边界；不把采集工具CAPTURED改称100ms cadence或具体AI状态通过。
+
+三当前原图逐字节复制至`.local-evidence/visual-polish-20260928/v07i-natural-forest-rabbits-r1/`：
+r1的48秒、r2的40／48秒。归档63轮243图，旧62轮240 manifest对象与index字面前缀保持，
+未重扫旧媒体。初次本轮scope文字误称八个100ms间隔原件，独审后仅更正本轮scope，
+原初始manifest冻结保留；以`archive-scope-addendum-r2.json` SHA `a0e1df8f…77f2f`和最终
+manifest SHA `070d1dbd…02f4c4`为准，原PNG与index没有变化。
+V10s原交付137完整文件及两个未读规划SHA前后保持，未操作用户客户端、存档或系统权限。
+文档补证后仍复用V10s原提交／native／正常配置身份，不因文档提交重新打包；本地中文提交、不推送／发布／标签。
+
+本轮只补此前未确认的当前自然兔辨识与分时位置变化，不能关闭普通三栖息地遭遇、实测近距、
+具体Rest／Forage／Wander／Flee过渡、完整脚掌与无滑步、连续GPU跨阶／坡面或完整V07。
+CUA当前说明仍没有持续hold，原生辅助器只有编译／dry-run且系统输入权限false，没有发送输入；
+普通采集发现／制作、地图关闭→移动→重开／编辑、地表地标和三种子地下／四水域路线仍留账。
+其他自然动物与场景动态仍可继续，完整V00–V11和Goal保持Doing／active；严格性能DEFERRED_BY_USER。
