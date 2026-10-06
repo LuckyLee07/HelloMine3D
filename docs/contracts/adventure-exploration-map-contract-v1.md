@@ -218,6 +218,30 @@ Retina2 通过。5508 项原输入保持，15 个保护包共2110个完整文件
 详见[实际会话](../../build/visual-experience-polish-20260928/v06d/ordinary-ui-r2/session-r1.json)及
 [独立复核](../../build/visual-experience-polish-20260928/v06d/ordinary-ui-r2/independent-review-r1.json)。
 
+### V10l 普通按钮平移与同会话无移动重开（2026-10-06）
+
+普通工作包沿用正式运行时4f6d0c55／Release `10c392d3…e6356`，新PID34184／窗口4425。
+Root唯一操作公开CUA，Continue进入42，平面页显示原基地X36 Z54、追踪及1/64。
+正式加号将范围固定为475×282 m；帮助弹层的 `>` 与 `^` 各点击一次后，Root记录
+地形／玩家／基地内容向左下移动，范围、北向与标记身份保持。这是正式按钮平移，不是右拖。
+Esc关闭地图后，没有发送游戏移动输入；Tab加小地图重开仍为Flat、475×282 m并保留平移视口。
+再点“回到玩家”同时复位平移及缩放，恢复594×353 m，与此前同按钮居中基线对照。
+
+五张2560×1496完整原PNG及准确窗口回执、24存档文件和原日志另存 `v06d/ordinary-ui-r3/`，
+首两会话冻结原件保持。只有同世界、同会话、无玩家移动的关闭重开；不声明切世界或跨进程
+保留视口，也不关闭右拖、关闭—移动—重开、连续路线、普通水岸编辑或完整V10。
+普通保存并退出后日志08:24:54完整Ogre关闭，Root pgrep query exit1／空输出，native自身
+退出码不可得。原件与Root实际输入记录见
+[会话](../../build/visual-experience-polish-20260928/v06d/ordinary-ui-r3/session-r1.json)。
+独立只读复核86／86通过：003／004和002／005的地图内区 `[196,370,1790,1315]` 各
+1,506,330个RGB像素完全相同，分别支持无移动重开及主动复位；不称全PNG或侧栏逐像素相同。
+001→003在有限内区的最佳对应为左108／下108像素，98.2606%像素相等、RGB通道MAE0.31065；
+两图不是相邻抓图，侧栏轻微RGB差异保留，不能推断右拖或玩家移动。
+八份地图完整解码／FNV有效，42原hmap的5329已知4 m格、Home1、tracked1与保存位姿保持，
+metadata只有正常时间字段变化；另两世界各六文件字节保持，24存档live／copy／记录一致。
+详见[独立复核](../../build/visual-experience-polish-20260928/v06d/ordinary-ui-r3/independent-review-r1.json)；精选来源见
+[归档回执](../../build/visual-experience-polish-20260928/v06d/ordinary-ui-r3/selected-archive-r1.json)。
+
 ## 当前 B5a／B5b 证据与后续门禁
 
 `ExplorationAtlas` 的聚焦检查覆盖未知／已知空列、负坐标和整数极值、更新、非法数据、

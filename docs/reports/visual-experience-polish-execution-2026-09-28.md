@@ -2,7 +2,17 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V10k：普通跨进程重开与第三世界标记隔离专项完成，完整 V01–V11 仍 Doing，Goal active。**
+- **当前：2026-10-06 V10l：普通按钮平移、无移动关闭重开与回到玩家复位专项完成，完整 V01–V11 仍 Doing，Goal active。**
+  正式运行时仍4f6d0c55／Release `10c392d3…e6356`，前批文档HEAD为2c9b74ca；正常源码、构建产物和正式包不改，不重复构建。
+  Root唯一公开CUA输入，同一普通工作包新PID34184／主窗口4425 Continue42；正式加号固定475×282 m，帮助弹层 `>` 与 `^` 各一次后内容左下平移。
+  Esc关闭后游戏移动输入0，Tab加小地图重开仍Flat、475×282 m且平移保持；“回到玩家”同时复位平移／缩放至594×353 m，对照同会话居中基线。
+  五张2560×1496完整原PNG、24存档文件与原日志另存 `v06d/ordinary-ui-r3/`，独立86／86通过；重开／居中两对地图内区各1,506,330个RGB像素全同，八地图FNV有效，原标记／位姿保持。侧栏轻微RGB差异保留，不称全PNG全等。
+  Root保护／证据核验35项PASS：5508原输入、15保护包2110完整文件、用户135管理项、普通初始137文件及首两会话冻结证据保持；见 `ordinary-ui-r3/root-protection-r1.json`。
+  普通保存并退出后08:24:54完整Ogre关闭，Root pgrep query exit1／空输出，无游戏PID；native自身退出码不可得。本次窗口会话已退出。
+  精选现45轮183张，旧44轮180图对象与字节保持；新增001固定缩放平移前、003按钮平移后、004无移动重开后三原图。
+  r2提交后helper将launcher当实际二进制的失败已保留；核对正确Resources/bin路径后postcommit-r2 PASS，属helper假设错误，非游戏异常。
+  右拖、关闭—移动—重开、连续路线、水岸普通编辑、完整三种子路线及全部方向仍OPEN；完整Goal保持active，严格配对性能DEFERRED_BY_USER，详见文末V10l。
+- **历史检查点：2026-10-06 V10k：普通跨进程重开与第三世界标记隔离专项完成，完整 V01–V11 当时仍 Doing，Goal active。**
   正常运行时仍4f6d0c55／Release `10c392d3…e6356`，正式包 `v06c/After.app`不变；前批六份文档已本地提交4daabd7b，本批继续对应文档，未改正常源码／构建产物。
   同一 `v06d/OrdinaryWorkbench.app`真正重启为PID31861／主窗口4213，与首会话14432／3968不同；普通Continue42读回基地名称、X36Z54、基地／追踪1/64。
   普通菜单实际创建并进入239701883／terrain30，平面页0/64、无旧基地或追踪，保存切回42后原地图及追踪1/64恢复；结合前次20260807，三个世界标记隔离有普通流程证据。
@@ -3076,3 +3086,61 @@ Home1／X36Z54／tracked1保持，metadata仅last_played_utc／world_time正常�
 终态以 `ordinary-ui-r2/independent-review-r1.json`、`closure-verification-r1.json`及postcommit回执为准。
 完整V10与Goal继续Doing／active，连续普通路线、右拖公开能力、关闭—移动—重开、普通水域编辑
 及所有方向余项继续；严格配对性能DEFERRED_BY_USER，没有人工核验或新增批准关卡。
+
+## V10l：普通地图按钮平移、无移动重开与主动复位（2026-10-06）
+
+接续前批文档提交 `2c9b74caa984529efb41ab13929de0e84ba1b14d`，正式运行时仍4f6d0c55／
+Release `10c392d3…e6356`；只同步地图合同、验证矩阵、规划、当前待办与本报告，正常源码与包不改。
+Root唯一窗口操作者，公开CUA启动原普通工作包，实际2.9094秒返回；F8及准确窗口query确认
+新native PID34184／主窗口4425，普通Continue进入已有42世界，没有诊断位置／时间／库存注入。
+
+平面页原基地“岩台基地-V06d”X36 Z54、追踪及1/64保持。正式加号先固定475×282 m，
+捕获001；帮助弹层关闭后“回到玩家”恢复594×353 m，捕获002作为居中适配基线。
+再加号固定475×282 m，在帮助弹层对 `>` 与 `^` 各左键一次，关闭弹层后Root记录
+地形、玩家和基地内容向左下移动，北向、范围及标记身份保持，捕获003。
+Esc关闭地图返回普通世界，游戏移动输入为0；Tab加小地图重开时仍为Flat、475×282 m并
+保留平移视口，未再操作前捕获004。随后点击“回到玩家”同时复位平移和缩放，恢复594×353 m，
+捕获005与002基线对照。会话中没有切世界，不将此结果称右拖或跨进程视口保持。
+
+| 原件 | Root现场记录的用途 |
+| --- | --- |
+| `ordinary-ui-r3/001-fixed-zoom.png` | 正式加号固定475×282 m，按钮平移前。 |
+| `ordinary-ui-r3/002-center-baseline.png` | 第一次“回到玩家”的居中与594×353 m基线。 |
+| `ordinary-ui-r3/003-button-pan.png` | 固定范围下正式方向按钮平移后的内容位置。 |
+| `ordinary-ui-r3/004-close-reopen.png` | 同世界同会话无移动关闭重开，Flat、缩放与平移保持。 |
+| `ordinary-ui-r3/005-center-reset.png` | 第二次“回到玩家”同时复位平移及缩放。 |
+
+五张均为准确native34184／window4425的2560×1496完整原图，PNG与配套JSON的SHA匹配
+`ordinary-ui-r3/session-r1.json`。本节实际输入来源是Root现场会话，独立复核由原图／存档佐证
+其结果，没有重放窗口操作，也不由examiner_note代替图像检查。24个保存文件及原日志另存，r2的40个冻结
+证据文件保持；工作副本只写自己的正常日志／存档，普通配置未改。
+普通“保存并退出”后CUA返回App quit(-10005)，原日志08:24:54完整Ogre关闭；
+Root只读pgrep工具chunk `f67107` query exit1／空输出，无游戏PID，native自身退出码为UNAVAILABLE。
+
+独立[图像／存档复核](../../build/visual-experience-polish-20260928/v06d/ordinary-ui-r3/independent-review-r1.json)
+SHA `18591e97c3254c544d55e5f6e5fbc40f114b4d1cbb2599bc451ed34fe472f378`，86／86通过。
+直接查看五原PNG，并对未重采样的RGB区域比较：003／004的地图内区 `[196,370,1790,1315]`
+1,506,330像素完全相同；002／005同一区域也完全相同，指南针／标尺／范围区域亦对应相同。
+001→003有限内区最佳位移为 `[-108,+108]` px，98.2606%像素相等、每RGB通道MAE0.31065；
+001与003不是相邻抓图。侧栏存在很小RGB差异，原数值保留，不称全图或完整侧栏逐像素相等。
+可读基地名称、X36Z54、1/64与追踪保持；图像不声明内部缓存机制、右拖或连续玩家轨迹。
+八份实际main／backup地图完整解码且独立FNV有效，42原hmap SHA `9c485f99…cd4a`、5329已知
+4m格、Home1／tracked1及位置／朝向／出生保持，metadata仅world_time／last_played_utc正常变化。
+20260807与239701883各六文件字节保持，24存档live／copy／record一致，r2冻结40证据文件、
+普通初始137文件与五项相关源码身份保持；独立复核没有重复Root全量保护扫描或窗口输入。
+
+Root已完成[保护／证据核验](../../build/visual-experience-polish-20260928/v06d/ordinary-ui-r3/root-protection-r1.json)
+35项PASS：5508原输入、15保护包2110完整文件、用户包135管理项、普通初始137文件、r2冻结40证据
+文件及r1冻结18存档／4原图／日志保持；当前五原图、24存档、实际退出观察和45轮183张精选对应。
+这项核验不替代独立图像／存档复核，也不关闭本节范围以外的玩法缺项。
+
+前批r2提交后检查曾误用 `Contents/MacOS/HelloMine3D` launcher的SHA比较实际游戏二进制，
+`ordinary-ui-r2/postcommit-verification-failure-r1.json`保留该helper假设失败；改读
+`Contents/Resources/bin/HelloMine3D`及包身份后 `ordinary-ui-r2/postcommit-verification-r2.json` PASS，
+没有修改游戏或保护包，不把它记为程序异常。
+
+`ordinary-ui-r3/selected-archive-r1.json`记录旧44轮180图与round对象保持，追加001为before、
+003／004为after三张未裁剪原图，当前45轮183张，运行时身份仍4f6d0c55。
+只闭合正式按钮平移、同会话无玩家移动的缩放／平移关闭重开与主动回到玩家复位；
+右拖、关闭—移动—重开、连续路线、普通水岸编辑、切世界／跨进程视口保持及所有方向余项
+继续待验。完整V10与Goal保持Doing／active，严格配对性能DEFERRED_BY_USER，不新增人工关卡。
