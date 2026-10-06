@@ -4,8 +4,9 @@
 WorldRuntimeSmokeMain.cpp check() increments g_checkCount once per PASS/FAIL
 line, then main() emits checks/failures and a final status. The current full
 route includes caseHdrConfig, caseReferenceShapes and caseArchitecturalKit.
-Its exact 3264 checks were established by Release-full-world-r4.log after
-156 compound-light checks; focused architectural 377 must not satisfy this gate.
+Its exact 4465 checks were established by Debug/Release-full-world.log in
+water-boundary-clip-r2 after 1201 boundary-clipping checks; previous 3264-check
+full logs and focused architectural runs must not satisfy this current gate.
 New suite checks require an explicit count update with full-run evidence.
 """
 from __future__ import annotations
@@ -16,7 +17,7 @@ from pathlib import Path
 import re
 import sys
 
-FULL_CHECKS = 3264
+FULL_CHECKS = 4465
 START = "[VALIDATION] world runtime smoke starting"
 PREFIX = "[VALIDATION]"
 SUMMARY = re.compile(r"\[VALIDATION\] checks=([0-9]+) failures=([0-9]+)")
@@ -65,14 +66,14 @@ def validate(text: str) -> int:
     return checks
 
 
-def self_test(calibration_dir: Path | None) -> int:
+def self_test(calibration_dir: Path | None, calibration_full_log: Path | None) -> int:
     good = "\n".join([START] + [
         f"[VALIDATION] PASS fixture/{index}" for index in range(FULL_CHECKS)
     ] + [f"[VALIDATION] checks={FULL_CHECKS} failures=0", "[VALIDATION] status=PASS", ""])
     cases: list[tuple[str, str, bool]] = [("synthetic-full", good, True)]
     if calibration_dir is not None:
         for filename, expected in (
-            ("Release-full-world-r4.log", True),
+            ("Release-full-world-r4.log", False),
             ("Release-full-world-r2.log", False),
             ("Release-architectural-world-r2.log", False),
             ("Release-architectural-world-r1.log", False),
@@ -90,8 +91,12 @@ def self_test(calibration_dir: Path | None) -> int:
         focused = (calibration_dir / "Release-architectural-world-r2.log").read_text(encoding="utf-8")
         cases.append(("actual-focus-forged-full-count",
                       focused.replace("checks=221 failures=0", f"checks={FULL_CHECKS} failures=0"), False))
-        # Mutate actual passing evidence too, not only the synthetic fixture.
-        good = (calibration_dir / "Release-full-world-r4.log").read_text(encoding="utf-8")
+    if calibration_full_log is not None:
+        # Mutate actual current passing evidence, never relabel an older suite.
+        good = calibration_full_log.read_text(encoding="utf-8")
+        cases.append(("actual-current-full", good, True))
+        print(f"[WORLD_SUMMARY_CALIBRATION] source={calibration_full_log} "
+              f"sha256={hashlib.sha256(calibration_full_log.read_bytes()).hexdigest()}")
     summary = f"[VALIDATION] checks={FULL_CHECKS} failures=0"
     cases += [
         ("missing-summary", good.replace(summary + "\n", ""), False),
@@ -134,13 +139,14 @@ def main() -> int:
     parser.add_argument("log", type=Path, nargs="?")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--calibration-dir", type=Path)
+    parser.add_argument("--calibration-full-log", type=Path)
     args = parser.parse_args()
-    if args.calibration_dir is not None and not args.self_test:
-        parser.error("--calibration-dir requires --self-test")
+    if (args.calibration_dir is not None or args.calibration_full_log is not None) and not args.self_test:
+        parser.error("calibration inputs require --self-test")
     if args.log is None and not args.self_test:
         parser.error("provide a WorldRuntime log or --self-test")
     try:
-        if args.self_test and self_test(args.calibration_dir):
+        if args.self_test and self_test(args.calibration_dir, args.calibration_full_log):
             return 1
         if args.log is not None:
             checks = validate(args.log.read_text(encoding="utf-8"))

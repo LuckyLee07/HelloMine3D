@@ -36,7 +36,7 @@ GLuint shader(GLenum type, const std::string& source) {
     if (!ok) { char log[8192] = {}; glGetShaderInfoLog(id, sizeof(log), nullptr, log); glDeleteShader(id); throw std::runtime_error(log); }
     return id;
 }
-GLuint program(const std::string& fragment) {
+GLuint program(const std::string& fragment, const std::string& suppliedVertex = {}) {
     const std::string vertex = R"GLSL(#version 150
 out vec3 waterWorldPosition; out vec3 waterWorldNormal; out float waterLight;
 out vec2 waterLightSources; out float waterDistance; out vec2 waterSurfaceData; out vec2 waterSurfaceDrift;
@@ -48,7 +48,7 @@ void main() {
     waterLightSources=vec2(1.0,0.0); waterDistance=0.0;
     waterSurfaceData=vec2(fixtureDepth,0.0); waterSurfaceDrift=vec2(0.0);
 })GLSL";
-    GLuint v = shader(GL_VERTEX_SHADER, vertex), f = shader(GL_FRAGMENT_SHADER, fragment), id = glCreateProgram();
+    GLuint v = shader(GL_VERTEX_SHADER, suppliedVertex.empty() ? vertex : suppliedVertex), f = shader(GL_FRAGMENT_SHADER, fragment), id = glCreateProgram();
     glAttachShader(id, v); glAttachShader(id, f); glBindFragDataLocation(id, 0, "fragmentColour"); glLinkProgram(id);
     glDeleteShader(v); glDeleteShader(f);
     GLint ok = 0; glGetProgramiv(id, GL_LINK_STATUS, &ok);
@@ -106,6 +106,197 @@ void identical(const std::string& name, Pixel a, Pixel b) {
 std::string replace(std::string source, const std::string& from, const std::string& to) {
     const auto at=source.find(from); require(at!=std::string::npos,"Fault anchor absent"); source.replace(at,from.size(),to); return source;
 }
+
+// A second fixture supplies actual per-pixel shore/world varyings. Its RGBA32F
+// storage separates integration error from the original FP16 RTT checks above.
+const std::string shoreVertex = R"GLSL(#version 150
+out vec3 waterWorldPosition; out vec3 waterWorldNormal; out float waterLight;
+out vec2 waterLightSources; out float waterDistance; out vec2 waterSurfaceData; out vec2 waterSurfaceDrift;
+uniform vec2 fixtureDimensions; uniform vec3 fixtureShore; uniform vec3 fixtureWorld; uniform int fixtureQuadMode;
+void main() {
+    vec2 p = gl_VertexID == 0 ? vec2(-1,-1) : gl_VertexID == 1 ? vec2(3,-1) : vec2(-1,3);
+    float cornerShore=0;
+    if(fixtureQuadMode>0) {
+        const vec2 corners[4]=vec2[4](vec2(-1,1),vec2(1,1),vec2(1,-1),vec2(-1,-1));
+        const int diagonal02[6]=int[6](0,1,2,2,3,0);
+        const int diagonal13[6]=int[6](0,1,3,1,2,3);
+        int corner=fixtureQuadMode==1 ? diagonal02[gl_VertexID] : diagonal13[gl_VertexID];
+        p=corners[corner]; cornerShore=corner==2 ? .25 : 0;
+    }
+    gl_Position=vec4(p,0,1);
+    vec2 pixel=(p*.5+.5)*fixtureDimensions-fixtureDimensions*.5;
+    waterWorldPosition=vec3(fixtureWorld.x*pixel.x,0,fixtureWorld.y*pixel.y);
+    waterWorldNormal=vec3(0,1,0); waterLight=1; waterLightSources=vec2(1,0); waterDistance=0;
+    waterSurfaceData=vec2(3,fixtureQuadMode>0 ? cornerShore : fixtureShore.x+dot(fixtureShore.yz,pixel));
+    waterSurfaceDrift=vec2(0);
+})GLSL";
+struct ShoreCase {
+    std::string name;
+    int width, height;
+    float shore, dx, dy, worldDx, worldDy, time;
+    int quadMode=0;
+};
+struct ShoreGrid {
+    GLuint fbo=0, colour=0, vao=0, dummy=0;
+    ShoreGrid() {
+        glGenFramebuffers(1,&fbo); glGenTextures(1,&colour); glGenVertexArrays(1,&vao);
+        glGenTextures(1,&dummy); glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,dummy);
+        const Pixel zero{}; glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA32F,1,1,0,GL_RGBA,GL_FLOAT,zero.data());
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST); glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+    }
+    ~ShoreGrid() { glDeleteTextures(1,&dummy); glDeleteVertexArrays(1,&vao); glDeleteTextures(1,&colour); glDeleteFramebuffers(1,&fbo); }
+    std::vector<Pixel> draw(GLuint p, const ShoreCase& c, float hdr=1, GLint storage=GL_RGBA32F) {
+        glBindFramebuffer(GL_FRAMEBUFFER,fbo); glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,colour);
+        glTexImage2D(GL_TEXTURE_2D,0,storage,c.width,c.height,0,GL_RGBA,GL_FLOAT,nullptr);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,colour,0);
+        require(glCheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE,"Shore grid framebuffer incomplete");
+        glBindVertexArray(vao); glViewport(0,0,c.width,c.height); glDisable(GL_BLEND); glDisable(GL_FRAMEBUFFER_SRGB); glUseProgram(p);
+        glUniform2f(glGetUniformLocation(p,"fixtureDimensions"),float(c.width),float(c.height));
+        glUniform1i(glGetUniformLocation(p,"fixtureQuadMode"),c.quadMode);
+        vec3(p,"fixtureShore",{c.shore,c.dx,c.dy}); vec3(p,"fixtureWorld",{c.worldDx,c.worldDy,0});
+        scalar(p,"linearHdrMode",hdr); scalar(p,"globalTime",c.time); scalar(p,"environmentLight",1); scalar(p,"fogDensity",0);
+        scalar(p,"waterDetailStrength",1); scalar(p,"sunIntensity",0); vec3(p,"sunDirection",{0,1,0});
+        vec3(p,"cameraPosition",{0,100,10}); vec3(p,"waterShallowColour",{.12f,.43f,.53f}); vec3(p,"waterDeepColour",{.018f,.15f,.24f});
+        vec3(p,"skyHorizonColour",{.7f,.8f,.9f}); vec3(p,"skyZenithColour",{.2f,.4f,.7f});
+        scalar(p,"planarReflectionEnabled",0); scalar(p,"planarReflectionPlaneY",0);
+        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,dummy);
+        glUniform1i(glGetUniformLocation(p,"planarReflectionTexture"),0);
+        glDrawArrays(GL_TRIANGLES,0,c.quadMode>0 ? 6 : 3);
+        std::vector<Pixel> pixels(std::size_t(c.width)*c.height);
+        glReadPixels(0,0,c.width,c.height,GL_RGBA,GL_FLOAT,pixels.data()); return pixels;
+    }
+};
+double positiveRipple(double phase) {
+    const double a=std::max(std::sin(phase),0.0); return std::pow(a,12.0);
+}
+double smoothShore(double raw) {
+    const double t=std::clamp((raw-.04)/.58,0.0,1.0); return t*t*(3.0-2.0*t);
+}
+double denseRipple(const ShoreCase& c, double x, double y, bool linearPhase=false) {
+    // Independent original signal sampled across the complete square pixel.
+    // No production primitive, derivative, blend or antialias code is reused.
+    constexpr int n=96; double sum=0;
+    for(int sy=0;sy<n;++sy) for(int sx=0;sx<n;++sx) {
+        const double px=x+(sx+.5)/n-.5, py=y+(sy+.5)/n-.5;
+        double raw=double(c.shore)+double(c.dx)*px+double(c.dy)*py;
+        if(c.quadMode>0) {
+            const double u=px/c.width+.5,v=py/c.height+.5;
+            raw=.25*(c.quadMode==1 ? std::min(u,1-v) : std::max(u-v,0.0));
+        }
+        if(linearPhase) sum+=positiveRipple(raw);
+        else {
+            const double shore=smoothShore(raw);
+            const double phase=shore*22.0-double(c.time)*2.4+double(c.worldDx)*px*.12+double(c.worldDy)*py*.08;
+            sum+=positiveRipple(phase)*shore*(1.0-shore)*.35;
+        }
+    }
+    return sum/(n*n);
+}
+float maxPixelDifference(const std::vector<Pixel>& a,const std::vector<Pixel>& b) {
+    require(a.size()==b.size(),"Grid sizes differ"); float result=0;
+    for(std::size_t i=0;i<a.size();++i)for(int channel=0;channel<4;++channel)result=std::max(result,std::abs(a[i][channel]-b[i][channel]));
+    return result;
+}
+std::string originalRippleSource(std::string source) {
+    const auto call=source.find("ripple = filteredShoreRipple(ripplePhase)");
+    require(call!=std::string::npos,"Production HDR ripple call absent");
+    const auto start=source.rfind("if (linearHdrMode > 0.5)",call), end=source.find('}',call);
+    require(start!=std::string::npos && end!=std::string::npos,"HDR ripple block absent");
+    source.erase(start,end-start+1); return source;
+}
+void shoreChecks(const std::string& source,const std::filesystem::path& evidence) {
+    const auto before=originalRippleSource(source);
+    std::ofstream(evidence/"HelloMine3DWater-original-ripple.frag")<<before;
+    GLuint filtered=program(source,shoreVertex), unfiltered=program(before,shoreVertex);
+    // Disable only the ripple radiance term, preserving every other whole-water
+    // computation to isolate the signal through real production output.
+    GLuint base=program(replace(source,"* ripple * 0.38;","* 0.0;"),shoreVertex);
+    ShoreGrid grid; std::ofstream quality(evidence/"shore-quality.tsv");
+    quality<<"case\twidth\theight\toracle_subsamples\tfiltered_mae\toriginal_mae\tfiltered_mean\toracle_mean\tmax_error\n";
+    const double shallow=std::pow((.43+.055)/1.055,2.4);
+    const double white=std::pow((.85+.055)/1.055,2.4);
+    const double coefficient=.38*(shallow*.35+white*.65);
+    double totalFiltered=0,totalOriginal=0; int totalPixels=0;
+    const std::vector<ShoreCase> cases={
+        {"x-bank",31,17,.33f,.010f,0,.02f,.02f,.4f},
+        {"y-bank",17,31,.33f,0,.010f,.02f,.02f,1.1f},
+        {"diagonal-bank",23,19,.33f,.011f,.008f,.022f,.016f,1.7f},
+        {"negative-gradient",29,13,.33f,-.013f,.006f,.026f,.012f,2.3f},
+        {"strong-footprint",17,11,.33f,.026f,.013f,.052f,.026f,3.1f},
+        // Decoded production top quad at (205,66,-181): corners [0,0,.25,0].
+        // Exercise both production mesh diagonals; independent area samples
+        // cross the genuine continuous, piecewise-affine shore field.
+        {"bridge-corner-diagonal02",17,13,0,0,0,1.f/17,1.f/13,.4f,1},
+        {"bridge-corner-diagonal13",17,13,0,0,0,1.f/17,1.f/13,.4f,2},
+    };
+    for(const auto& c:cases) {
+        const auto a=grid.draw(filtered,c), b=grid.draw(unfiltered,c), z=grid.draw(base,c);
+        double mae=0,oldMae=0,mean=0,oracleMean=0,maxError=0; bool finite=true;
+        for(int y=0;y<c.height;++y)for(int x=0;x<c.width;++x) {
+            const auto i=std::size_t(y)*c.width+x;
+            const double actual=(a[i][1]-z[i][1])/coefficient, old=(b[i][1]-z[i][1])/coefficient;
+            const double expected=denseRipple(c,x+.5-c.width*.5,y+.5-c.height*.5);
+            finite&=std::isfinite(actual) && std::isfinite(old);
+            for(int channel=0;channel<4;++channel)finite&=std::isfinite(a[i][channel]) && std::isfinite(b[i][channel]);
+            mae+=std::abs(actual-expected);oldMae+=std::abs(old-expected);mean+=actual;oracleMean+=expected;maxError=std::max(maxError,std::abs(actual-expected));
+        }
+        const double count=c.width*c.height;mae/=count;oldMae/=count;mean/=count;oracleMean/=count;
+        quality<<c.name<<'\t'<<c.width<<'\t'<<c.height<<"\t96x96\t"<<std::setprecision(12)<<mae<<'\t'<<oldMae<<'\t'<<mean<<'\t'<<oracleMean<<'\t'<<maxError<<'\n';
+        check(c.name+"-finite-and-alpha-preserved",finite && std::equal(a.begin(),a.end(),b.begin(),[](const Pixel& l,const Pixel& r){return l[3]==r[3];}));
+        check(c.name+"-independent-area-error",mae<.002, float(mae),.002f);
+        check(c.name+"-area-error-improves",mae<oldMae*.8,float(mae),float(oldMae*.8));
+        check(c.name+"-average-energy",std::abs(mean-oracleMean)<.0015,float(mean),float(oracleMean));
+        // The disabled implementation is judged by the same per-case quality
+        // gate, independently of whether a different case improves aggregate.
+        const double improvementLimit=oldMae*.8;
+        check(c.name+"-disabled-filter-same-quality-gate-rejected",!(oldMae<.002 && oldMae<improvementLimit),float(oldMae),float(improvementLimit));
+        totalFiltered+=mae*count;totalOriginal+=oldMae*count;totalPixels+=int(count);
+        const auto legacy=grid.draw(filtered,c,0), oldLegacy=grid.draw(unfiltered,c,0);
+        check(c.name+"-legacy-exact-rgba32f",legacy==oldLegacy,maxPixelDifference(legacy,oldLegacy));
+        const auto legacyWindow=grid.draw(filtered,c,0,GL_RGBA8),oldLegacyWindow=grid.draw(unfiltered,c,0,GL_RGBA8);
+        check(c.name+"-legacy-window-rgba8-exact",legacyWindow==oldLegacyWindow,maxPixelDifference(legacyWindow,oldLegacyWindow));
+        const auto legacyHalf=grid.draw(filtered,c,0,GL_RGBA16F),oldLegacyHalf=grid.draw(unfiltered,c,0,GL_RGBA16F);
+        check(c.name+"-legacy-fp16-rgba-exact",legacyHalf==oldLegacyHalf,maxPixelDifference(legacyHalf,oldLegacyHalf));
+    }
+    quality<<"aggregate\t"<<totalPixels<<"\t1\t96x96\t"<<totalFiltered/totalPixels<<'\t'<<totalOriginal/totalPixels<<"\t0\t0\t0\n";
+    const ShoreCase low{"low-footprint",19,11,.33f,.0002f,.00015f,.0004f,.0003f,.7f};
+    const auto lowA=grid.draw(filtered,low),lowB=grid.draw(unfiltered,low);
+    check("low-footprint-exact-original-rgba",lowA==lowB,maxPixelDifference(lowA,lowB));
+    // Calibrate the actual production helper with affine phase independent of
+    // the whole-shader nonlinear shore mapping and envelope approximation.
+    auto helper=replace(source,"void main()","void productionWaterMain()");
+    helper+="\nvoid main() { fragmentColour=vec4(filteredShoreRipple(waterSurfaceData.y),0,0,1); }\n";
+    GLuint linear=program(helper,shoreVertex);
+    for(const ShoreCase& c:std::vector<ShoreCase>{
+        {"linear-tiny",7,5,1.45f,.02f,.01f,0,0,0},
+        {"linear-x",11,7,1.2f,.7f,0,0,0,0},
+        {"linear-y",7,11,1.8f,0,1.1f,0,0,0},
+        {"linear-two-axes",13,9,.8f,.8f,1.7f,0,0,0},
+        {"linear-wide",11,7,1.1f,4.3f,3.2f,0,0,0},
+        {"linear-negative",13,7,1.5f,-1.1f,.4f,0,0,0},
+        {"linear-minor-axis",11,7,1.2f,1.7f,.01f,0,0,0},
+        {"linear-negative-y",7,13,1.5f,.4f,-1.1f,0,0,0},
+        {"linear-long-session",11,7,1000.f,.7f,1.1f,0,0,0},
+        {"linear-zero-width",3,5,1.2f,0,0,0,0,0},
+    }) {
+        const auto pixels=grid.draw(linear,c);double mae=0,maxError=0;bool bounded=true;
+        for(int y=0;y<c.height;++y)for(int x=0;x<c.width;++x) {
+            const double expected=denseRipple(c,x+.5-c.width*.5,y+.5-c.height*.5,true);
+            const double actual=pixels[std::size_t(y)*c.width+x][0], error=std::abs(actual-expected);
+            mae+=error;maxError=std::max(maxError,error);bounded&=std::isfinite(actual)&&actual>=0&&actual<=1;
+        }
+        mae/=c.width*c.height;
+        quality<<c.name<<'\t'<<c.width<<'\t'<<c.height<<"\t96x96\t"<<mae<<"\t0\t0\t0\t"<<maxError<<'\n';
+        check(c.name+"-dense-area-calibration",bounded && mae<.002 && maxError<.003,float(mae),.002f);
+    }
+    constexpr float pi=3.14159265358979323846f;
+    const ShoreCase energy{"linear-full-period-energy",64,5,pi,2*pi/64,1.1f,0,0,0};
+    const auto energyPixels=grid.draw(linear,energy);double mean=0;
+    for(const auto& pixel:energyPixels)mean+=pixel[0];mean/=energyPixels.size();
+    check("linear-full-period-mean-energy",std::abs(mean-.11279296875)<.0005,float(mean),.11279296875f);
+    glDeleteProgram(linear);glDeleteProgram(base);glDeleteProgram(unfiltered);glDeleteProgram(filtered);
+    check("shore-fixture-no-gl-errors",glGetError()==GL_NO_ERROR);
+}
 }
 int main(int argc,char** argv) {
     CGLContextObj context=nullptr; CGLPixelFormatObj format=nullptr;
@@ -159,6 +350,7 @@ int main(int argc,char** argv) {
             check("fault-multiple-levels-rejected",std::abs(bad[2]-other[2])>.1f,bad[2],other[2]); glDeleteProgram(level);
             glDeleteProgram(p);
             check("no-gl-errors",glGetError()==GL_NO_ERROR);
+            shoreChecks(source,evidence);
         }
         std::ofstream(evidence/"result.txt") << "checks="<<checks<<" failures="<<failures<<" scope=production-water-GLSL-offscreen-CGL\n"
             << "native-Ogre-RTT=NOT_RUN normal-gameplay=NOT_RUN resident-streaming=NOT_RUN\n";

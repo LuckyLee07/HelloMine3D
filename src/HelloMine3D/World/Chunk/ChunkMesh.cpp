@@ -47,6 +47,27 @@ void ChunkMesh::addFace(
                     vertexLight, flipDiagonal, textureRepeatCoords, false, sources, rootTag);
 }
 
+void ChunkMesh::addWaterTriangle(const std::array<float, 9> &positions,
+                                 const std::array<float, 6> &drift,
+                                 const std::array<float, 6> &depthShore,
+                                 const glm::ivec3 &chunkPosition,
+                                 const glm::ivec3 &blockPosition,
+                                 const std::array<float, 3> &light,
+                                 const std::array<glm::vec2, 3> &sources,
+                                 const std::array<float, 3> &pins)
+{
+    ++faces;
+    for(int i=0;i<3;++i) {
+        for(int axis=0;axis<3;++axis)m_mesh.vertexPositions.push_back(
+            positions[i*3+axis]+chunkPosition[axis]*CHUNK_SIZE+blockPosition[axis]);
+        m_mesh.textureCoords.push_back(drift[i*2]);m_mesh.textureCoords.push_back(drift[i*2+1]);
+        m_mesh.textureRepeatCoords.push_back(depthShore[i*2]);m_mesh.textureRepeatCoords.push_back(depthShore[i*2+1]);
+        m_light.push_back(light[i]);m_lightSources.push_back(sources[i]);m_rootTags.push_back(pins[i]);
+    }
+    m_mesh.indices.insert(m_mesh.indices.end(),{m_indexIndex,m_indexIndex+1,m_indexIndex+2});
+    m_indexIndex+=3;
+}
+
 void ChunkMesh::addSharedFace(
     const std::array<float, 12> &blockFace,
     const std::array<float, 8> &textureCoords,

@@ -50,6 +50,7 @@ class SectionMeshInput {
     float getWaterDepth(int x, int y, int z) const;
     glm::vec2 getWaterSurfaceVelocity(int x,int y,int z) const noexcept;
     bool containsWater() const noexcept { return m_containsWater; }
+    bool waterBoundaryPinsAvailable() const noexcept { return m_waterBoundaryPinsAvailable; }
     /// Only owned cells carry derived natural-tree ownership; all other
     /// blocks, edited cells and unsupported generators return zero.
     std::uint16_t getNaturalTreeRootTag(int x, int y, int z) const noexcept;
@@ -83,6 +84,7 @@ class SectionMeshInput {
     glm::ivec3 m_location{};
     int m_terrainSeed = 0;
     bool m_containsWater = false;
+    bool m_waterBoundaryPinsAvailable = false;
 };
 
 #endif // SECTIONMESHINPUT_H_INCLUDED

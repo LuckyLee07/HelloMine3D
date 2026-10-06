@@ -30,6 +30,14 @@ class BlockDatabase : public Singleton {
     const BlockData &getData(BlockId id) const;
     const BlockDefinition &getDefinition(BlockId id) const;
 
+    // Nonpersistent renderer capability, set only during startup before any
+    // World/mesh workers, or synchronous tests. Never hot-switch a live World.
+    // False preserves the exact old mesh path for compatible legacy Water VS.
+    void setWaterBoundaryPinsAvailable(bool value) noexcept
+    { m_waterBoundaryPinsAvailable = value; }
+    bool waterBoundaryPinsAvailable() const noexcept
+    { return m_waterBoundaryPinsAvailable; }
+
   private:
     BlockDatabase();
     void addBlock(BlockId id, const std::string &fileName,
@@ -43,6 +51,7 @@ class BlockDatabase : public Singleton {
                (unsigned)BlockId::NUM_TYPES>
         m_behaviors;
     BlockIdUniquenessValidator m_idValidator;
+    bool m_waterBoundaryPinsAvailable = false;
 };
 
 #endif // BLOCKDATABASE_H_INCLUDED

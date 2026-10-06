@@ -1391,6 +1391,7 @@ namespace
             m_hdrPipeline = std::make_unique<HdrPipeline>();
             m_hdrPipeline->initialize(*viewport, *m_root->getRenderSystem(),
                                       m_config.renderPipeline);
+            configureWaterBoundaryPins();
             configureTerrainAppearance();
             m_waterReflection = std::make_unique<PlanarWaterReflection>();
             m_waterReflection->initialize(*m_sceneManager, *m_root->getRenderSystem());
@@ -1474,6 +1475,85 @@ namespace
             {
                 m_exitAfterFrames = std::max(0, std::atoi(exitFrames));
             }
+        }
+
+        // Select once before any World, SectionMeshInput or workers exist.
+        // A complete older Water override remains valid and uses its old mesh.
+        void configureWaterBoundaryPins()
+        {
+            auto* pass = materialPass("HelloMine3D/Water");
+            auto vertex = pass->getVertexProgram();
+            auto fragment = pass->getFragmentProgram();
+            if (vertex.isNull() || fragment.isNull() ||
+                vertex->getType() != Ogre::GPT_VERTEX_PROGRAM ||
+                fragment->getType() != Ogre::GPT_FRAGMENT_PROGRAM)
+                throw std::runtime_error("Invalid Water shader program stages.");
+            auto* vs = dynamic_cast<Ogre::GLSLShader*>(vertex.get());
+            auto* fs = dynamic_cast<Ogre::GLSLShader*>(fragment.get());
+            if (!vs || !fs)
+                throw std::runtime_error("Water requires the active GLSL backend.");
+            vertex->load(); fragment->load();
+            if (!vs->compile(true) || !fs->compile(true) ||
+                vertex->hasCompileError() || fragment->hasCompileError())
+                throw std::runtime_error("Invalid compiled Water shader resources.");
+            const GLuint certificate = glCreateProgram();
+            if (!certificate)
+                throw std::runtime_error("Cannot create Water shader capability certificate.");
+            bool guardActive = false, pinActive = false, available = false;
+            try
+            {
+                // Attach Ogre's actual preprocessed/compiled shaders, including
+                // child objects. This temporary link never binds draw state.
+                vs->attachToProgramObject(certificate);
+                fs->attachToProgramObject(certificate);
+                glLinkProgram(certificate);
+                GLint linked = 0;
+                glGetProgramiv(certificate, GL_LINK_STATUS, &linked);
+                if (!linked)
+                {
+                    char log[4096] = {};
+                    glGetProgramInfoLog(certificate, sizeof(log), nullptr, log);
+                    throw std::runtime_error(std::string("Invalid linked Water shader resources: ") + log);
+                }
+                GLint count = 0;
+                glGetProgramiv(certificate, GL_ACTIVE_UNIFORMS, &count);
+                for (GLint i = 0; i < count; ++i)
+                {
+                    char name[256] = {};
+                    GLint size = 0; GLenum type = 0;
+                    glGetActiveUniform(certificate, static_cast<GLuint>(i),
+                        sizeof(name), nullptr, &size, &type, name);
+                    if (std::string(name) == "waterBoundaryPinsV1")
+                        guardActive = type == GL_FLOAT && size == 1;
+                }
+                glGetProgramiv(certificate, GL_ACTIVE_ATTRIBUTES, &count);
+                for (GLint i = 0; i < count; ++i)
+                {
+                    char name[256] = {};
+                    GLint size = 0; GLenum type = 0;
+                    glGetActiveAttrib(certificate, static_cast<GLuint>(i),
+                        sizeof(name), nullptr, &size, &type, name);
+                    if (std::string(name) == "uv3")
+                        pinActive = type == GL_FLOAT && size == 1;
+                }
+                auto parameters = pass->getVertexProgramParameters();
+                const bool namedGuard = parameters->_findNamedConstantDefinition(
+                    "waterBoundaryPinsV1", false) != nullptr;
+                available = guardActive && pinActive && namedGuard;
+                if (namedGuard)
+                    parameters->setNamedConstant("waterBoundaryPinsV1", available ? 1.f : 0.f);
+                glDeleteProgram(certificate);
+            }
+            catch (...)
+            {
+                glDeleteProgram(certificate);
+                throw;
+            }
+            BlockDatabase::get().setWaterBoundaryPinsAvailable(available);
+            std::cout << "[WATER_BOUNDARY_PINS] available=" << available
+                      << " guard_active=" << guardActive << " pin_attribute_active=" << pinActive
+                      << " linked=1 startup_only=1 optional_interface=1 mesh="
+                      << (available ? "opaque-compound-clipped" : "legacy-uncut") << '\n';
         }
 
         TerrainBuildSummary buildTerrain(

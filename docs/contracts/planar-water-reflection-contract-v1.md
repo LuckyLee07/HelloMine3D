@@ -24,6 +24,18 @@
 
 生产 budget／exclusion 函数的独立 policy test 19 项通过；实际 Water.frag 在 offscreen CGL 的 RGBA16F fixture 45 项通过，覆盖 >1 线性反射、透明 alpha、depth 1/3/8、其它水位／underwater／crossing／legacy、无效投影和 UV guard、有界波纹。早 clamp、double decode 与多水位采样故障均被拒。原件在 `build/reference-visual-implementation/planar-water/gpu-r1/`，工具明确标记 native Ogre RTT／正常游戏／resident streaming 为 NOT_RUN。
 
-当前 Release native 隐藏客户端已对实际 1280×720 RGBA16F RTT 读回：GL error=0、非有限成分=0，目标包含真实驻留屋墙／窗／桥；主 Water 纹理绑定一致。同包、同存档／机位／时间／画质 on／off 对照中水域平均变化 3.776/255，静态地面逐字节相同，证明生产主水面实际采样和混合。原图、raw、事实与分析在 `build/reference-visual-implementation/integration-r1/water-hdr-r2/` 和 `build/reference-visual-implementation/planar-water/native-r3-{on,off}-matched/`、`native-r3-analysis.json`。旧窄渠／高岸墙和当前混合使可辨建筑倒影仍未通过视觉项；斜视诊断也保留，不能将 RTT 内容或像素差异当作正常倒影视觉验收。
+早期 Release native 隐藏客户端已对实际 1280×720 RGBA16F RTT 读回：GL error=0、非有限成分=0，目标包含真实驻留屋墙／窗／桥；主 Water 纹理绑定一致。同包、同存档／机位／时间／画质 on／off 对照中水域平均变化 3.776/255，静态地面逐字节相同，证明生产主水面实际采样和混合。原图、raw、事实与分析在 `build/reference-visual-implementation/integration-r1/water-hdr-r2/` 和 `build/reference-visual-implementation/planar-water/native-r3-{on,off}-matched/`、`native-r3-analysis.json`。旧窄渠／高岸墙和当前混合使可辨建筑倒影仍未通过视觉项；斜视诊断也保留，不能将 RTT 内容或像素差异当作正常倒影视觉验收。
 
 这些结果仅验证对应的 CPU policy 与生产 fragment 行为。实际镜像／clip、建筑倒影、native Ogre framebuffer、双配置客户端、正常转头／接近／出入水、拆墙／增灯／填岸、卸载返回及 resize／世界切换资源循环仍须由完整 Goal 的协调构建和唯一正常客户端操作者验证。工程 API 可用、shader fixture 或诊断截图不替代这些项目。
+
+## 2026-10-06 水岸整合增量
+
+`scene-v2-native-r4` 与旧／新资产×legacy／HDR四组合的原生原图已经看见两栋建筑、桥、灯及云的镜像；这是当前完整样板实景覆盖，早期窄渠不可辨的失败保留。普通转头、编辑后更新与A生命周期仍 NOT_RUN，不能将隐藏固定／稀疏镜头当普通输入通过。
+
+近岸剩余细线／三角纹经六组真实隐藏shader ablation定位到Water完整侧面和partial StoneStep竖面的共面。constant RGBA、关波纹／细节／倒影仍有；删全部竖面减纹但露暗缝，只作为归因，未作为生产方案。证据 `shore-filter-native-ablation-r2/ablation-review.json`。
+
+新生产侧面按邻不透明compound的8×8固定边界覆盖裁剪、保留原三角属性与真实空隙，语义及预算见[套件合同](reference-architectural-kit-contract-v1.md)。Water沿用44B顶点和消费者独立uv3；可选 `waterBoundaryPinsV1` 与active float uv3由Ogre实际编译对象的临时完整GL链接证书确认，发生在World／worker创建前。缺接口的合法完整旧VS使用旧mesh路径，不新增mandatory资源token、不写save、不热切现有World。接口证书不证明任意第三方自定义shader遵守语义；bad compile／link继续明确失败。
+
+当前认证路径对raw shore>0接触角抑制Ywave但保留非pin −.10；真实新cut pin固定实Y。四侧top接触角rawshore≥.25，独立topface同值，固定top=.90大于最高eighth内切.875；开放水shore0与guard关闭保留旧波动。侧面法线仍为原有近似。新完整VS+FS CGL560／16：504语义／几何检查0失败，另56严格TFfloat32 bit压力比较有16失败（最大9.54e−7）如实保留，不能称整工具PASS。旧高cut反例失败已修；新源当前原生效果及旧VS路径须在重建客户端复验。
+
+HDR岸纹sin^12另有有界像素相位面积过滤，无新纹理／history／RTT。完整frag114／7的7失败为额外RGBA32F bit压力，实际RGBA8／16F各7组相同及独立面积oracle通过；不将该信号改善扩称实景共面缺陷已解决。

@@ -2,6 +2,7 @@
 
 #include "ChunkMesh.h"
 #include "SectionMeshInput.h"
+#include "WaterBoundaryClip.h"
 
 #include "../Block/BlockData.h"
 #include "../Block/BlockBehavior.h"
@@ -1057,10 +1058,50 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
                 waterDrift[corner * 2 + 1] = drift.y;
             }
             // Water does not sample the atlas; uv0 carries surface drift while
-            // uv1 retains depth/shore, with no extra vertices or vertex stride.
+            // uv1 retains depth/shore. Clipped faces keep the same vertex stride.
+            const auto lighting=calculateVertexLighting(face,blockPosition);
+            if(m_pInput->waterBoundaryPinsAvailable() && face!=CubeFace::Top && face!=CubeFace::Bottom) {
+                const auto neighbour=m_pInput->getBlock(blockFacing.x,blockFacing.y,blockFacing.z);
+                const auto &definition=BlockDatabase::get().getDefinition(static_cast<BlockId>(neighbour.id));
+                if(BlockGeometry::usesCompound(definition.id) && !definition.transparent && definition.render.shape.isCompound()) {
+                    // CubeFace and shape boundary enums have different ordering.
+                    static constexpr unsigned boundary[6]={5,4,2,3,0,1};
+                    const auto mask=definition.render.shape.variants[BlockGeometry::orientation(neighbour)].boundaryCoverage[boundary[static_cast<int>(face)]^1u];
+                    if(mask!=0) {
+                        const int axis=(face==CubeFace::Left || face==CubeFace::Right)?0:2;
+                        const int u=(axis+1)%3,v=(axis+2)%3;
+                        std::array<WaterBoundaryClip::Point,4> corners{};
+                        for(int i=0;i<4;++i)corners[i]={blockFace[i*3+u],blockFace[i*3+v]};
+                        std::array<int,4> order{0,1,2,3};bool flipped=lighting.flipDiagonal;
+                        if(face==CubeFace::Right || face==CubeFace::Back) {order={1,0,3,2};flipped=!flipped;}
+                        WaterBoundaryClip::visit(mask,corners,flipped,[&](const WaterBoundaryClip::Triangle &triangle,const std::array<int,3> &indices) {
+                            const WaterBoundaryClip::Triangle source{{corners[indices[0]],corners[indices[1]],corners[indices[2]]}};
+                            std::array<float,9> positions{};std::array<float,6> drift{},data{};
+                            std::array<float,3> light{},pins{};std::array<glm::vec2,3> sources{};
+                            sources.fill(glm::vec2(0.f));
+                            for(int vertex=0;vertex<3;++vertex) {
+                                const auto weights=WaterBoundaryClip::weights(triangle[vertex],source);
+                                for(int k=0;k<3;++k) {
+                                    const int corner=indices[k];const float weight=weights[k];
+                                    for(int a=0;a<3;++a)positions[vertex*3+a]+=blockFace[corner*3+a]*weight;
+                                    for(int a=0;a<2;++a) {drift[vertex*2+a]+=waterDrift[corner*2+a]*weight;data[vertex*2+a]+=waterData[corner*2+a]*weight;}
+                                    const auto &sample=lighting.corners[order[corner]];
+                                    light[vertex]+=sample.finalLight*weight;
+                                    sources[vertex]+=glm::vec2(sample.skySource,sample.blockSource)*weight;
+                                }
+                                // Water's spare uv3 is a derived pin only here.
+                                // Keep every original top/bottom and other mesh
+                                // root tag unchanged; do not encode World ownership.
+                                pins[vertex]=WaterBoundaryClip::pin(mask,triangle[vertex],u==1?0:1)?1.f:0.f;
+                            }
+                            m_pActiveMesh->addWaterTriangle(positions,drift,data,m_pInput->getLocation(),blockPosition,light,sources,pins);
+                        });
+                        return;
+                    }
+                }
+            }
             addVertexLitFace(*m_pActiveMesh, face, blockFace, waterDrift,
-                blockPosition, calculateVertexLighting(face, blockPosition),
-                1.f, 1.f, &waterData, false);
+                blockPosition, lighting, 1.f, 1.f, &waterData, false);
             return;
         }
 

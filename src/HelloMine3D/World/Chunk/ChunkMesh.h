@@ -49,6 +49,17 @@ class ChunkMesh {
                  const FaceLightSources *sources = nullptr,
                  float rootTag = 0.f);
 
+    // Clipped Water triangles use existing uv3 as a per-vertex boundary pin
+    // (0=original animation, 1=fixed cut edge). Other root-tag paths stay intact.
+    void addWaterTriangle(const std::array<float, 9> &positions,
+                          const std::array<float, 6> &drift,
+                          const std::array<float, 6> &depthShore,
+                          const glm::ivec3 &chunkPosition,
+                          const glm::ivec3 &blockPosition,
+                          const std::array<float, 3> &light,
+                          const std::array<glm::vec2, 3> &sources,
+                          const std::array<float, 3> &pins);
+
     /// Emits a face while reusing byte-identical vertices already present in
     /// this mesh. Indices and face topology stay unchanged.
     void addSharedFace(

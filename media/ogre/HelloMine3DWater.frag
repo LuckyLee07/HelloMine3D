@@ -93,6 +93,94 @@ float surfaceStreak(vec2 position)
            sin(position.y * 4.3 - position.x * 0.8);
 }
 
+// Integrate the positive sin^12 lobe over a pixel's actual phase footprint.
+// World metres alone do not bound shore*22: a one-metre shoreline can project
+// narrow bright peaks into subpixels even while world detail remains visible.
+// These periodic primitives have mean removed; their magnitudes stay bounded
+// across negative phases, many cycles, and long-running animation. A fixed
+// maximum of four primitive evaluations preserves the lobe's average energy
+// (0.11279296875) without textures, history, or additional render targets.
+vec2 shoreRipplePrimitives(float phase)
+{
+    const float pi = 3.14159265358979323846;
+    const float mean = 0.11279296875;
+    float x = mod(phase, 2.0 * pi);
+    if (x >= pi)
+    {
+        float q = x - pi;
+        return vec2(mean * (0.5 * pi - q),
+                    0.5 * mean * q * (pi - q));
+    }
+    // sin^12 on its positive half-cycle is a finite cosine polynomial.
+    const float coefficients[6] = float[6](
+        -0.38671875, 0.24169921875, -0.107421875,
+         0.0322265625, -0.005859375, 0.00048828125);
+    float c = cos(2.0 * x);
+    float cosinePrevious = 1.0;
+    float cosineCurrent = c;
+    float sinePrevious = 0.0;
+    float sineCurrent = sin(2.0 * x);
+    vec2 value = vec2(mean * (x - 0.5 * pi),
+                     0.5 * mean * x * (x - pi));
+    for (int i = 0; i < 6; ++i)
+    {
+        float harmonic = 2.0 * float(i + 1);
+        value.x += coefficients[i] * sineCurrent / harmonic;
+        value.y += coefficients[i] * (1.0 - cosineCurrent) /
+                   (harmonic * harmonic);
+        float cosineNext = 2.0 * c * cosineCurrent - cosinePrevious;
+        float sineNext = 2.0 * c * sineCurrent - sinePrevious;
+        cosinePrevious = cosineCurrent;
+        cosineCurrent = cosineNext;
+        sinePrevious = sineCurrent;
+        sineCurrent = sineNext;
+    }
+    return value;
+}
+
+float shoreRippleLineAverage(float phase, float width)
+{
+    return 0.11279296875 +
+        (shoreRipplePrimitives(phase + 0.5 * width).x -
+         shoreRipplePrimitives(phase - 0.5 * width).x) / width;
+}
+
+float filteredShoreRipple(float phase)
+{
+    float raw = pow(max(sin(phase), 0.0), 12.0);
+    vec2 phasePixel = abs(vec2(dFdx(phase), dFdy(phase)));
+    float footprint = phasePixel.x + phasePixel.y;
+    if (footprint <= 0.05) return raw;
+    // Wrap only after taking derivatives; wrapping before them invents a
+    // discontinuity at every 2pi boundary. Both footprint axes are symmetric.
+    const float pi = 3.14159265358979323846;
+    phase = mod(phase, 2.0 * pi);
+    float major = max(phasePixel.x, phasePixel.y);
+    float minor = min(phasePixel.x, phasePixel.y);
+    float average;
+    if (minor < 0.025)
+    {
+        // The two-point Gaussian minor-axis integral avoids dividing a
+        // second difference by a nearly zero area. Its finite error is fourth
+        // order in a minor footprint below 0.025 radians.
+        float offset = minor * 0.28867513459481288225;
+        average = 0.5 * (shoreRippleLineAverage(phase - offset, major) +
+                         shoreRippleLineAverage(phase + offset, major));
+    }
+    else
+    {
+        vec2 halfPixel = phasePixel * 0.5;
+        average = 0.11279296875 +
+            (shoreRipplePrimitives(phase + halfPixel.x + halfPixel.y).y -
+             shoreRipplePrimitives(phase + halfPixel.x - halfPixel.y).y -
+             shoreRipplePrimitives(phase - halfPixel.x + halfPixel.y).y +
+             shoreRipplePrimitives(phase - halfPixel.x - halfPixel.y).y) /
+            (phasePixel.x * phasePixel.y);
+    }
+    return mix(raw, clamp(average, 0.0, 1.0),
+               smoothstep(0.05, 0.10, footprint));
+}
+
 vec3 planarReflection(vec3 approximate, vec3 normal, float fresnel,
                       float depthAmount, float detailVisibility)
 {
@@ -158,6 +246,13 @@ void main()
     float ripple = pow(max(sin(ripplePhase), 0.0), 12.0) *
         shore * (1.0 - shore) * waterDetailStrength *
         mix(0.35, 1.0, motion) * detailVisibility;
+    // Keep the complete legacy ripple expression and evaluation unchanged.
+    if (linearHdrMode > 0.5)
+    {
+        ripple = filteredShoreRipple(ripplePhase) *
+            shore * (1.0 - shore) * waterDetailStrength *
+            mix(0.35, 1.0, motion) * detailVisibility;
+    }
     colour *= 1.0 - shore * 0.08 * waterDetailStrength;
     colour += mix(shallowColour, sceneColour(vec3(0.73, 0.85, 0.81)), 0.65) * ripple * 0.38;
 
