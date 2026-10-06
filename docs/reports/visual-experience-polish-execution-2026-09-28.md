@@ -2,7 +2,13 @@
 
 ## 恢复区
 
-- **当前：2026-10-06 V06h：启动缺邻网格生产修复已实跑原机位，完整V00–V11仍Doing，Goal active。**
+- **当前：2026-10-06 V07g：用户报告第三人称移动无动作，已分离基础移动和可选反馈；完整Goal active。**
+  起点HEAD `7eec3ced`；实际普通工作客户端feedback Off令原玩家动作scale为0。Bootstrap现映射LocomotionOnly，基础四肢／腾空保留，装饰倾斜／着地／工具／受伤关闭；Reduced／Full与显式静态Off保持，不改变Player／World／保存。
+  正常Debug／Release构建0、首方warning0；动作各501/501，隔离幅度置零负例501/9、exit1。Release `03c48621…4ca46`、Debug `415b3810…13c9a`。实际标准前进和兼容横移Off渲染已查，旧站姿→新步姿；六PNG仅四不同原帧，不宣称完整周期或普通输入。终态普通包、精选原图和本地提交见文末V07g。
+  V11c当前7eec普通副本已实际创建seed42、进入、暂停、两次保存返回／重开；W前完整存档基线已冻结，单次W后坐标未变。独立r3为92/94 PARTIAL，两个配置期待未满足，初始705B与外部介入后706B分记，不能称全PASS。
+  F5一次公开切第三；原14帧序列结束于06:29:41.160438 UTC，Space请求06:29:45.973遭用户状态改变保护，无执行回执。Root停止输入、保留用户窗口；后续位置／FOV120不归因Root操作。新时序分类保留原误写的意图收据，不关闭跳跃或普通连续移动。
+  继续完整普通路线、采集制作、地图移动编辑、动态和整合；未新增人工签字或严格性能前置。10月5日51/68≈75%仅历史实现覆盖，完整12方向仍未全闭。
+- **历史检查点：2026-10-06 V06h：启动缺邻网格生产修复已实跑原机位，完整V00–V11仍Doing，Goal active。**
   起点HEAD `d36310f3`；Bootstrap沿用后台完整3×3零加载guard，缺邻section不生成／不标Clean，原loader补齐后生成；进入世界上传总启动现有loader，原临时camera条件保留。Water／World／保存／生成／预算保持。
   实际存储加载CPU基线122／122复现旧半值角点及内部侧面；guard恢复118／118、raw复核96／96通过。用例是非海平面确定性12chunk，不能直接当自然Water64逐面归因。
   正常两配置build0／无signal／timeout／首方warning，只有Bootstrap对象变化，145对象／17库保持；Release `37722b6a…563df`、Debug `979c9552…eeb2a2`。标准／兼容原机位各四张2560×1440原图，正常退出；完整原Water shader保持，细亮线消失。标准ROI139→10／9／11，>25像素全0，不声明全连续无闪烁。
@@ -3767,3 +3773,71 @@ CUA仅公开`getState()`只读重检一次30.0768秒超时reset，无启动或�
 13限定工程／38实现待验收／12普通连续缺证／5效果未充分证明的历史口径，51／68约75%不是今天总完成度。
 后续继续三种子普通路线、采集制作／建造、地图移动／编辑往返、完整UI与动态、受影响音频回归和必要整合。
 未受影响的旧听感、人类审美／试玩签字和严格配对性能不追加为前置；Goal active，不推送／发布／打标签。
+
+## V11c：当前普通创建、保存重开与输入时序（2026-10-06）
+
+Root通过公开CUA创建`V11c-Seed42`，普通seed42／terrain30，进入、暂停、保存返回、Continue、
+再次保存返回和Continue。实际普通包为`v11c/OrdinaryWorkbench.app`，7eec／Release37722，
+PID9121／主窗口368。首次六文件、第二次九文件的原存档分别冻结到
+`saved-before-movement-r1/`与`saved-after-one-w-r1/`，真实map4及preview校验、备份和两张
+原窗口PNG独立核过。W前后玩家坐标均为`36.2999992 92 56.5`，health20、五空槽；
+world_time388→1952，不能称全部存档字节不变。spawn40.5与保存36.2999992的差值在W前已存在，
+不归因W或未核实的出生修正。
+
+`ordinary-baseline-one-w-independent-review-r3.json`为92/94 PARTIAL：两项仍未满足是当前
+owned配置706B与准备／正式源705B不同。初始705B受准备收据保护，后续F5切第三人称；
+用户介入后观察到FOV120和不同位置，Root未打开设置或调整FOV。保存时点没有配置副本，
+不倒推设置变化时间。r1/r2消费者schema／decimal错误的失败原件保留。
+
+Root只公开短按一次W，坐标无变化；F5一次确实显示角色。原14张native截图覆盖
+06:29:36.422154–06:29:41.158545 UTC，终态0；Space请求在06:29:45.973返回用户状态改变保护，
+无执行回执。原capture收据里的“Space during sequence”是未实现意图，原件不改，
+由`sequence-temporal-classification-r1.json`另行纠正：只是第三人称待机／环境序列。
+Root立即停止输入并保留客户端，`public-cua-intervention-r1.json`记录边界；不算跳跃、连续移动
+或完整普通路线通过。用户随后报告第三人称滑行，直接进入下面V07g修复。
+
+## V07g：反馈关闭仍保留玩家基础移动（2026-10-06）
+
+### 变化与真实缺陷
+
+起点HEAD7eec，工作区仅两份既有无关规划未跟踪。用户当前正常配置为`feedbackintensity off`；
+`playerMotionStrength()`原来映射纯表现Off，步态、腾空腿臂全部乘0，产生角色只有平移的外观。
+正常动作反馈关闭现在映射`LocomotionOnly`：原Player速度、贴地事实和步态时钟继续驱动基础动作，
+关闭常态臂外展、整身倾斜、着地压缩、工具和受伤附加反馈，后三类权重归零，保持脚底修正。
+显式Off仍供静态诊断，Reduced／Full保持原幅度；第一人称反馈、Player／World／相机权威、
+持物几何缓存、八部件／96三角形及save12／terrain30／map4／settings11均未改。
+
+### 验证与画面边界
+
+正常Xcode x86_64双配置构建均exit0，无首方warning；实际各146个客户端对象中三对象改变：
+Bootstrap／PlayerRenderer／ThirdPersonCameraRig。Debug93.28秒，Release104.27秒，
+第三方原源码warning分别5409／5429条保留，不声明零总warning。Release SHA
+`03c486215a1df838495fbdd364159b6d7c36725871cf2fca32c7357b86f4ca46`，Debug SHA
+`415b38103fc2d72136536eef8b7240a44c502417f8a5aa6336676e8e44a13c9a`；命令、原日志与源保持见
+`v07g/normal-build-r1/receipt.json`。双配置纯动作各501/501，新增45项覆盖八方向纯值周期、
+独立腿盒角点支撑／分离、反馈污染、上升／下落、暂停／停止、30/120Hz与输入保持。
+隔离头文件只把LocomotionOnly幅度置零，真实编译0后501/9、exit1；生产头文件保持，原检查未删。
+
+实际旧／新标准前进及新兼容横移三次隐藏隔离运行，Off／third／FOV120／seed42，
+原自然平地机位`152.5 78.5 -58.5`／`12 0 0`，RD8／medium shadow／post off。
+PID18121／23330／23545各正常exit0、signal null、未超时、已回收。旧包双腿并拢／双臂垂下，
+新标准可见同侧不同幅度的迈腿摆臂，新兼容可见外开侧步。每次六个名义时刻PNG只有四种原帧：
+5400/5600及5800/6000分别同次flush；不宣称六次独立时间采样或完整反向交替周期。
+夹具只复制渲染速度／时钟、不移动Player，全部normal_input=false；普通W／跳跃、坡面／近墙
+和连续周期仍OPEN。独立`independent-review-r2.json`125/125通过、18张RGB8原PNG完整；
+首版r1误假设RGBA通道和少一层Contents路径的消费者FAIL保留，不算产品失败。
+
+### 交付与继续项
+
+精选`v07g-feedback-off-locomotion/`三张当前升级后及一张冻结前图，原始字节不改；
+总52轮206图，旧51轮202图的manifest对象与index字面前缀保持，未重扫旧媒体。
+原V06h正式配置／可执行和两份无关规划的四项聚焦SHA保持；用户正在玩的普通副本未刷新、
+未关闭、未还原配置。它仍运行旧37722，启动新独立包才使用本次修复。
+
+本批中文本地提交后普通交付为`build/visual-experience-polish-20260928/v07g/After.app`，
+沿用已构建Release与原完整705B正常配置，无诊断种子／位置／动作注入。
+精确commit、135管理文件／137完整文件、2965源码身份和配置终态以
+`postcommit-r1.json`／`final-package-r1.json`为准；正常菜单只读渲染终态另见
+`ordinary-full-config-menu-r1/receipt.json`。原CaptureCandidate的7eec＋dirty453234身份不改成未来提交。
+本批动作缺陷的工程与有限渲染修复不关闭完整V07或总Goal；继续普通持续动作和全部剩余范围，
+严格配对性能仍DEFERRED_BY_USER，不推送／发布／打标签。

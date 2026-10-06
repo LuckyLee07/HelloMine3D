@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -641,6 +642,142 @@ namespace
         }
     }
 
+    void feedbackOffLocomotionCase()
+    {
+        const auto profile = Avatar::defaultProfile();
+        constexpr auto strength = Avatar::MotionStrength::LocomotionOnly;
+        constexpr float cycleSeconds = 6.28318530718f / 8.2f;
+        const auto idle = Avatar::derivePose({}, profile, strength);
+        check(idle.kind == Avatar::PoseKind::Idle &&
+              near(articulationMagnitude(idle, profile), 0.f) &&
+              groundedLegCorners(idle, profile),
+              "feedback Off retains a neutral grounded idle without decorative sway");
+
+        for (const auto& direction : travelDirections) {
+            bool legsMatchFull = true, supported = true, feedbackIgnored = true;
+            bool inputUnchanged = true, placementImmediate = true, noRootLean = true;
+            std::array<bool, 4> limbsMoved{};
+            const auto first = Avatar::derivePose(
+                moving(direction.forward, direction.right, 37.f, 4.5f, 1.f, 0.f),
+                profile, strength);
+            constexpr std::array<Avatar::PartRole, 4> limbs{{
+                Avatar::PartRole::LeftLeg, Avatar::PartRole::RightLeg,
+                Avatar::PartRole::LeftArm, Avatar::PartRole::RightArm}};
+            for (int phase = 0; phase < 32; ++phase) {
+                auto input = moving(direction.forward, direction.right, 37.f,
+                                    4.5f, 1.f, phase * cycleSeconds / 32.f);
+                input.position = {123.f, 37.f, -57.f};
+                std::array<unsigned char, sizeof(Avatar::Snapshot)> original{};
+                std::memcpy(original.data(), &input, sizeof input);
+                const auto pose = Avatar::derivePose(input, profile, strength);
+                const auto full = Avatar::derivePose(input, profile,
+                                                     Avatar::MotionStrength::Full);
+                inputUnchanged &= std::memcmp(original.data(), &input, sizeof input) == 0;
+                placementImmediate &= nearVector(pose.worldPosition, input.position) &&
+                                      near(pose.facingYawDegrees, 37.f);
+                noRootLean &= nearVector(pose.rootRotationDegrees, {});
+                for (const auto role : {Avatar::PartRole::LeftLeg,
+                                        Avatar::PartRole::RightLeg})
+                    legsMatchFull &= nearVector(part(pose, profile, role).rotationDegrees,
+                                                part(full, profile, role).rotationDegrees);
+                for (std::size_t index = 0; index < limbs.size(); ++index)
+                    limbsMoved[index] = limbsMoved[index] ||
+                        !nearVector(part(pose, profile, limbs[index]).rotationDegrees,
+                                    part(first, profile, limbs[index]).rotationDegrees, 4.f);
+                supported &= groundedLegCorners(pose, profile) &&
+                             separatedLegCorners(pose, profile);
+
+                auto polluted = input;
+                polluted.feedback.landing = 1.f;
+                polluted.feedback.tool = {1.f, 1.f, 1.f, 1.f};
+                polluted.feedback.hurt = 1.f;
+                const auto withoutFeedback = Avatar::derivePose(polluted, profile, strength);
+                feedbackIgnored &= sameLocalPose(pose, withoutFeedback, profile) &&
+                    near(withoutFeedback.weights.land, 0.f) &&
+                    near(withoutFeedback.weights.tool, 0.f) &&
+                    near(withoutFeedback.weights.hurt, 0.f) &&
+                    withoutFeedback.kind == Avatar::PoseKind::Walk;
+            }
+            const std::string label = direction.name;
+            check(std::all_of(limbsMoved.begin(), limbsMoved.end(),
+                             [](bool moved) { return moved; }) && legsMatchFull,
+                  "feedback Off keeps a complete visible limb cycle at Full leg amplitude: " + label);
+            check(supported,
+                  "feedback Off keeps independent leg corners grounded and separated through a full cycle: " + label);
+            check(feedbackIgnored && noRootLean,
+                  "feedback Off ignores landing, tool, hurt and decorative root lean while walking: " + label);
+            check(inputUnchanged && placementImmediate,
+                  "feedback Off only copies authoritative snapshot placement and leaves all input bytes unchanged: " + label);
+
+            const auto reverse = Avatar::derivePose(
+                moving(-direction.forward, -direction.right, 37.f), profile, strength);
+            const auto initial = Avatar::derivePose(
+                moving(direction.forward, direction.right, 37.f), profile, strength);
+            Avatar::Pose at30, at120;
+            bool smoothSupported = true, stopped = true, paused = true;
+            for (int fps : {30, 120}) {
+                Avatar::PoseHistory history;
+                Avatar::smoothPose(history, initial, profile, 0.f);
+                const auto frozen = Avatar::smoothPose(history, reverse, profile, 0.f);
+                paused &= sameLocalPose(frozen, initial, profile);
+                Avatar::Pose result;
+                for (int frame = 0; frame < fps / 5; ++frame) {
+                    result = Avatar::smoothPose(history, reverse, profile, 1.f / fps);
+                    smoothSupported &= groundedLegCorners(result, profile) &&
+                                       separatedLegCorners(result, profile);
+                }
+                if (fps == 30) at30 = result; else at120 = result;
+                for (int frame = 0; frame < fps; ++frame) {
+                    result = Avatar::smoothPose(history, idle, profile, 1.f / fps);
+                    smoothSupported &= groundedLegCorners(result, profile) &&
+                                       separatedLegCorners(result, profile);
+                }
+                stopped &= sameLocalPose(result, idle, profile, .002f);
+            }
+            check(smoothSupported && stopped && paused &&
+                  sameLocalPose(at30, at120, profile, .002f),
+                  "feedback Off reversal agrees at 30/120 Hz, pause freezes limbs and stopping restores supported idle: " + label);
+        }
+
+        Avatar::Snapshot rise;
+        rise.grounded = false;
+        rise.velocity.y = 6.f;
+        auto fall = rise;
+        fall.velocity.y = -6.f;
+        const auto rising = Avatar::derivePose(rise, profile, strength);
+        const auto falling = Avatar::derivePose(fall, profile, strength);
+        const auto risingFull = Avatar::derivePose(rise, profile, Avatar::MotionStrength::Full);
+        const auto fallingFull = Avatar::derivePose(fall, profile, Avatar::MotionStrength::Full);
+        bool airMatchesFull = true;
+        for (const auto role : {Avatar::PartRole::LeftLeg, Avatar::PartRole::RightLeg,
+                                Avatar::PartRole::LeftArm, Avatar::PartRole::RightArm}) {
+            // Airborne articulation is X pitch; Full also retains its optional
+            // stationary arm spread, which this feedback-free mode removes.
+            airMatchesFull &= near(part(rising, profile, role).rotationDegrees.x,
+                                   part(risingFull, profile, role).rotationDegrees.x) &&
+                              near(part(falling, profile, role).rotationDegrees.x,
+                                   part(fallingFull, profile, role).rotationDegrees.x);
+        }
+        check(rising.kind == Avatar::PoseKind::Airborne &&
+              falling.kind == Avatar::PoseKind::Airborne &&
+              !sameLocalPose(rising, falling, profile) && airMatchesFull &&
+              nearVector(rising.rootRotationDegrees, {}) &&
+              nearVector(falling.rootRotationDegrees, {}),
+              "feedback Off keeps distinct rising/falling limb silhouettes without decorative root tilt");
+        for (auto input : {Avatar::Snapshot{}, rise, fall}) {
+            const auto clean = Avatar::derivePose(input, profile, strength);
+            input.feedback.landing = 1.f;
+            input.feedback.tool = {1.f, 1.f, 1.f, 1.f};
+            input.feedback.hurt = 1.f;
+            const auto polluted = Avatar::derivePose(input, profile, strength);
+            check(sameLocalPose(clean, polluted, profile) &&
+                  near(polluted.weights.land, 0.f) &&
+                  near(polluted.weights.tool, 0.f) &&
+                  near(polluted.weights.hurt, 0.f),
+                  "feedback Off ignores action feedback in stationary and airborne poses");
+        }
+    }
+
     void toolDirectionCase()
     {
         const auto profile = Avatar::defaultProfile();
@@ -767,6 +904,7 @@ int main()
     groundedGeometryCase();
     workingArmGaitCase();
     directionalSmoothingCase();
+    feedbackOffLocomotionCase();
     std::cout << "[PLAYER_AVATAR] checks=" << checks
               << " failures=" << failures << '\n';
     return failures == 0 ? 0 : 1;

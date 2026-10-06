@@ -54,7 +54,10 @@ namespace PlayerAvatarPresentation
     {
         Off = 0,
         Reduced,
-        Full
+        Full,
+        // Action feedback may be off while locomotion remains readable.
+        // Off is still available for deliberately static diagnostic poses.
+        LocomotionOnly
     };
 
     struct PartDefinition
@@ -189,6 +192,7 @@ namespace PlayerAvatarPresentation
         case MotionStrength::Off: return 0.f;
         case MotionStrength::Reduced: return .55f;
         case MotionStrength::Full: return 1.f;
+        case MotionStrength::LocomotionOnly: return 0.f;
         }
         return .55f;
     }
@@ -362,6 +366,8 @@ namespace PlayerAvatarPresentation
         pose.facingYawDegrees = wrapDegrees(source.rotationDegrees.y);
 
         const float scale = motionScale(strength);
+        const bool locomotionOnly = strength == MotionStrength::LocomotionOnly;
+        const float locomotionScale = locomotionOnly ? 1.f : scale;
         // Normalize before projection so even very large finite velocities
         // cannot overflow. A missing/invalid horizontal fact is stationary.
         float forward = 0.f, right = 0.f;
@@ -380,10 +386,11 @@ namespace PlayerAvatarPresentation
         const bool moving = forward != 0.f || right != 0.f;
         pose.weights.walk = source.grounded && moving ? clamp01(source.movementStrength) : 0.f;
         pose.weights.airborne = source.grounded ? 0.f : 1.f;
-        pose.weights.land = source.grounded ? clamp01(source.feedback.landing) : 0.f;
+        pose.weights.land = source.grounded && !locomotionOnly
+            ? clamp01(source.feedback.landing) : 0.f;
         const auto& action = source.feedback.tool;
-        pose.weights.tool = clamp01(action.activity());
-        pose.weights.hurt = clamp01(source.feedback.hurt);
+        pose.weights.tool = locomotionOnly ? 0.f : clamp01(action.activity());
+        pose.weights.hurt = locomotionOnly ? 0.f : clamp01(source.feedback.hurt);
         const float active = std::max({pose.weights.walk, pose.weights.airborne,
             pose.weights.land, pose.weights.tool, pose.weights.hurt});
         pose.weights.idle = 1.f - clamp01(active);
@@ -396,7 +403,7 @@ namespace PlayerAvatarPresentation
 
         const float gaitClock = finiteOr(source.movementSeconds);
         const float gait = std::sin(std::remainder(gaitClock * 8.2f, 6.28318530718f));
-        const float walk = pose.weights.walk * scale;
+        const float walk = pose.weights.walk * locomotionScale;
         const float legSwing = gait * 32.f * forward * walk;
         const float armSwing = gait * 25.f * forward * walk;
         // Lateral steps open outward only. Opposing inward leg rolls would
@@ -407,19 +414,19 @@ namespace PlayerAvatarPresentation
         addRotation(pose, profile, PartRole::RightLeg, {-legSwing, 0.f, 12.f * stepRight});
         addRotation(pose, profile, PartRole::LeftArm, {-armSwing, 0.f, (-2.f * scale - 8.f * stepRight)});
         addRotation(pose, profile, PartRole::RightArm, {armSwing, 0.f, (2.f * scale + 8.f * stepLeft)});
-        pose.rootRotationDegrees.x += 3.f * forward * walk;
-        pose.rootRotationDegrees.z -= 3.f * right * walk;
+        pose.rootRotationDegrees.x += 3.f * forward * pose.weights.walk * scale;
+        pose.rootRotationDegrees.z -= 3.f * right * pose.weights.walk * scale;
 
         if (pose.weights.airborne > 0.f) {
             const float rise = clamp(source.velocity.y * .12f, -1.f, 1.f);
             addRotation(pose, profile, PartRole::LeftLeg,
-                        {(-13.f - rise * 8.f) * scale, 0.f, 0.f});
+                        {(-13.f - rise * 8.f) * locomotionScale, 0.f, 0.f});
             addRotation(pose, profile, PartRole::RightLeg,
-                        {(7.f - rise * 5.f) * scale, 0.f, 0.f});
+                        {(7.f - rise * 5.f) * locomotionScale, 0.f, 0.f});
             addRotation(pose, profile, PartRole::LeftArm,
-                        {(16.f + rise * 5.f) * scale, 0.f, 0.f});
+                        {(16.f + rise * 5.f) * locomotionScale, 0.f, 0.f});
             addRotation(pose, profile, PartRole::RightArm,
-                        {(16.f + rise * 5.f) * scale, 0.f, 0.f});
+                        {(16.f + rise * 5.f) * locomotionScale, 0.f, 0.f});
             pose.rootRotationDegrees.x += -rise * 5.f * scale;
         }
 

@@ -5060,7 +5060,7 @@ namespace
             switch (m_config.feedbackIntensity)
             {
                 case GameplayFeedbackIntensity::Off:
-                    return PlayerAvatarPresentation::MotionStrength::Off;
+                    return PlayerAvatarPresentation::MotionStrength::LocomotionOnly;
                 case GameplayFeedbackIntensity::Reduced:
                     return PlayerAvatarPresentation::MotionStrength::Reduced;
                 case GameplayFeedbackIntensity::Full:
