@@ -25,6 +25,44 @@ namespace {
 constexpr const char* ReflectionUnit = "planarReflection";
 constexpr const char* CompleteSamplerUnit = "HelloMine3D.PlanarWater.CompleteSamplerFallback";
 constexpr const char* WaterProgram = "HelloMine3D/WaterFragment";
+struct ReflectionUniform {
+    const char* name;
+    Ogre::GpuConstantType ogreType;
+    GLenum glType;
+    std::size_t elements;
+};
+constexpr std::array<ReflectionUniform, 5> ReflectionUniforms{{
+    {"planarReflectionTexture", Ogre::GCT_SAMPLER2D, GL_SAMPLER_2D, 1},
+    {"planarReflectionViewProj", Ogre::GCT_MATRIX_4X4, GL_FLOAT_MAT4, 16},
+    {"planarReflectionEnabled", Ogre::GCT_FLOAT1, GL_FLOAT, 1},
+    {"planarReflectionPlaneY", Ogre::GCT_FLOAT1, GL_FLOAT, 1},
+    {"planarReflectionTexelSize", Ogre::GCT_FLOAT2, GL_FLOAT_VEC2, 2}
+}};
+unsigned reflectionDeclarations(Ogre::Pass& pass)
+{
+    const auto fragment = pass.getFragmentProgram();
+    const auto parameters = pass.getFragmentProgramParameters();
+    // This vendored GLSL backend extracts definitions from preprocessed source
+    // and attached sources, including declarations optimized out by GL. Pass
+    // constants alone (or GL active uniforms alone) must not invent legacy.
+    const auto& definitions = fragment->getConstantDefinitions().map;
+    unsigned declared = 0;
+    for (const auto& expected : ReflectionUniforms) {
+        const auto found = definitions.find(expected.name);
+        const auto* actual = parameters->_findNamedConstantDefinition(expected.name, false);
+        if ((found == definitions.end()) != (actual == nullptr))
+            throw std::runtime_error(std::string("Invalid Water reflection shader interface: pass declaration mismatch for ") + expected.name);
+        if (!actual) continue;
+        ++declared;
+        const auto& source = found->second;
+        if (source.constType != expected.ogreType || source.arraySize != 1 || source.elementSize != expected.elements ||
+            actual->constType != source.constType || actual->arraySize != source.arraySize || actual->elementSize != source.elementSize)
+            throw std::runtime_error(std::string("Invalid Water reflection shader interface: wrong type/array for ") + expected.name);
+    }
+    if (declared && declared != ReflectionUniforms.size())
+        throw std::runtime_error("Invalid Water reflection shader interface: partial declaration (" + std::to_string(declared) + "/5).");
+    return declared;
+}
 
 float decode(float c)
 {
@@ -105,6 +143,13 @@ struct PlanarWaterReflection::Impl final : Ogre::RenderQueue::RenderableListener
     // distinct resize can retain another depth buffer until engine shutdown.
     std::unique_ptr<Ogre::DepthBuffer> depth;
     Ogre::Pass* boundWaterPass = nullptr;
+    // No program/resource reference is retained. Startup resources are frozen;
+    // a changed pair/GL shader object requires a new real link certificate.
+    Ogre::Pass* preparedWaterPass = nullptr;
+    Ogre::ResourceHandle certifiedVertex = 0, certifiedFragment = 0;
+    GLuint certifiedVertexShader = 0, certifiedFragmentShader = 0;
+    unsigned certifiedDeclarations = 0, certifiedLinkedInterfaces = 0;
+    bool shaderCertified = false;
     // This blank TUS borrows the renderer's existing warning texture at draw
     // time. It owns neither a TexturePtr nor the manager's native texture.
     Ogre::Pass* fallbackWaterPass = nullptr;
@@ -424,6 +469,79 @@ void PlanarWaterReflection::initialize(Ogre::SceneManager& scene, Ogre::RenderSy
     if (forced && std::string(forced) == "1") s.supported = false;
     s.status("no-selected-resident-water");
 }
+void PlanarWaterReflection::prepareWaterPass(Ogre::Pass& pass, unsigned linkedProgram)
+{
+    auto& s = *m_impl;
+    if (!s.scene || s.rendering)
+        throw std::runtime_error("Water shader capability requires an initialized frame boundary.");
+    const auto vertex = pass.hasVertexProgram() ? pass.getVertexProgram() : Ogre::GpuProgramPtr();
+    const auto fragment = pass.hasFragmentProgram() ? pass.getFragmentProgram() : Ogre::GpuProgramPtr();
+    const auto* vs = vertex.isNull() ? nullptr : dynamic_cast<const Ogre::GLSLShader*>(vertex.get());
+    const auto* fs = fragment.isNull() ? nullptr : dynamic_cast<const Ogre::GLSLShader*>(fragment.get());
+    const bool samePair = s.shaderCertified && vs && fs &&
+        s.certifiedVertex == vertex->getHandle() && s.certifiedFragment == fragment->getHandle() &&
+        s.certifiedVertexShader == vs->getGLShaderHandle() && s.certifiedFragmentShader == fs->getGLShaderHandle();
+    if (s.preparedWaterPass && (s.preparedWaterPass != &pass || !samePair)) {
+        s.preparedWaterPass = nullptr;
+        s.stats.active = false; s.submitted = false;
+        s.releaseTarget(); s.clearMaterials();
+        if (!s.unbindFallbackWater())
+            throw std::runtime_error("Planar complete-sampler TUS release failed.");
+        if (s.camera) s.camera->setLodCamera(nullptr);
+        s.input.bindViewParameters = {};
+    }
+    if (!vs || !fs || vertex->getType() != Ogre::GPT_VERTEX_PROGRAM || fragment->getType() != Ogre::GPT_FRAGMENT_PROGRAM ||
+        !vertex->isLoaded() || !fragment->isLoaded() || vertex->hasCompileError() || fragment->hasCompileError() ||
+        !vs->getGLShaderHandle() || !fs->getGLShaderHandle())
+        throw std::runtime_error("Invalid Water shader resources for reflection capability.");
+    const unsigned declared = reflectionDeclarations(pass);
+    if (linkedProgram) {
+        const GLenum beforeError = glGetError();
+        if (beforeError != GL_NO_ERROR)
+            throw std::runtime_error("Water reflection capability entered with a GL error.");
+        GLint currentBefore = 0, currentAfter = 0, linked = 0, count = 0;
+        glGetIntegerv(GL_CURRENT_PROGRAM, &currentBefore);
+        if (!glIsProgram(linkedProgram))
+            throw std::runtime_error("Water reflection capability requires a real linked program.");
+        glGetProgramiv(linkedProgram, GL_LINK_STATUS, &linked);
+        if (!linked) throw std::runtime_error("Invalid linked Water shader resources for reflection capability.");
+        std::array<bool, ReflectionUniforms.size()> found{};
+        unsigned active = 0;
+        glGetProgramiv(linkedProgram, GL_ACTIVE_UNIFORMS, &count);
+        for (GLint i = 0; i < count; ++i) {
+            char name[256]{}; GLint size = 0; GLenum type = 0;
+            glGetActiveUniform(linkedProgram, static_cast<GLuint>(i), sizeof(name), nullptr, &size, &type, name);
+            for (std::size_t j = 0; j < ReflectionUniforms.size(); ++j) {
+                const auto& expected = ReflectionUniforms[j];
+                const std::string actual(name);
+                if (actual != expected.name && actual != std::string(expected.name) + "[0]") continue;
+                // Even a one-element declared array must not masquerade as the
+                // scalar interface: GL reports its active name with [0].
+                if (actual != expected.name || type != expected.glType || size != 1 || found[j] ||
+                    glGetUniformLocation(linkedProgram, expected.name) < 0)
+                    throw std::runtime_error(std::string("Invalid Water reflection shader interface: linked type/array for ") + expected.name);
+                found[j] = true; ++active;
+            }
+        }
+        glGetIntegerv(GL_CURRENT_PROGRAM, &currentAfter);
+        if (glGetError() != GL_NO_ERROR || currentBefore != currentAfter)
+            throw std::runtime_error("Water reflection capability GL query state/error.");
+        if (active != declared)
+            throw std::runtime_error("Invalid Water reflection shader interface: declared/linked interface mismatch (" +
+                                     std::to_string(declared) + "/" + std::to_string(active) + ").");
+        s.certifiedVertex = vertex->getHandle(); s.certifiedFragment = fragment->getHandle();
+        s.certifiedVertexShader = vs->getGLShaderHandle(); s.certifiedFragmentShader = fs->getGLShaderHandle();
+        s.certifiedDeclarations = declared; s.certifiedLinkedInterfaces = active; s.shaderCertified = true;
+        std::cout << "[WATER_REFLECTION_CAPABILITY] state=" << (declared ? "complete" : "absent")
+                  << " declared=" << declared << " linked=" << active << " vertex=" << vertex->getName()
+                  << " fragment=" << fragment->getName() << " no_consumer=" << (declared == 0)
+                  << " current_program_before=" << currentBefore << " current_program_after=" << currentAfter
+                  << " gl_error=0" << '\n';
+    } else if (!samePair || declared != s.certifiedDeclarations) {
+        throw std::runtime_error("Water reflection shader program pair is not startup-certified.");
+    }
+    s.preparedWaterPass = &pass;
+}
 void PlanarWaterReflection::selectPlaneY(float y) noexcept
 {
     auto& s = *m_impl;
@@ -450,6 +568,7 @@ void PlanarWaterReflection::resetWorld() noexcept
     s.releaseTarget(); s.clearMaterials(); s.stats.reason = "world-reset";
     if (s.camera) s.camera->setLodCamera(nullptr);
     s.input.bindViewParameters = {};
+    s.preparedWaterPass = nullptr; // Numeric frozen-program certificate survives World reset.
 }
 const PlanarWaterReflection::Statistics& PlanarWaterReflection::statistics() const noexcept { return m_impl->stats; }
 void PlanarWaterReflection::render(Ogre::Camera& mainCamera, Ogre::Viewport& mainViewport, const FrameInput& input)
@@ -457,11 +576,19 @@ void PlanarWaterReflection::render(Ogre::Camera& mainCamera, Ogre::Viewport& mai
     auto& s = *m_impl;
     if (!s.scene || !s.camera) throw std::runtime_error("PlanarWaterReflection was not initialized.");
     if (s.rendering) throw std::runtime_error("Recursive planar reflection update is prohibited.");
+    if (!s.preparedWaterPass || !s.shaderCertified)
+        throw std::runtime_error("Water pass must be prepared before planar reflection render.");
     if (s.submitted && s.lastFrame == input.frameSerial) return;
     s.submitted = true; s.lastFrame = input.frameSerial; s.input = input;
     s.stats.frameSerial = input.frameSerial; s.stats.sceneRevision = input.sceneRevision;
     s.stats.colourBatches = s.stats.colourTriangles = s.stats.shadowUpdates = s.stats.shadowBatches = 0;
     s.stats.rejectedWater = s.stats.rejectedFeedback = 0; s.stats.cpuMilliseconds = 0;
+    if (!s.certifiedDeclarations) {
+        s.releaseTarget(); s.clearMaterials();
+        s.input.bindViewParameters = {};
+        if (s.camera) s.camera->setLodCamera(nullptr);
+        s.status("shader-interface-absent"); return;
+    }
     if (!input.enabled || !input.linearHdr || !s.supported) {
         s.releaseTarget(); s.clearMaterials();
         s.status(!input.enabled ? "off" : !input.linearHdr ? "legacy-colour" : "unsupported-capability"); return;
@@ -525,25 +652,22 @@ void PlanarWaterReflection::render(Ogre::Camera& mainCamera, Ogre::Viewport& mai
 void PlanarWaterReflection::bindWaterPass(Ogre::Pass& pass)
 {
     auto& s = *m_impl;
-    if (!pass.hasFragmentProgram()) throw std::runtime_error("Water pass has no fragment program.");
+    prepareWaterPass(pass); // Also protects callers that bind a replaced pass.
     auto parameters = pass.getFragmentProgramParameters();
-    if (!s.stats.active) {
-        setIfPresent(*parameters, "planarReflectionEnabled", 0.f);
+    if (!s.certifiedDeclarations) {
         s.unbindWater();
-        // These optional uniforms may be absent in a complete old shader pack.
-        // Keep that path unchanged, without inventing a sampler interface.
-        const auto* sampler = parameters->_findNamedConstantDefinition("planarReflectionTexture", false);
-        if (sampler && sampler->constType == Ogre::GCT_SAMPLER2D && sampler->arraySize == 1 &&
-            parameters->_findNamedConstantDefinition("planarReflectionEnabled", false))
-            s.bindFallbackWater(pass, *parameters);
-        else if (!s.unbindFallbackWater())
+        if (!s.unbindFallbackWater())
             throw std::runtime_error("Planar complete-sampler TUS release failed.");
         return;
     }
-    const char* required[] = { "planarReflectionTexture", "planarReflectionViewProj", "planarReflectionEnabled",
-                              "planarReflectionPlaneY", "planarReflectionTexelSize" };
-    for (const char* name : required) if (!parameters->_findNamedConstantDefinition(name, false))
-        throw std::runtime_error(std::string("Water shader missing planar reflection interface: ") + name);
+    if (!s.stats.active) {
+        setIfPresent(*parameters, "planarReflectionEnabled", 0.f);
+        s.unbindWater();
+        // Only the certified complete scalar 2D interface receives a blank
+        // sampler; the entirely absent old interface returned above.
+        s.bindFallbackWater(pass, *parameters);
+        return;
+    }
     s.ownedFallbackUnit(pass); // A foreign reserved name must never be overwritten.
     if (!s.unbindFallbackWater())
         throw std::runtime_error("Planar complete-sampler TUS release failed.");
@@ -723,6 +847,10 @@ std::string PlanarWaterReflection::transitionDiagnosticFacts(const Ogre::Pass& p
         <<",\"input_enabled\":"<<s.input.enabled<<",\"input_linear_hdr\":"<<s.input.linearHdr
         <<",\"input_camera_underwater\":"<<s.input.cameraUnderwater<<",\"active\":"<<s.stats.active
         <<",\"reason\":"<<RenderLifecycle::quote(s.stats.reason)
+        <<",\"shader_capability\":"<<RenderLifecycle::quote(!s.shaderCertified?"unprepared":s.certifiedDeclarations?"complete":"absent")
+        <<",\"shader_declared_interfaces\":"<<s.certifiedDeclarations
+        <<",\"shader_linked_interfaces\":"<<s.certifiedLinkedInterfaces
+        <<",\"shader_pass_prepared\":"<<(s.preparedWaterPass==&pass)
         <<",\"colour_batches\":"<<s.stats.colourBatches<<",\"shadow_updates\":"<<s.stats.shadowUpdates
         <<",\"pass\":{\"observation_domain\":\"actual-Ogre-Water-pass-parameter-and-TUS\",\"enabled\":"<<enabled
         <<",\"tus_name\":"<<RenderLifecycle::quote(ReflectionUnit)<<",\"tus_present\":"<<(unit!=nullptr)

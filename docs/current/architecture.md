@@ -1075,8 +1075,15 @@ Ogre pass及linked GL完整矩阵和同帧RTT；真实保留旧面的负控先�
 组件不拥有 Manager纹理，不新增RTT或World状态；恢复active前／reset时只移除exact-owned TUS。
 没有可选接口的完整旧shader保持原停用路径，保留名冲突明确失败。新观察记录实际sampler类型、
 storage、过滤及拥有者；GL4.1查询在目标active unit上用GetIntegerv并严格恢复状态。
-本轮四阶段两配置各212／0，普通输入和其它水位的本版完整循环仍未验，见
+r13四阶段两配置各228／0（原212谓词及37校准不变，新增四phase各四个能力谓词），
+普通输入和其它水位的本版完整循环仍未验，见
 [完整sampler合同](../contracts/reference-water-fallback-sampler-contract-v1.md)。
+
+Water startup复用同一实际compile／link证书，分别检查实际FS声明和linked scalar接口：
+完整五项才启用反射；五项全缺席的合法旧资源继续原HDR近似，不创建RTT／depth／私材／附加shadow；
+部分、类型／数组错误或declared／linked不一致均在第一次RTT前明确失败。每帧只核冻结program数值
+身份与实际pass，World reset清绑定和prepared指针，不延长shader资源寿命；
+见[shader能力合同](../contracts/reference-water-shader-capability-contract-v1.md)。
 
 ## 12. Frozen Version and Boundary Facts
 

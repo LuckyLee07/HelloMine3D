@@ -1463,12 +1463,12 @@ namespace
                 std::getenv("HELLOMINE3D_LIFECYCLE_FAULT")!=nullptr);
             m_hdrPipeline->initialize(*viewport, *m_root->getRenderSystem(),
                                       m_config.renderPipeline);
-            configureWaterBoundaryPins();
-            configureTerrainAppearance();
             m_waterReflection = std::make_unique<PlanarWaterReflection>();
             if(m_lifecycleProbe) m_waterReflection->setLifecycleReleaseObserver(
                 [this](const char* owner,const std::string& facts,bool pass){m_lifecycleProbe->release(owner,facts,pass);});
             m_waterReflection->initialize(*m_sceneManager, *m_root->getRenderSystem());
+            configureWaterBoundaryPins();
+            configureTerrainAppearance();
             if (m_referenceWaterDepthRequested) m_referenceWaterDepth=std::make_unique<ReferenceWaterDepthPrepassDiagnostic>(*m_root,*m_sceneManager,*m_camera,*m_hdrPipeline);
             if(!m_referenceEditOutput.empty()) {
                 ReferenceEdit::require(m_hdrPipeline->active() && m_referenceSurfaceEnabled,
@@ -1623,6 +1623,9 @@ namespace
                 available = guardActive && pinActive && namedGuard;
                 if (namedGuard)
                     parameters->setNamedConstant("waterBoundaryPinsV1", available ? 1.f : 0.f);
+                // The same real link certifies the independent FS reflection
+                // interface; old VS mesh-pin absence says nothing about it.
+                m_waterReflection->prepareWaterPass(*pass, certificate);
                 glDeleteProgram(certificate);
             }
             catch (...)
@@ -3058,6 +3061,8 @@ namespace
                 m_referenceRestartObservation->beginFrame(unsigned(m_frameCount),*m_world,sandboxAdvanced);
             if (m_waterReflection && m_world && m_camera && m_camera->getViewport())
             {
+                auto* waterPass=materialPass("HelloMine3D/Water");
+                m_waterReflection->prepareWaterPass(*waterPass);
                 const auto position=m_camera->getDerivedPosition();
                 const glm::vec3 eye(position.x,position.y,position.z);
                 const auto plane=m_world->observeWaterSurfacePlane(eye);
@@ -3088,7 +3093,7 @@ namespace
                 // The only admitted negative deliberately retains the prior
                 // real pass/TUS on collar frames; ordinary binding is unchanged.
                 if(!m_referenceWaterProbe || !m_referenceWaterProbe->faultBinding())
-                    m_waterReflection->bindWaterPass(*materialPass("HelloMine3D/Water"));
+                    m_waterReflection->bindWaterPass(*waterPass);
                 if(m_referenceWaterProbe) {
                     m_referenceWaterFrameRevision=reflection.sceneRevision;
                     const float delta=plane?eye.y-*plane:0.f;

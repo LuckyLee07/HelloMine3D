@@ -58,6 +58,12 @@ public:
     PlanarWaterReflection(const PlanarWaterReflection&) = delete;
     PlanarWaterReflection& operator=(const PlanarWaterReflection&) = delete;
     void initialize(Ogre::SceneManager&, Ogre::RenderSystem&);
+    // Before first render, certify the actual Water pass against its already
+    // compiled/linked, never-bound startup GL program. Zero reuses that numeric
+    // certificate for the same immutable program pair; it never links per frame.
+    // Complete absence is a legal old shader, partial/invalid interfaces fail.
+    // Call again before render when replacing a pass; old owned bindings release.
+    void prepareWaterPass(Ogre::Pass&, unsigned linkedProgram = 0);
     void selectPlaneY(float actualMeanY) noexcept;
     void clearSelection() noexcept;
     // After resident uploads, camera and environment sync; before main draw.

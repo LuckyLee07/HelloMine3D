@@ -2,6 +2,22 @@
 
 2026-10-06启动，持续执行至2026-10-07。宿主 Goal **active**（本次恢复审计第2个真实turn），未设置 token 预算。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
 
+## 最新r13工程、作者保存与实际画面
+
+当前生产源码已补Water FS能力准入和80格整岸线，普通交付候选仍为受保护v11／r12。r13双客户端／双包168／167实际自然0；Debug SHA `8694ed40343b79b3f3725bb9f9c908d2bfbf785a206a37b31e06933b5773441b`，Release SHA `c8964d50703da954c5c3c40f01ffb6ce3909d6fc7fffc873e880944acd683dc3`，2990源码清单 `757f2c303cfd6a15e689558d372fc95689dca2652c8b653695ca5195ac7c9daa`。创建身份保持 `e794f7b584e6bdcf757783c691a6c4d0f11cc1e6`＋dirty `d9dfc4f694db16804b5b6964785088f6eb30692b591a98365edd0513566b8a07`；提交或后续修复不得回写包／原件。[独立构建包审计](../../build/reference-visual-implementation/reference-water-legacy-interface-build-r13/r13-package-independent-review-r1/audit-r2.json)71／0（0635cefc…ecd2d）保留首读media143／manifest146域误计的71／2 FAIL；三个bin模板仍逐SHA纳入全168／167。World／Tests215逐SHA未变，只复用4491×2／26×2该域，不能称当前全部World重新运行。
+
+[九次接口／sampler独立恢复](../../build/reference-visual-goal/resumed-audit-r2/r13-native-independent-recovery-r1/receipt.json)SHA `05c7dc556f197812531b251ee10daff9c48520f002a715750c590d874cddb477`核当前src2990／media143／双包及13包2875文件。coherent旧四资源成员实际只三项SHA改变；r12基线8586已自然1，r13 old-hdr9509／old-legacy9574自然0、absent0／0／GL0、无RTT／depth／私材／附加shadow，HDR本身保持active。partial9639、wrong9675、optimized9698原raw FAIL_RETAINED／自然1各命中明确拒绝；一元素数组10140同样原FAIL保留，具体 `linked type/array for planarReflectionPlaneY` 在第一次RTT前拒绝，不将compile失败冒充该守卫证明。[五例审计](../../build/reference-visual-goal/resumed-audit-r2/water-legacy-interface-native-r13/independent-capability-domain-audit-r1.json)141／0，SHA f3e27193…069ba7；两个旧资源正例四原图已查看，画质未因此通过。
+
+Release9726／Debug9810真实四phase各228／0、stderr0B；旧212谓词／37校准／EPS1e−5精确不变，只增每phase四项complete5／5／prepared门槛。Release原37＋新增3故障副本分别命中特定门槛，属于副本校准；真实negative9868自然1／nativeFAILED／oracleFAIL，collar的reflection TUS及driver flag仍1，错态原件先保存、normal_savefalse。它未创建fallback，不能称异常fallback清理已测。此三次加载旧r10保存World，r13新inc不自动改写旧保存；蓝侧带和局部三角／斜线继续开放。详见[能力合同](../contracts/reference-water-shader-capability-contract-v1.md)。
+
+E源 JSON `47087fd4433a078d49da714200d4350f3895677bd712d20c77be5fbc5699be3e`、官方export inc `cef3234638276daea840a04298a13fcb5176763cf01a0cd769a441789c0ed656`只改变80个非入口岸格为StoneBrick，四StoneStep入口／其它作者操作保持。构场10343自然0，实际62967 edits／613regions／72000预算／16chunks／12kits／两布局／2树／normal_world=1／saved=1；[构场原件](../../build/reference-visual-goal/resumed-audit-r2/reference-shore-scene-ab-native-r13/construct-b/run.json)SHA `612c8a34f26c48bb4c9e3dd0d640b1ac7552b99a5e5a68fc948b61c1e6bb2230`。A是v11原作者保存、B是新r13作者保存，各56文件；A/Bstreet12728／13277与water13646／13831均自然0、只加载保存而不重新构场。[主保存与图像独立审计](../../build/reference-visual-goal/resumed-audit-r2/reference-shore-independent-saved-review-r2/receipt.json)67／0，SHA `8c1ee22da4df651cedfd4c07fa03dda34a9bbade78fe3c5e9ffc7b37fb0000ce`；原r1错误期待HDR active=1造成五reader FAIL保留，实际是active=linear-hdr／fallback0。80岸格＋4入口精确；全部16个主chunk实际差异83cells，另三格TallGrass metadata1→0（186,67,-210／213,67,-212／230,67,-211）。B仍有原作者spawn1024/140/1024、名save；普通候选准备须按既有helper只在新副本正规化，不能把A/B保存整体称仅80cell变化。
+
+十张RD1原图实际查看，技术capture成功但画质FAIL：建筑大面积不可见、黑悬空片。源码viewRange的RD1露天end14m／RD3end46m解释楼体越界；两份同r13、同保存、同medium的街道对照只改RD1→3，实际14682／15195自然0且楼体出现；[独立RD3控制审计](../../build/reference-visual-goal/resumed-audit-r2/reference-shore-independent-rd3-control-review-r1/receipt.json)37／0、SHA `8f0635136b06217a4f909666b1e66585a5d4046d01552bee5658c934b9070f57`核actual CLI／settings／finalconfig唯一距离行及全文件保护。输出保存75文件／primary16，不称全部保存仅80变化。原RD1协议／所有图保留，洞口背景无同域fade是黑片候选，尚待生产验证。新control r1仅准备时漏actualsettings／finalconfig两gate且未执行，原件保留；r2新增实际逐字节断言后才运行。反射诊断是首个active且frame≥240的一次采样；主PNG是elapsed5000/10000ms，不宣称同帧main／logic／World time或完整严格画面对照。岸格变更只证明保存与实际几何范围，不能宣布蓝水带／局部三角全部消失。
+
+本批三张精选原字节图保存在 `.local-evidence/reference-visual-20261006/delivery-r13-engineering/index.json`，SHA `9baa51940765f1fe6dc7716f66b6e38dd4a2698afcaf694a8bc42c5c7daf7a3e`：RD3旧／新街道与明确FAIL的RD1新水岸，均含actual配置／来源和哈希，既有精选不覆盖。
+
+本次恢复有真实工程、存档重开与画面新证据，Goal active；普通input0／12 NOT_RUN。用户“先让另一任务继续”仍适用，未竞争桌面或向另一聊天发送协调消息。A–E、连续正常画质、普通编辑后菜单重开与当前正常包退出条件仍未整体成立，不complete。以下保留此前v11／r12及更早事实，不用历史段落覆盖最新范围。
+
 ## 当前v11版本和保护
 
 当前普通候选为 `build/reference-visual-goal/HelloMine3D Reference Complete v11.app`，Release arm64，bundle `local.hellomine3d.reference-current-v11`，世界“临水建筑完整样板”／seed42／`world-9e31248101433662e3db1c8cbfe8d638`，spawn／player `208.5 68 -169.5`。完整226文件、托管167、可写保存56分别核对；加入v11后十三包2875文件逐成员／SHA保持，未知操作者改变的WorkbenchCurrent原样保护。
@@ -24,6 +40,18 @@ v11鲜样板来自 `scene-v2-native-r16/street-msaa4`，Root owned1455自然0、
 准备器创建时96efd，创建后96c08只新增四处v11保护；reverse精确回原字节。真实CLI四负例2682／2683／2685／2689均自然exit2、4／0（`helper-protection-r1/audit.json` SHA `ab0db44426c6f44546a7968bab6cd16bac7371bc511f42ef3add9ee0fd8a68b1`），无native／包创建。当前三张精选原字节图位于 `.local-evidence/reference-visual-20261006/delivery-v11/index.json`，SHA `5990bc44d75b49f70c5771eb9c456628a6efea9d375e45c716879df2d808ef1b`：r12 fresh街道（shadowoff）、v11默认菜单、r12 above-return（工程teleport）。原六参考缺失与后加五张候选均保持，未宣称美术收益、普通输入或人类审美通过。
 
 v11独立创建审核 `final-workbench-v11-r1/creation-independent-review-r2.json`29／0，SHA `9bab4870df662eb12b4137237d102438e87866740fb38f0a6449bfd2eb88cc4a`；原r1错误把142个media payload和manifest自身的143正式总数混淆，29项／1FAIL收据完整保留（SHA `42650942bbe0bb373110844b3c559ef9fe98ea5b4678cc51b9f5eaf34d68d6d0`）。r2只修成员计数域，不改资源、native或其它门槛。菜单独立 `menu-isolation/domain-audit-r1.json`23／0，SHA `8f3c6d3bf99b98f03fd15f36012472727d88880fd6a192d9ac300df653c59bc8`，两原图完整CRC／RGB(A)逐行解码且像素相同、实际查看，七env／Cocoa／lsof txt／source226／temp save56／13包2875／src2990精确。cwd为实际launch参数，未宣称lsof cwd查询；无World绘制/诊断构建记录、没有输入或Continue。
+
+### 当前普通输入与提交状态（公开能力恢复更正）
+
+**后续本Goal实际选择补录**：公开 `getApp` 对 owned ordinary-v11 副本返回 `ReferenceGoalOrdinary`／`HelloMine3D` AX handle，实际耗时992.1562s，虽然请求timeout30000ms，不能称有界返回。随后[实际映像／cwd收据](../../build/reference-visual-goal/ordinary-v11-r1/app-selection-identity-r2/receipt.json)（SHA `64903388a321aacdf30466838e7a21111b9eefab47ceec4acab485b778b95c9f`）核本Goal PID6107在private副本运行、binary b6d2…4768、cwd同bin；另main v10s PID5551原样保留。普通日志当前 INPUT_FOCUS=0／frame0，无Continue／普通动作证据。本Goal应用选择1、native启动1、input0，十二路线仍NOT_RUN；上文及恢复点的App0为此前快照。两个只读进程reader失败保留：默认sandbox ps被拒、第一份lsof reader误对所有库路径stat，撞到analyticsd权限；新r2解析实际fcwd而非猜目录，未发信号／输入。
+
+选择等待期间另一任务开始新的复焦会话。用户随后明确回复“先让另一任务继续”；本Goal暂不操作桌面输入，未向其它聊天发协调消息，继续独立工程。这是输入时段优先级，非整个Goal暂停或普通验收豁免；宿主active、退出4仍 **NOT_RUN_WAITING_FOR_SINGLE_INPUT_OWNER**。owned6107保持未聚焦菜单，尚未执行键盘／点击／拖动，后续只有另一输入会话收尾且核当前窗口归属后才继续。
+
+当前普通输入状态为 **NOT_RUN_WAITING_FOR_SINGLE_INPUT_OWNER**。新的[公开CUA恢复收据](../../build/reference-visual-goal/resumed-audit-r2/cua-public-recovery-evidence-r1/receipt.json)（SHA `a15c17c81d03b4e12d7a9d6c2c4151d0328f208798bba73f2568213b20e38e60`）记录另一主工作区视觉精修任务对 v10s `Workbench.app` 的公开 `getApp` 两次 completed（2893ms／535ms）及后续截图调用；该任务报告点击可用，但较新的等待快照报告复焦后 Escape 无响应，键盘效果仍未闭合。工具调用完成不等于每个按键生效，更不等于本Goal普通路线通过。本Goal CUA应用选择／输入仍0、12路线全部NOT_RUN；目前等待另一普通输入操作方收尾，不竞争输入或操作其窗口。
+
+[普通v11副本准备](../../build/reference-visual-goal/ordinary-v11-r1/copy-receipt.json)（SHA `80ae663a74f49f0e06eb453b6dfc3fe574349a78204c985deffa5378588e3054`）已将226文件／save56及文件模式精确复制到 `/private/tmp/hellomine3d-reference-goal-ordinary-v11-umpqlew2/ReferenceGoalOrdinary.app`，原v11与十三包2875保持，未launch／输入／注入／改档。[普通路线](../../build/reference-visual-goal/ordinary-v11-r1/normal-route.json)（SHA `ee85d8b8542bd13b1bb96bff72d98a362c54db3aa0cd9df08bfe9e0157b91315`）仅PLANNED_NOT_RUN，覆盖正常菜单、行走、12类获取／放置、地图、灯墙岸编辑及保存重开；源包bundle ID和创建身份保留，未来唯一执行者必须按实际clone路径／执行映像核身份，不能仅靠重复bundle ID选择。
+
+本轮已本地提交 `e794f7b584e6bdcf757783c691a6c4d0f11cc1e6`（10文件），v11创建身份仍为5ce＋dirty914eba。[提交后r1](../../build/reference-visual-goal/resumed-audit-r2/water-fallback-local-commit-r1/commit-postcheck.json)和[r2](../../build/reference-visual-goal/resumed-audit-r2/water-fallback-local-commit-r1/commit-postcheck-r2.json)各前23门槛通过、最后全局空闲门槛FAIL：r1子串误匹配自有检查shell3500；r2真实发现另一主工作区v10s游戏PID1847（lsof实际路径及SHA另存），两份24／1原FAIL不改。[新r3](../../build/reference-visual-goal/resumed-audit-r2/water-fallback-local-commit-r1/commit-postcheck-r3.json)11／0（SHA `ad276d3ee460377b7d7700866c57a1cafc573d2e7b5cfc38593072100323b005`）只要求本Goal自有进程已关闭，外部游戏原样保留。v11菜单原 `IDLE_GAME_PREFLIGHT` 标签因args子串未发现 `./HelloMine3D` PID1847而过宽；原capture／FAIL保留，有限菜单图像／源码／保存证据不因此作废，但不作为全局空闲或性能隔离证据。
 
 ## v10历史交付身份
 
@@ -162,6 +190,8 @@ MSAA4比关闭P95约1.65倍、P99约1.53倍，成本明确；未见持续明显�
 
 六张参考原图准确会话turn／原路径已恢复，临时原文件不存在且限定本地检索未找到副本，缺项索引 `reference-originals/index.json`。按提示词可观察特征实施，不编造对原图比较。用户随后补充的五张原图已经恢复为本地新参考并实际逐张查看，保存在 `reference-additions-20261006/index.json`，来源/尺寸/原字节SHA完整；原六图缺项未伪造关闭。新参考支持后续城镇建造套件与材质族扩展讨论，已记候选，未将本Goal12类悄然扩成30–40类。Windows当前平台 **NOT_RUN**；人类审美、乐趣、手感 **NOT_CLAIMED**，均不追加签字门槛。
 
+以下公开CUA失败和文档查询为早前未恢复时的历史记录，原文保留；当前能力证据及单一输入操作方等待状态见本报告顶部更正。
+
 公开CUA旧 `getApp(GoalWorkbench绝对路径)`等待4819.2s无结果，无审批拒绝。当前普通包v1正常launcher启动成功，`cua.listApps()`4.7402s返回 `WorkbenchCurrent` 与 isRunning=true；随后 `getApp(bundle ID)`虽指定20s timeout，实际等待1262.4s仍无 App绑定／AX／截图，主代理中止无响应调用。工具原文“aborted by user”是代理中止等待，**不是人类取消Goal**。两次均无可见拒绝原因，不声称已定位服务根因。
 
 普通执行者无click／pressKey／drag或其他输入，成功输入0。v1日志显示16:21:53创建1280×720点／2560×1440窗口，16:25:36正常关闭；其后Player位置／时间已变化，但操作者 UNKNOWN，不能当AI玩法证据。该包及其变化存档保护，另建v2/v3继续后续恢复，不与用户抢窗口。准确checkpoint在 `build/reference-visual-goal/ordinary-current-r1/checkpoint.json`。
@@ -249,10 +279,16 @@ r7先前无PNG的5s warmup＋30s采样4729帧：P95 8.933ms/P99 10.064ms/max23.1
 | 1 全部正常生产方向 | A–E范围未撤回；当前r12/v11含12套件、材质族地图、HDR链接修复及完整sampler。历史双水位、World/replay/编辑/驻留/切档只按原身份/不变域保留；普通获取／编辑／移动及本版其它水位完整循环仍未验，不能整体关闭 |
 | 2 画质和动态 | 当前r12 fresh街道/四阶段倒影及v11默认菜单原图已实际审查；两栋/材料/室内/历史双水位RTT原件保留。宽蓝/透明岸带及局部斜边仍OPEN；完整sampler、稀疏图/teleport不关闭普通连续动态或整体画质 |
 | 3 工程和稳定性 | 当前r12双构建0、完整sampler212×2／37指定副本／真实negative／独立78及有限legacy52／0；历史292×2/46、HDR164/World4491×2/26focus×2/驻留330×2/42cal和性能仅按精确域保留。原查询/reader失败及VS16/FS8压力FAIL保留，普通编辑/碰撞/选取/拾取/地图/保存可靠性未完成 |
-| 4 普通输入保存重开 | BLOCKED_AT_PUBLIC_APP_SELECTION；12路线全部NOT_RUN/input0；工程teleport、设置、保存与菜单截图不关闭此项 |
+| 4 普通输入保存重开 | NOT_RUN_WAITING_FOR_SINGLE_INPUT_OWNER；本Goal getApp已实际返回AX但耗时992s、owned6107路径核对、input0／12路线NOT_RUN；用户指定先让另一任务继续，键盘效果未知。ordinary-v11副本／计划不由菜单状态或工程保存关闭此项 |
 | 5 交付和身份 | 当前v11 macOS候选：2990src/资源143/完整226包/save56，交付27／0、独立创建29／0、菜单23／0、保护CLI4／4与十三包2875原样；creation5ce＋dirty914eba不回写。本轮本地提交与恢复点另记，整体五项退出条件仍未成立 |
 
-宿主保持active：本次恢复审计为第2个真实turn，旧blocked三turn及未知操作者paused不累计；本turn有地图/HDR/跨水面和完整sampler修复、当前候选及必要交接独立进展，不blocked、不complete，也不把工具调用、跨日、上下文压缩当Goal turn。普通恢复条件是公开macOS `getApp` 有界初始观察返回可用App状态/handle，或文档化替代入口。恢复后先核对最新v11候选及实际进程/窗口是否已由用户接管，再由唯一执行者完成普通12路线及编辑保存重开。无新能力证据不重复旧超长getApp/getState、不合成输入或重启service；旧包、FAIL和此前blocked检查点均保留。
+宿主保持active：本次恢复审计为第2个真实turn，旧blocked三turn及未知操作者paused不累计；本turn有地图/HDR/跨水面和完整sampler修复、当前候选及必要交接独立进展，不blocked、不complete，也不把工具调用、跨日、上下文压缩当Goal turn。公开App选择已有另一任务的恢复证据，当前普通路线为NOT_RUN_WAITING_FOR_SINGLE_INPUT_OWNER；待其会话收尾后，唯一执行者先核最新v11 owned clone实际进程／窗口及用户接管状态，再执行普通12路线及编辑保存重开。键盘效果尚未闭合，不预先宣称PASS，不合成输入或重启service；旧包、FAIL和此前blocked检查点均保留。
+
+**公开恢复更正前的退出4与恢复记录（历史原文保留，当前结论见上文）**：
+
+> | 4 普通输入保存重开 | BLOCKED_AT_PUBLIC_APP_SELECTION；12路线全部NOT_RUN/input0；工程teleport、设置、保存与菜单截图不关闭此项 |
+>
+> 宿主保持active：本次恢复审计为第2个真实turn，旧blocked三turn及未知操作者paused不累计；本turn有地图/HDR/跨水面和完整sampler修复、当前候选及必要交接独立进展，不blocked、不complete，也不把工具调用、跨日、上下文压缩当Goal turn。普通恢复条件是公开macOS `getApp` 有界初始观察返回可用App状态/handle，或文档化替代入口。恢复后先核对最新v11候选及实际进程/窗口是否已由用户接管，再由唯一执行者完成普通12路线及编辑保存重开。无新能力证据不重复旧超长getApp/getState、不合成输入或重启service；旧包、FAIL和此前blocked检查点均保留。
 
 **历史 blocked 检查点（本次恢复前）**：本轮第三个真实宿主Goal turn，首次实际新能力审计 `blocker-audit-r3/audit.json`：公开文档0.3755秒返回但API未变，当前App/GoalApp绑定undefined（0.0139秒），选应用／launch／输入均0。原service PID1250身份仍同，service存在不证明应用选择恢复；后来的其它／未知归属游戏不操作。首轮审计发现真实独立C/D编辑证据及v6保护缺证，先完成本轮实现、双构建、实际正负控、当前视觉、v7和新保护，没有仅因三turn就blocked。当前性能、独立审查和交接已完成，最终保护18／0再核九包1971文件、2985src和5张精选原字节。剩余必须条件是公开CUA普通输入、连续动态／卸载及编辑保存重开，当前没有可用App绑定或文档化替代入口；不存在可继续关闭这些条件的独立实现／验证操作。宿主已实际返回 `blocked`（2026-10-06T13:25:34Z），未设置预算，未标记complete。新恢复点 `build/reference-visual-goal/reference-complete-v7-recovery-r2.json`，原v6/v4恢复点及失败不覆盖；记录当前普通候选、全部已关闭own进程、旧包保护、准确源／资源／binary／原图／工程证据和12条未执行路线。公开getApp初始观察有界返回可用App handle或文档化新入口后，先核对v7候选进程／窗口及是否已被用户接管，再由唯一执行者从普通菜单完成12路线；按用户恢复操作重新审计阻塞，不合成输入、不重启service、不无新证据重复失败。状态依据实际连续三turn及当前impasse，不以工具次数或上下文压缩当turn。
 

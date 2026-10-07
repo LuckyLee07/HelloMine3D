@@ -457,3 +457,9 @@ HUD 另覆盖标记跨画布／列表的名称缓冲切换、地图异常信息�
 严格入口／缺shader接口拒绝、隔离同shader control／priority99原型，实际GL primitive／写mask／uniform
 与完整depth-before-colour序列、退出释放和旧包／保存保护。正式Water资源未变，World核按准确源码域复用；
 原型开关关闭不改变普通路径。后台图仅归因，透明合成／普通连续玩法仍须另验。
+
+Water shader能力按[能力合同](../contracts/reference-water-shader-capability-contract-v1.md)检查：
+实际完整link与FS／pass named definitions逐类型／元素／array核对，coherent旧四资源组分别在HDR和legacy下
+验证absent0／0无consumer资源；当前四phase验证complete5／5、停用完整sampler、恢复和reset。
+部分声明、错误类型、声明优化掉及一元素数组须保留具体实际native拒绝，副本校准不代替native。
+旧World／资源结果仅按逐成员SHA不变域复用，普通输入与画质仍单独验证。
