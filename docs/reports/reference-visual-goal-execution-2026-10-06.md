@@ -1,6 +1,18 @@
 # HelloMine3D 参考画质完整交付执行记录
 
-2026-10-06启动，持续执行至2026-10-07。宿主 Goal **active**（本次恢复审计第2个真实turn），未设置 token 预算。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+2026-10-06启动，持续执行至2026-10-07。宿主 Goal **active**，未设置 token 预算。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+
+## 当前普通操作补验（2026-10-07）
+
+复用现有 v12 离源码完整临时副本 `/private/tmp/hellomine3d-v12-menu-41mwal3q/HelloMine3D Reference Complete v12.app`，不重建或重打包。公开 CUA 实际选择并操作该副本；只读进程核对为 PID36002、映像及 cwd 位于副本 Resources/bin，Release SHA 为 `7a723fafeed02b5d90279672868c9b754881f2557d583b9646a54ed6de79a173`。正常 wrapper 清除诊断环境，本次普通操作没有库存注入、传送或构场。第一次点击遇到“未激活／用户改变应用”守卫；随后截图已在世界内，首次进入及初始机位改变的操作者不明，不计为本 Goal 输入成功。
+
+后续实际截图确认本 Goal 的 Tab／E、普通 2×2 合成、配方手册及菜单操作生效：原木消耗后获得木板×4，石头消耗后获得浅石砖×1，手册已学配方由5/16到6/16并显示浅石檐口。这只补齐12类新套件中的浅石砖获取，不称全套制作通过。局部立体地图、平面总览及放大实际显示，范围由266×158到213×126 m。普通“保存并返回主菜单”后点击“继续游戏”重开同一样板，浅石砖×1、木板×4及其它库存保持；最后“保存并退出”后工具报告 App quit，只读确认 PID36002 已结束。公开 CUA 截图保存在本会话工具输出，未另存 PNG；没有编造本地截图索引。
+
+九次 W 短按、一次拖动转头及两次右键未观察到移动、转头或放置，保留未通过项，不再盲目重试。重开后已有保存位置为 `221.00238 64 -227.811691`，该位置改变来源未明；原候选的 prepared spawn `208.5 68 -169.5` 及道路支撑正常，Continue 优先读取已保存玩家状态，尚无证据要求改运行时。此次是一轮普通启动、一次菜单保存重开及最终保存退出，没有执行冷启动重开或完整编辑路线。
+
+另复用现有 capture helper，仅运行一次当前 r14 生产资源的相机移动观察：平移 `(6,0,-2)`、转向−25°、12秒，4–17秒共六张2560×1440原图；helper 自然exit0、21.139秒、stderr0B，见[原始 capture.json](../../build/reference-visual-goal/resumed-audit-r2/reference-current-camera-sweep-r14-r1/capture.json)。Root 已查看全部六图，未见大面积建筑消失或悬空黑块重新出现；宽蓝带仍主要是水平水面，稀疏截图不足以关闭闪烁或所有局部水面问题。这是诊断相机观察，玩家未移动，不替代普通行走、碰撞、编辑后倒影及完整连续画质验收。
+
+本轮没有源码、资源或包变更，只同步上述实际结果；不重跑工程矩阵或追加独立审计。原退出条件仍有效，Goal active；完整普通路线未关闭。用户关于是否将全套操作验收后置的范围问题尚未收到答复，不按沉默更改完成条件。
 
 ## 当前开发验证策略与水面定位
 
@@ -24,7 +36,7 @@ macOS arm64 Debug／Release客户端构建和两个168／managed167工程包均�
 
 普通候选v12／r14已实际创建为`build/reference-visual-goal/HelloMine3D Reference Complete v12.app`，bundle `local.hellomine3d.reference-current-v12`，world `world-9e3124820f269c3627f43438c7d6891b`，prepared spawn `208.5 68 -169.5`；全226／managed167／save56、current2990／formal143已核，创建身份继承上述2a448＋dirty09e288。[创建原件](../../build/reference-visual-goal/resumed-audit-r2/reference-normal-v12-preparation-r14-r2/creation/run.json)SHA `7628dff6ec02c908c1d9a719b0fd40da7344bd47cc794ae73f6c7a46dc4f281d`；fresh作者构场28944自然0、两原图已实际查看，不算普通建造。旧包保留，新增v12后保护基线为14包3101文件；创建后helper追加v12四处保护，四真实CLI前置拒绝。离源码完整临时副本菜单PID30620自然0／stderr0B，实际映像与cwd吻合；Root查看5000ms原图，“继续游戏”列出完整样板，七env／input0／未进入World，保护14包3101与私有保存保持。外围PNG reader漏设tools/tests导入路径首次FAIL保留，[只读恢复](../../build/reference-visual-goal/resumed-audit-r2/reference-normal-v12-post-create-r14-r1/menu-reader-recovery-r2.json)SHA `0ab0209f9f1b21653693005e8ec8f6b1208f0834836e2e54bc6b01a889fa178a`重读原件通过，native未重跑。本批三张精选原字节图见`.local-evidence/reference-visual-20261006/delivery-r14-engineering/index.json`（SHA `1a4f8310c6ca26086418f5a332b0b3cc79ae9dc8b51231881299ed4510746fb1`），[独立主景图审](../../build/reference-visual-goal/resumed-audit-r2/reference-cave-range-r14-native-independent-visual-review-r1/receipt.json)只关闭有限黑块观察域。
 
-下一步按轻量开发策略集中在当前水面实际视觉问题及唯一输入方的普通12路线／编辑保存重开；微小bit压力保留到稳定候选的适用验收，不反复扩展夹具。左墙保存chunk `d74e8525c2985c3272d15117a54add256f27237cb8d58641fd70feedd52ffb55` 在B56／HDR RD3／legacy完全一致；黑区路径更符合既有洞口，精确像素归属未知，不作为已确认破墙修复。原六参考图缺失不变，用户先让另一任务继续使用桌面的指示仍适用；ordinary input0／12 NOT_RUN，Goal active，退出条件未全部成立。
+以下为本轮普通补验之前的r14检查点；当前输入及菜单保存重开结果见上方最新段落。微小bit压力保留到稳定候选的适用验收，不反复扩展夹具。左墙保存chunk `d74e8525c2985c3272d15117a54add256f27237cb8d58641fd70feedd52ffb55` 在B56／HDR RD3／legacy完全一致；黑区路径更符合既有洞口，精确像素归属未知，不作为已确认破墙修复。原六参考图缺失不变，用户先让另一任务继续使用桌面的指示仍适用；ordinary input0／12 NOT_RUN，Goal active，退出条件未全部成立。
 
 ## r13工程、作者保存与实际画面（修复前检查点）
 
@@ -149,7 +161,7 @@ v7完整全树副本在 `/private/tmp/hellomine3d-reference-goal-menu-v7-4c68wp_
 | 范围 | 正常运行路径与当前证据 | 尚需验收 |
 | --- | --- | --- |
 | A HDR | 固定曝光／真实RGBA16F／独立owned depth；r8真实resolve stage-pair先于回退/FBO链接校验，四native和临时GL对象清理通过；历史resize／A→B→A和组件释放按未改源码域限定 | 普通窗口resize、目录UI和设置操作、普通行走及长期释放未验；r6驻留和r7新进程切档不能扩称当前全部生命周期 |
-| B 套件 | 12类单格部件，最多8盒、四向；BlockId33–44、Material49–60，11制作+1冶炼；真实mesh/编辑/上传/保存路径；r8补全12ID地图材质族配色，1793／0及旧源码负控 | 普通制作、四向摆放、登阶、窗洞选取、挖掘拾取及地图使用 |
+| B 套件 | 12类单格部件，最多8盒、四向；BlockId33–44、Material49–60，11制作+1冶炼；真实mesh/编辑/上传/保存路径；r8补全12ID地图材质族配色，1793／0及旧源码负控 | 已补浅石砖普通制作及2D／3D地图；其余套件获取、四向摆放、登阶、窗洞选取和挖掘拾取未验 |
 | C 材质与光照 | 四种正式 authored albedo，3×64²×256×7 mip；线性色彩 mip、法线归一化、roughness/metalness/emission；普通/阴影完整 shader；真实最多8灯源有界索引；内外阻光修复 | 普通增删灯／墙后受光、正常连续低太阳／近远；本轮隐藏真实编辑及8帧近远证据另列 |
 | D 倒影 | 单选水位、半物理尺寸RGBA16F镜像RTT／真实裁切和驻留世界；当前r12完整sampler四阶段各212／0、Debug37故障校准、真实retain-binding负控与有限legacy52／0；历史r9双水位292×2／46故障和旧面負控按原域保留 | 普通转头、入水出水、拆墙／增灯／改岸、行走卸载返回和长期稳定性仍未验；其它水层像素fallback、岸边三角/透明带与普通水路线仍OPEN |
 | E 整合 | 48×48街道／6m水道，两层阳台屋和不同布局L形工坊；2株现行 TreeGenerator 普通种植树 tag0；入口通路清楚；HDR正常首选实际 MSAA4，单HDR空间滤波回退 | 三种AA稀疏连续原图已审查；共面细纹已修并复审8帧；侧面硬切已局部修复；近似水侧着色局限保留，普通完整路线未验 |
