@@ -4,6 +4,7 @@
 #include <Ogre.h>
 #include <OgreGL3PlusDepthBuffer.h>
 #include <OgreGL3PlusHardwarePixelBuffer.h>
+#include <GLSL/OgreGLSLShader.h>
 #include <GL/gl3w.h>
 #include <algorithm>
 #include <array>
@@ -585,7 +586,10 @@ void PlanarWaterReflection::captureDiagnostic(const std::string& absoluteOutputP
 std::string PlanarWaterReflection::worldEditDiagnosticFacts() const
 {
     const auto& s=*m_impl;
-    if ((!std::getenv("HELLOMINE3D_REFERENCE_EDIT_PROBE") && !std::getenv("HELLOMINE3D_REFERENCE_RESIDENCY_PROBE")) || !s.camera || !s.target || !s.stats.active || s.rendering)
+    const char* entry=std::getenv("HELLOMINE3D_REFERENCE_WATER_PROBE");
+    const char* scenario=std::getenv("HELLOMINE3D_REFERENCE_WATER_SCENARIO");
+    const bool planeProbe=entry && std::string(entry)=="1" && scenario && std::string(scenario)=="plane-switch-v1";
+    if ((!std::getenv("HELLOMINE3D_REFERENCE_EDIT_PROBE") && !std::getenv("HELLOMINE3D_REFERENCE_RESIDENCY_PROBE") && !planeProbe) || !s.camera || !s.target || !s.stats.active || s.rendering)
         throw std::runtime_error("World-edit view facts require its admitted completed active view.");
     auto projection=s.camera->getProjectionMatrixWithRSDepth();
     const bool flip=s.target->requiresTextureFlipping();
@@ -626,7 +630,34 @@ std::string PlanarWaterReflection::transitionDiagnosticFacts(const Ogre::Pass& p
         <<",\"tus_name\":"<<RenderLifecycle::quote(ReflectionUnit)<<",\"tus_present\":"<<(unit!=nullptr)
         <<",\"tus_index\":"<<(unit?int(pass.getTextureUnitStateIndex(unit)):-1)
         <<",\"tus_texture_name\":"<<RenderLifecycle::quote(unit?unit->getTextureName():std::string())
-        <<",\"tus_matches_target\":"<<(unit && !s.texture.isNull() && unit->_getTexturePtr().get()==s.texture.get())
-        <<"},\"target\":"<<s.facts().json()<<'}';
+        <<",\"tus_matches_target\":"<<(unit && !s.texture.isNull() && unit->_getTexturePtr().get()==s.texture.get());
+    const char* entry=std::getenv("HELLOMINE3D_REFERENCE_WATER_PROBE");
+    const char* scenario=std::getenv("HELLOMINE3D_REFERENCE_WATER_SCENARIO");
+    if(entry && std::string(entry)=="1" && scenario && std::string(scenario)=="plane-switch-v1") {
+        const auto* planeDefinition=parameters->_findNamedConstantDefinition("planarReflectionPlaneY",false);
+        const auto* matrixDefinition=parameters->_findNamedConstantDefinition("planarReflectionViewProj",false);
+        const auto* vs=pass.hasVertexProgram()?dynamic_cast<const Ogre::GLSLShader*>(pass.getVertexProgram().get()):nullptr;
+        const auto* fs=dynamic_cast<const Ogre::GLSLShader*>(pass.getFragmentProgram().get());
+        if(!planeDefinition || !matrixDefinition || matrixDefinition->constType!=Ogre::GCT_MATRIX_4X4 || matrixDefinition->elementSize!=16 || matrixDefinition->arraySize!=1 || !vs || !fs)
+            throw std::runtime_error("Water-plane actual Ogre matrix/stage interface missing.");
+        float plane=0,raw[16]{};parameters->_readRawConstants(planeDefinition->physicalIndex,1,&plane);
+        parameters->_readRawConstants(matrixDefinition->physicalIndex,16,raw);
+        bool matches=std::isfinite(plane);
+        for(unsigned r=0;r<4;++r)for(unsigned c=0;c<4;++c){
+            const float v=raw[r*4+c];
+            if(!std::isfinite(v))throw std::runtime_error("Water-plane nonfinite actual Ogre matrix.");
+            const float expected=parameters->getTransposeMatrices()?s.viewProjection[c][r]:s.viewProjection[r][c];
+            matches=matches && std::isfinite(expected) && std::abs(v-expected)<=5.e-5f;
+        }
+        if(!std::isfinite(plane))throw std::runtime_error("Water-plane nonfinite actual Ogre plane.");
+        o<<",\"plane_y\":"<<plane
+            <<",\"matrix_observation_domain\":\"actual-Ogre-Water-fragment-pass-raw-constants\""
+            <<",\"params_transpose_matrices\":"<<parameters->getTransposeMatrices()
+            <<",\"vertex_column_major_matrices\":"<<vs->getColumnMajorMatrices()
+            <<",\"fragment_column_major_matrices\":"<<fs->getColumnMajorMatrices()
+            <<",\"matrix_matches_component\":"<<matches<<",\"matrix_raw16\":[";
+        for(unsigned i=0;i<16;++i)o<<(i?",":"")<<raw[i];o<<']';
+    }
+    o<<"},\"target\":"<<s.facts().json()<<'}';
     return o.str();
 }

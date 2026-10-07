@@ -1066,6 +1066,9 @@ HDR 请求还会在强制回退和能力／格式探测之前，对实际 resolv
 通过正常 WorldManager teleport 与模拟记录实际介质、原生 Water draw、停用 pass/TUS 和同帧 RTT；
 观察完成或失败后先解除监听／query，再销毁 Scene／HDR／Root。不引入持久化字段，普通输入另验，见
 [跨水面合同](../contracts/reference-water-transition-contract-v1.md)。
+同一严格入口的可选 `plane-switch-v1` 模式按实际World选面在两个保存水位间往返，记录组件、
+Ogre pass及linked GL完整矩阵和同帧RTT；真实保留旧面的负控先保存错态再拒绝。无scenario时保留原协议，
+普通无probe路径不创建观察器。见[选面合同](../contracts/reference-water-plane-selection-contract-v1.md)。
 
 ## 12. Frozen Version and Boundary Facts
 

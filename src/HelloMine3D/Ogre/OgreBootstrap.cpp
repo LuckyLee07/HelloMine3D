@@ -3058,7 +3058,8 @@ namespace
                 const auto position=m_camera->getDerivedPosition();
                 const glm::vec3 eye(position.x,position.y,position.z);
                 const auto plane=m_world->observeWaterSurfacePlane(eye);
-                if (plane) m_waterReflection->selectPlaneY(*plane);
+                if (plane) m_waterReflection->selectPlaneY(
+                    m_referenceWaterProbe && m_referenceWaterProbe->faultSelectedPlane()?66.9f:*plane);
                 else m_waterReflection->clearSelection();
                 PlanarWaterReflection::FrameInput reflection;
                 reflection.enabled=m_config.visualDetail==VisualDetail::Standard &&
@@ -3089,10 +3090,14 @@ namespace
                     m_referenceWaterFrameRevision=reflection.sceneRevision;
                     const float delta=plane?eye.y-*plane:0.f;
                     const unsigned phase=m_referenceWaterProbe->phase();
-                    const bool actualPhase=plane && std::isfinite(delta) && std::abs(*plane-66.9f)<.001f &&
-                        ((phase==0 || phase==3)?(!reflection.cameraUnderwater && delta>.15f):
-                         phase==1?(!reflection.cameraUnderwater && delta>0.f && delta<=.15f):
-                                  (reflection.cameraUnderwater && delta<0.f));
+                    const bool actualPhase=plane && std::isfinite(delta) &&
+                        std::abs(*plane-m_referenceWaterProbe->expectedPlane())<.001f &&
+                        (m_referenceWaterProbe->planeSwitch()?(!reflection.cameraUnderwater && delta>.15f):
+                         ((phase==0 || phase==3)?(!reflection.cameraUnderwater && delta>.15f):
+                          phase==1?(!reflection.cameraUnderwater && delta>0.f && delta<=.15f):
+                                   (reflection.cameraUnderwater && delta<0.f)));
+                    // Warmth derives from World/eye/normal simulation only. A
+                    // deliberately stale component plane must reach observation.
                     m_referenceWaterProbe->arm(sandboxAdvanced && actualPhase);
                 }
                 if (!m_planarDiagnosticCaptured && m_hiddenWindow && m_frameCount >= 240 &&
@@ -3468,9 +3473,34 @@ namespace
             float passEnabled=0;parameters->_readRawConstants(definition->physicalIndex,1,&passEnabled);
             const auto* tus=pass->getTextureUnitState("planarReflection");
             const auto identity=m_world->observeWorldIdentity();
+            const bool planeSwitch=m_referenceWaterProbe->planeSwitch();
             std::vector<std::string> column;
-            for(int y=64;y<=66;++y){const auto b=m_world->getBlock(194,y,-183);require(b==ChunkBlock(Block_t(7),0),"Water transition unchanged loaded column differs");column.push_back(object({{"position",xyz(glm::ivec3(194,y,-183))},{"id",number(b.id)},{"metadata",number(b.metadata)},{"observation",quote("blocking-World.getBlock-find-only-nonAir")},{"observed_frame",number(m_frameCount)}}));}
-            const auto facts=object({{"frame",number(m_frameCount)},{"identity",object({{"root_instance",lifecycleAddress(m_root.get())},{"scene_instance",lifecycleAddress(m_sceneManager)},{"window_instance",lifecycleAddress(m_window)},{"world_instance",lifecycleAddress(m_world)},{"world_id",quote(identity.worldId)},{"seed",number(identity.seed)},{"terrain_generation_version",number(identity.terrainGenerationVersion)},{"save_directory",quote(value("HELLOMINE3D_SAVE_DIR"))}})},
+            if(planeSwitch) {
+                struct Sample {glm::ivec3 position;ChunkBlock expected;};
+                const std::array<Sample,11> samples{{
+                    {{194,63,-183},ChunkBlock(Block_t(32),0)},
+                    {{194,64,-183},ChunkBlock(Block_t(7),0)},
+                    {{194,65,-183},ChunkBlock(Block_t(7),0)},
+                    {{194,66,-183},ChunkBlock(Block_t(7),0)},
+                    {{194,67,-183},ChunkBlock(Block_t(0),0)},
+                    {{194,68,-183},ChunkBlock(Block_t(0),0)},
+                    {{176,34,-176},ChunkBlock(Block_t(3),0)},
+                    {{176,63,-176},ChunkBlock(Block_t(7),0)},
+                    {{176,64,-176},ChunkBlock(Block_t(7),0)},
+                    {{176,65,-176},ChunkBlock(Block_t(0),0)},
+                    {{176,66,-176},ChunkBlock(Block_t(0),0)}}};
+                std::array<ChunkBlock,11> actual{};
+                for(std::size_t i=0;i<samples.size();++i){const auto& pos=samples[i].position;actual[i]=m_world->getBlock(pos.x,pos.y,pos.z);}
+                // Air alone is not a loaded-cell certificate. Each complete
+                // column is witnessed by its actual non-Air Water and bed.
+                for(std::size_t i=0;i<samples.size();++i){
+                    require(actual[i]==samples[i].expected,"Water plane unchanged resident water/Air/bed differs");
+                    column.push_back(object({{"position",xyz(samples[i].position)},{"id",number(actual[i].id)},{"metadata",number(actual[i].metadata)},{"known","true"},{"observation",quote("blocking-World.getBlock-find-only-column-water-bed-witness")},{"observed_frame",number(m_frameCount)}}));
+                }
+            } else {
+                for(int y=64;y<=66;++y){const auto b=m_world->getBlock(194,y,-183);require(b==ChunkBlock(Block_t(7),0),"Water transition unchanged loaded column differs");column.push_back(object({{"position",xyz(glm::ivec3(194,y,-183))},{"id",number(b.id)},{"metadata",number(b.metadata)},{"observation",quote("blocking-World.getBlock-find-only-nonAir")},{"observed_frame",number(m_frameCount)}}));}
+            }
+            Fields factFields{{"frame",number(m_frameCount)},{"identity",object({{"root_instance",lifecycleAddress(m_root.get())},{"scene_instance",lifecycleAddress(m_sceneManager)},{"window_instance",lifecycleAddress(m_window)},{"world_instance",lifecycleAddress(m_world)},{"world_id",quote(identity.worldId)},{"seed",number(identity.seed)},{"terrain_generation_version",number(identity.terrainGenerationVersion)},{"save_directory",quote(value("HELLOMINE3D_SAVE_DIR"))}})},
                 {"main_camera",camera(*m_camera)},{"logic_camera",object({{"position",xyz(m_logicCamera->position)},{"rotation",xyz(m_logicCamera->rotation)}})},
                 {"player",object({{"position",xyz(m_worldPlayer->position)},{"rotation",xyz(m_worldPlayer->rotation)},{"velocity",xyz(m_worldPlayer->velocity)}})},
                 {"requested_player",xyz(m_referenceWaterProbe->requested())},{"production_teleports",number(m_referenceWaterProbe->teleportCount())},{"simulation_delta",number(m_referenceWaterProbe->delta())},{"warm_frames",number(m_referenceWaterProbe->warmFrames())},
@@ -3478,14 +3508,30 @@ namespace
                 {"medium",object({{"observation_domain",quote("actual-World.getBlock-main-eye")},{"cell",xyz(cell)},{"id",number(block.id)},{"metadata",number(block.metadata)},{"above_id",number(above.id)},{"camera_underwater",boolean(underwater)},{"surface_depth",number(depth)},{"immersion",number(immersion)}})},
                 {"selected_plane_y",observedPlane?number(*observedPlane):"null"},{"eye_plane_delta",observedPlane?number(eye.y-*observedPlane):"null"},{"water_column",array(column)},
                 {"physical_window",array({number(m_window->getWidth()),number(m_window->getHeight())})},{"update_floor",number(m_referenceWaterProbe->updateFloor())},
-                {"hdr",hdr.json()},{"planar",m_waterReflection->transitionDiagnosticFacts(*pass)},{"draw",m_referenceWaterProbe->drawFacts()}});
+                {"hdr",hdr.json()},{"planar",m_waterReflection->transitionDiagnosticFacts(*pass)},{"draw",m_referenceWaterProbe->drawFacts()}};
+            if(planeSwitch) {
+                factFields.push_back({"world_plane_observation",quote("actual-World.observeWaterSurfacePlane-main-eye")});
+                // Stale-plane fault may make the component inactive. Preserve
+                // that real state rather than requesting an active-view query.
+                factFields.push_back({"planar_view",stats.active?m_waterReflection->worldEditDiagnosticFacts():"null"});
+            }
+            const auto facts=object(factFields);
             // Preserve real corrupted pass/driver facts before any strict gate;
             // never label a requested pose or submitted parameter as GPU draw.
             m_referenceWaterProbe->observed(facts);
             require(m_window->getWidth()==2560 && m_window->getHeight()==1440 && m_hdrPipeline->active() && RenderLifecycle::valid(hdr.native,2560,1440,4),"Water transition actual native HDR4 storage missing");
-            require(observedPlane && std::abs(*observedPlane-66.9f)<.001f && stats.frameSerial==std::uint64_t(m_frameCount) && stats.sceneRevision==m_referenceWaterFrameRevision,"Water transition actual frame/plane mismatch");
+            require(observedPlane && std::abs(*observedPlane-m_referenceWaterProbe->expectedPlane())<.001f && stats.frameSerial==std::uint64_t(m_frameCount) && stats.sceneRevision==m_referenceWaterFrameRevision,"Water transition actual frame/plane mismatch");
+            if(planeSwitch) {
+                const auto* planeDefinition=parameters->_findNamedConstantDefinition("planarReflectionPlaneY",false);
+                require(planeDefinition,"Water plane actual Ogre plane missing");float passPlane=0;
+                parameters->_readRawConstants(planeDefinition->physicalIndex,1,&passPlane);
+                require(std::isfinite(passPlane) &&
+                    std::abs(passPlane-*observedPlane)<.001f && std::abs(m_referenceWaterProbe->linkedPlane()-*observedPlane)<.001f,
+                    "Water plane actual World/component/pass/driver plane mismatch");
+                require(m_referenceWaterProbe->linkedMatrixMatchesPass(*pass),"Water plane actual pass/driver matrix mismatch");
+            }
             require(target.targetCount<=1 && target.depthCount<=1 && target.cameraCount==1 && target.privateMaterials<=PlanarWaterReflection::MaximumPrivateMaterials && target.privatePasses<=PlanarWaterReflection::MaximumPrivatePasses && !target.listenersActive && !target.observerFailures,"Water transition component bound/listener violation");
-            const bool active=m_referenceWaterProbe->phase()==0 || m_referenceWaterProbe->phase()==3;
+            const bool active=planeSwitch || m_referenceWaterProbe->phase()==0 || m_referenceWaterProbe->phase()==3;
             const float distance=eye.y-*observedPlane;
             if(active) {
                 require(!underwater && distance>.15f && stats.active && stats.reason=="rendered" && stats.lastRenderedFrame==std::uint64_t(m_frameCount) && stats.updateCount>m_referenceWaterProbe->updateFloor(),"Water transition actual above update not current");
