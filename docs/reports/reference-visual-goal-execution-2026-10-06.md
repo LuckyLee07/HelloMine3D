@@ -10,6 +10,8 @@
 
 当前B56整格StoneBrick岸邻面按生产网格规则不发Water侧面；同实际反射frame240推回的主机位估算，水平水面66.9在浅视角投影覆盖当前宽蓝带。这改变下一步：不再按旧全Step实验盲修整条“侧面蓝墙”，优先核实当前水平面及四个保留台阶凹口的局部表现。估算与10s主PNG未绑定同帧，不能作为逐像素归属证明；普通输入／最终动态仍未验。
 
+单次当前岸线实景分类已执行：Root owned34682自然0／7.775s，使用现有capture helper复制r14包和B56，只替换私有Runtime的FS末端RGB，原Alpha／VS／material／绘制状态保留。Root实际查看5000ms完整原图：整条宽带以红色水平水面贡献为主，绿色侧面贡献集中在保留Step凹口；这确认不能把整条蓝带当竖直破墙修复。透明分类不区分水平顶／底、不证明nearest primitive或无重叠，未关闭普通连续画质。原图及明确私有资源身份更正见`build/reference-visual-goal/resumed-audit-r2/reference-water-role-r14-native-r1/`，生产资源与v12不变。下一步优先普通操作和连续观察，仅在实际可见失败出现时修对应问题。
+
 ## 最新r14洞口背景视距修复
 
 洞口背景现复用普通几何的逻辑中心、viewRange、退场强度及fog色，露天零覆盖discard，地下strength0保留原暗色与mask。只改变Ogre背景表示；World遮罩、需求、2048面／696KiB固定预算、八面扫描／更新、碰撞及保存语义保持。真实owned clone接收四个typed参数，反射private pass深拷贝；完整旧接口保留原行为，partial／wrong-type／wrong-size拒绝。见[洞口合同](../contracts/cave-boundary-background-contract-v1.md)。

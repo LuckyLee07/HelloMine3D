@@ -67,6 +67,8 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 本Goal随后实际公开getApp已返回owned副本AX（992.1562s／请求timeout30s，不称有界）；[映像与cwd实核](../../build/reference-visual-goal/ordinary-v11-r1/app-selection-identity-r2/receipt.json)（64903388…95c9f）证明owned6107／b6d2…4768在private副本，main5551保留。App选择1／native1／input0，12路线NOT_RUN。用户回复“先让另一任务继续”，暂不操作桌面输入，不向其它聊天发消息；仍推进独立工程、Goal active，并非整个Goal暂停或豁免普通验收。上方App0为选择之前快照。
 
+**开发验证策略（用户2026-10-07补充）。** 每轮以受影响编译／必要定向检查／实际效果为限，停止额外bit-exact候选及完整矩阵／多轮独立复核；适用全套验收集中到稳定交付。单次当前岸线RGB分类34682自然0，Root实际原图宽蓝带主要对应水平水面、少量侧面对应保留Step凹口，不再按旧全Step实验认定整条竖直蓝墙；透明叠层唯一归属未知，普通连续操作仍需执行。原失败保留，详见唯一报告。
+
 **最新r14洞口背景视距修复。** 背景服从普通几何同一逻辑中心／viewRange／退场强度／fog，露天零覆盖discard，地下strength0保持原mask／暗色；owned typed参数、反射深拷贝和完整旧接口／partial／type／size拒绝已验证，不改World遮罩／需求／2048面／696KiB／八面预算。macOS arm64双配置客户端及双168／managed167包自然0，Renderer各90／0、Cave GPU41／0；HDR首次850／7 FAIL保留，只修夹具调用者VAO状态恢复后851／0，原850门槛不变。World＋Tests215只复用同SHA历史域，不称当前全量重跑。
 
 七例完整主景及legacy-r2共八例自然0／stderr0B，两原图／例均2560×1440、medium／post off／MSAA4；首legacy因不适用Planar诊断而wrapper FAIL的原件保留。实际原图露天悬空sky黑块消失，地下边界／RD8岩壁保持；水蓝band、局部三角仍OPEN；左墙黑区与保存Air洞口一致，精确像素归属未证。同帧main／logic／time未观测。普通v12／r14已实际创建（226／managed167／save56，world `world-9e3124820f269c3627f43438c7d6891b`，prepared spawn `208.5 68 -169.5`），继承2a448＋dirty09e288，fresh作者28944自然0仍input0；旧包保持，新保护基线14包3101，v12四保护拒绝／离源码菜单30620自然0已核，原reader导入失败保留、只读重读恢复且0native重跑；原六参考缺失、ordinary input0／12 NOT_RUN及用户先让另一任务使用桌面不变。下一步Water严格VS16／FS8与实景缺项、普通编辑保存重开；Goal active，不complete。准确身份／条件／失败见[唯一执行报告](../reports/reference-visual-goal-execution-2026-10-06.md)。
