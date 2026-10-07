@@ -8,6 +8,8 @@
 #include <OgreGL3PlusHardwareVertexBuffer.h>
 #include <OgreGL3PlusTexture.h>
 #include <OgreSimpleRenderable.h>
+#include <OgreHighLevelGpuProgramManager.h>
+#include <OgreManualObject.h>
 
 #include "Ogre/OgreCaveBoundaryRenderer.h"
 #include "World/Chunk/ChunkRuntime.h"
@@ -19,6 +21,7 @@
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -345,7 +348,60 @@ namespace
             return result;
         }
 
+        // Independent pixel oracle for the production square XZ range on the
+        // fixture's +Z section face, spanning x/y [0,16] at world z=16.
+        // This is a driver draw/readback test, not a real-world quality verdict.
+        bool matchesRange(const std::array<std::uint16_t, 16>& rows,
+                          const Ogre::Vector2& range, const Ogre::Vector2& centre,
+                          float strength, const Ogre::Vector3& fog)
+        {
+            return matchesPixels([&](std::size_t x, std::size_t y)
+            {
+                const bool masked = (rows[y / 4] & (1u << (x / 4))) != 0;
+                const float distance = std::max(std::abs((float(x) + .5f) / 4.f - centre.x),
+                                                std::abs(16.f - centre.y));
+                float coverage = 1.f;
+                if (strength > 0.f && range.y > range.x)
+                {
+                    const float t = std::clamp((distance - range.x) / (range.y - range.x), 0.f, 1.f);
+                    coverage = 1.f - std::clamp(strength, 0.f, 1.f) * t * t * (3.f - 2.f * t);
+                }
+                if (!masked || coverage <= 0.f)
+                    return std::array<float, 4>{{.2f, .55f, .85f, 1.f}};
+                return std::array<float, 4>{{
+                    fog.x * (1.f - coverage) + .035f * coverage,
+                    fog.y * (1.f - coverage) + .043f * coverage,
+                    fog.z * (1.f - coverage) + .054f * coverage, 1.f}};
+            });
+        }
+
+        bool matchesSolid(const std::array<float, 4>& colour)
+        {
+            return matchesPixels([&](std::size_t, std::size_t) { return colour; });
+        }
+
       private:
+        bool matchesPixels(const std::function<std::array<float, 4>(std::size_t, std::size_t)>& expected)
+        {
+            m_renderTarget->update();
+            glStage("fixture view-range RTT production draw");
+            std::vector<unsigned char> pixels(TargetEdge * TargetEdge * 4);
+            m_target->getBuffer()->blitToMemory(Ogre::PixelBox(
+                TargetEdge, TargetEdge, 1, Ogre::PF_BYTE_RGBA, pixels.data()));
+            glStage("fixture view-range RTT readback");
+            bool result = true;
+            for (std::size_t y = 0; y < TargetEdge; ++y)
+                for (std::size_t x = 0; x < TargetEdge; ++x)
+                {
+                    const auto worldY = m_renderTarget->requiresTextureFlipping() ? TargetEdge - 1 - y : y;
+                    const auto colour = expected(x, worldY);
+                    for (std::size_t channel = 0; channel < 4; ++channel)
+                        result &= std::abs(int(pixels[(y * TargetEdge + x) * 4 + channel]) -
+                                           int(std::lround(colour[channel] * 255.f))) <= 3;
+                }
+            return result;
+        }
+
         Ogre::Camera* m_camera = nullptr;
         Ogre::TexturePtr m_target;
         Ogre::RenderTexture* m_renderTarget = nullptr;
@@ -399,10 +455,313 @@ namespace
         check("rejected constructors release atlas", instanceTextures() == before);
     }
 
+    constexpr const char* LegacyVertex = R"GLSL(#version 150
+in vec4 vertex;
+in vec2 uv0;
+uniform mat4 worldViewProj;
+out vec2 boundaryUV;
+void main() { gl_Position = worldViewProj * vertex; boundaryUV = uv0; }
+)GLSL";
+    constexpr const char* LegacyFragment = R"GLSL(#version 150
+uniform float linearHdrMode;
+vec3 sceneColour(vec3 authored)
+{
+    if (linearHdrMode < 0.5) return authored;
+    vec3 c = max(authored, vec3(0.0));
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
+in vec2 boundaryUV;
+uniform sampler2D caveBoundaryMask;
+out vec4 fragColour;
+void main()
+{
+    if (texture(caveBoundaryMask, boundaryUV).r < 0.5) discard;
+    fragColour = vec4(sceneColour(vec3(0.035, 0.043, 0.054)), 1.0);
+}
+)GLSL";
+
+    // Each case compiles genuine GLSL programs through the current Ogre backend.
+    // Canonical resource names/parameter objects are restored before removal.
+    class ProgramOverride
+    {
+      public:
+        ProgramOverride(Ogre::Pass& pass, const std::string& fragment)
+            : m_pass(pass), m_vertexName(pass.getVertexProgramName()),
+              m_fragmentName(pass.getFragmentProgramName()),
+              m_vertexParameters(pass.getVertexProgramParameters()),
+              m_fragmentParameters(pass.getFragmentProgramParameters())
+        {
+            static unsigned sequence = 0;
+            const auto prefix = "HelloMine3D/CaveBoundaryFixtureProgram/" + std::to_string(++sequence);
+            auto& manager = Ogre::HighLevelGpuProgramManager::getSingleton();
+            m_vertex = manager.createProgram(prefix + "/Vertex", "General", "glsl", Ogre::GPT_VERTEX_PROGRAM);
+            m_fragment = manager.createProgram(prefix + "/Fragment", "General", "glsl", Ogre::GPT_FRAGMENT_PROGRAM);
+            m_vertex->setSource(LegacyVertex);
+            m_fragment->setSource(fragment);
+            m_vertex->load(); m_fragment->load();
+            require(!m_vertex->hasCompileError() && !m_fragment->hasCompileError(), "Fixture GLSL compile failed");
+            m_pass.setVertexProgram(m_vertex->getName());
+            m_pass.getVertexProgramParameters()->setNamedAutoConstant("worldViewProj", Ogre::GpuProgramParameters::ACT_WORLDVIEWPROJ_MATRIX);
+            m_pass.setFragmentProgram(m_fragment->getName());
+            auto parameters = m_pass.getFragmentProgramParameters();
+            parameters->setNamedConstant("caveBoundaryMask", 0);
+            if (parameters->_findNamedConstantDefinition("linearHdrMode", false))
+                parameters->setNamedConstant("linearHdrMode", 0.f);
+            glStage("fixture real GLSL program override");
+        }
+
+        ~ProgramOverride()
+        {
+            m_pass.setVertexProgram(m_vertexName);
+            m_pass.setVertexProgramParameters(m_vertexParameters);
+            m_pass.setFragmentProgram(m_fragmentName);
+            m_pass.setFragmentProgramParameters(m_fragmentParameters);
+            auto& manager = Ogre::HighLevelGpuProgramManager::getSingleton();
+            manager.remove(m_vertex->getName()); manager.remove(m_fragment->getName());
+        }
+
+      private:
+        Ogre::Pass& m_pass;
+        Ogre::String m_vertexName, m_fragmentName;
+        Ogre::GpuProgramParametersSharedPtr m_vertexParameters, m_fragmentParameters;
+        Ogre::HighLevelGpuProgramPtr m_vertex, m_fragment;
+    };
+
+    const std::array<const char*, 4> RangeNames{{"viewRange", "viewRangeCentre", "viewRangeStrength", "fogColour"}};
+    const std::array<Ogre::GpuConstantType, 4> RangeTypes{{Ogre::GCT_FLOAT2, Ogre::GCT_FLOAT2, Ogre::GCT_FLOAT1, Ogre::GCT_FLOAT3}};
+    const std::array<std::size_t, 4> RangeSizes{{2, 2, 1, 3}};
+
+    bool hasTypedRange(const Ogre::GpuProgramParametersSharedPtr& parameters)
+    {
+        for (std::size_t i = 0; i < RangeNames.size(); ++i)
+        {
+            const auto* definition = parameters->_findNamedConstantDefinition(RangeNames[i], false);
+            if (!definition || definition->constType != RangeTypes[i] ||
+                definition->arraySize != 1 || definition->elementSize != RangeSizes[i]) return false;
+        }
+        return true;
+    }
+
+    std::array<float, 8> readRange(const Ogre::GpuProgramParametersSharedPtr& parameters)
+    {
+        require(hasTypedRange(parameters), "Expected complete typed range for actual parameter read");
+        std::array<float, 8> result{};
+        std::size_t offset = 0;
+        for (std::size_t i = 0; i < RangeNames.size(); ++i)
+        {
+            const auto* definition = parameters->_findNamedConstantDefinition(RangeNames[i], false);
+            const auto* values = parameters->getFloatPointer(definition->physicalIndex);
+            for (std::size_t component = 0; component < RangeSizes[i]; ++component)
+                result[offset++] = values[component];
+        }
+        return result;
+    }
+
+    std::size_t instanceMaterials()
+    {
+        std::size_t count = 0;
+        auto iterator = Ogre::MaterialManager::getSingleton().getResourceIterator();
+        while (iterator.hasMoreElements())
+            if (iterator.getNext()->getName().find("HelloMine3D/CaveBoundaryInstance") == 0) ++count;
+        return count;
+    }
+
+    std::string guardFragment(int missing, int wrong)
+    {
+        std::string declarations, expression = "0.0";
+        const std::array<const char*, 4> types{{"vec2", "vec2", "float", "vec3"}};
+        for (std::size_t i = 0; i < RangeNames.size(); ++i)
+        {
+            if (int(i) == missing) continue;
+            std::string type = types[i], suffix;
+            if (i == 0 && wrong == 1) type = "vec3";
+            if (i == 0 && wrong == 2) suffix = "[2]";
+            declarations += "uniform " + type + " " + RangeNames[i] + suffix + ";\n";
+            expression += " + " + std::string(RangeNames[i]);
+            if (!suffix.empty()) expression += "[0]";
+            if (i != 2) expression += ".x";
+        }
+        return "#version 150\nin vec2 boundaryUV;\nuniform sampler2D caveBoundaryMask;\n" + declarations +
+            "out vec4 fragColour;\nvoid main() { if (texture(caveBoundaryMask, boundaryUV).r < .5) discard; "
+            "fragColour = vec4(vec3((" + expression + ") * .0001), 1.0); }\n";
+    }
+
+    void rangeInterfaceCases(Ogre::SceneManager& scene, DrawProbe& draw)
+    {
+        auto source = Ogre::MaterialManager::getSingleton().getByName(Renderer::MaterialName);
+        auto* pass = source->getTechnique(0)->getPass(0);
+        const auto texturesBefore = instanceTextures(), materialsBefore = instanceMaterials();
+        {
+            ProgramOverride programs(*pass, LegacyFragment);
+            {
+                Renderer legacy(scene);
+                GpuResources gpu(scene);
+                auto parameters = gpu.material->getTechnique(0)->getPass(0)->getFragmentProgramParameters();
+                bool absent = true;
+                for (const auto* name : RangeNames) absent &= parameters->_findNamedConstantDefinition(name, false) == nullptr;
+                sync(legacy, {asymmetricFace()});
+                const auto before = parameters->getFloatConstantList();
+                legacy.setViewRange({1, 2}, {1024, 1024}, 1.f, {.7f, .6f, .5f});
+                check("coherent legacy GLSL pair has all range uniforms absent and setter is no-op",
+                      absent && parameters->getFloatConstantList() == before);
+                check("coherent legacy actual masked draw retains dark-air behaviour", draw.matches(asymmetricFace().rows));
+            }
+            glStage("production coherent legacy destruction");
+        }
+        check("coherent legacy destroys owned atlas and material", instanceTextures() == texturesBefore && instanceMaterials() == materialsBefore);
+        auto reject = [&](const std::string& name, const std::string& fragment, const char* diagnostic)
+        {
+            {
+                ProgramOverride programs(*pass, fragment);
+                bool rejected = false;
+                try { Renderer invalid(scene); }
+                catch (const std::runtime_error& error)
+                {
+                    std::cout << "[CAVE_BOUNDARY_RANGE_REJECTION] case=" << name << " reason=" << error.what() << '\n';
+                    rejected = std::string(error.what()).find(diagnostic) != std::string::npos;
+                }
+                check(name, rejected);
+                glStage("production range-interface rejection " + name);
+            }
+            check(name + " releases owned atlas and material", instanceTextures() == texturesBefore && instanceMaterials() == materialsBefore);
+        };
+        for (int missing = 0; missing < 4; ++missing)
+            reject("reject actual partial range GLSL missing " + std::string(RangeNames[missing]),
+                   guardFragment(missing, 0), "Partial cave boundary view-range interface");
+        reject("reject actual vec3 viewRange GLSL", guardFragment(-1, 1), "Invalid cave boundary view-range type/size");
+        reject("reject actual array viewRange GLSL", guardFragment(-1, 2), "Invalid cave boundary view-range type/size");
+        check("range guard restores canonical typed GLSL interface", hasTypedRange(pass->getFragmentProgramParameters()));
+    }
+
+    void rangeDrawCases(Ogre::SceneManager& scene, DrawProbe& draw, Renderer& renderer, GpuResources& gpu)
+    {
+        const auto source = Ogre::MaterialManager::getSingleton().getByName(Renderer::MaterialName);
+        const auto canonical = source->getTechnique(0)->getPass(0)->getFragmentProgramParameters();
+        auto* pass = gpu.material->getTechnique(0)->getPass(0);
+        const auto owned = pass->getFragmentProgramParameters();
+        check("owned material clone has separate complete typed range parameters", gpu.material.get() != source.get() &&
+              owned.get() != canonical.get() && hasTypedRange(owned) && hasTypedRange(canonical));
+        const auto canonicalBefore = readRange(canonical);
+        const auto previous = readRange(owned);
+        const float oldHdr = owned->getFloatPointer(owned->_findNamedConstantDefinition("linearHdrMode")->physicalIndex)[0];
+        owned->setNamedConstant("linearHdrMode", 0.f);
+        const Ogre::Vector3 fog(.6f, .7f, .8f);
+        const auto face = asymmetricFace();
+        sync(renderer, {face});
+        const auto atlasBefore = gpu.readAtlas();
+        const auto verticesBefore = gpu.readVertices();
+        const auto statsBefore = renderer.stats();
+        renderer.setViewRange({2, 6}, {8, 16}, 1.f, fog);
+        check("setter writes actual float2 float2 float float3 without changing canonical", readRange(owned) ==
+              std::array<float, 8>{{2, 6, 8, 16, 1, .6f, .7f, .8f}} && readRange(canonical) == canonicalBefore);
+        check("actual range blend respects sparse mask and opaque alpha", draw.matchesRange(face.rows, {2, 6}, {8, 16}, 1.f, fog));
+        renderer.setViewRange({24, 40}, {8, 16}, 1.f, fog);
+        check("actual near range preserves dark masked colour", draw.matches(face.rows));
+        renderer.setViewRange({1, 2}, {1024, 1024}, 1.f, fog);
+        const std::array<std::uint16_t, 16> empty{};
+        check("actual far range discards boundary instead of black silhouette", draw.matches(empty));
+        renderer.setViewRange({1, 2}, {1024, 1024}, 0.f, fog);
+        check("underground strength zero preserves actual dark-air mask outside range", draw.matches(face.rows));
+        renderer.setViewRange({6, 2}, {1024, 1024}, 1.f, fog);
+        check("non-increasing range retains actual dark-air draw", draw.matches(face.rows));
+        renderer.setViewRange({2, 6}, {8, 16}, .5f, fog);
+        check("actual fractional strength blends colour without making boundary translucent",
+              draw.matchesRange(face.rows, {2, 6}, {8, 16}, .5f, fog));
+        const auto stable = readRange(owned);
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        const float infinity = std::numeric_limits<float>::infinity();
+        bool nonFiniteRejected = true;
+        for (std::size_t bad = 0; bad < 8; ++bad)
+        {
+            auto values = stable; values[bad] = bad % 2 ? infinity : nan;
+            bool rejected = false;
+            try { renderer.setViewRange({values[0], values[1]}, {values[2], values[3]}, values[4], {values[5], values[6], values[7]}); }
+            catch (const std::runtime_error& error)
+            { rejected = std::string(error.what()).find("Non-finite cave boundary view-range parameter") != std::string::npos; }
+            nonFiniteRejected &= rejected && readRange(owned) == stable;
+        }
+        check("all eight non-finite scalar inputs reject before partial uniform mutation", nonFiniteRejected);
+        check("range setter never changes mask geometry atlas or sync budget", gpu.readAtlas() == atlasBefore &&
+              gpu.readVertices() == verticesBefore && renderer.stats().gpuBytes == statsBefore.gpuBytes &&
+              renderer.stats().liveFaces == statsBefore.liveFaces && renderer.stats().deferredFaces == statsBefore.deferredFaces &&
+              renderer.stats().updatesThisSync == statsBefore.updatesThisSync &&
+              renderer.stats().vertexPatchBytesThisSync == statsBefore.vertexPatchBytesThisSync &&
+              renderer.stats().texturePatchBytesThisSync == statsBefore.texturePatchBytesThisSync);
+
+        // Exercise the actual Ogre Technique/Pass operators used by
+        // PlanarWaterReflection::renderableQueued. This does not claim to run
+        // that listener, an actual reflection camera, or its target update.
+        const std::string reflectionName = "HelloMine3D/CaveBoundaryFixtureReflectionCopy";
+        auto reflection = Ogre::MaterialManager::getSingleton().create(reflectionName, "General");
+        reflection->removeAllTechniques();
+        auto* technique = reflection->createTechnique();
+        *technique = *gpu.material->getTechnique(0);
+        reflection->load();
+        auto reflected = technique->getPass(0)->getFragmentProgramParameters();
+        check("reflection Technique copy owns range parameters and inherits actual values",
+              reflected.get() != owned.get() && readRange(reflected) == stable);
+        renderer.setViewRange({1, 2}, {1024, 1024}, 1.f, fog);
+        check("reflection copied values survive subsequent owned setter", readRange(reflected) == stable);
+        gpu.renderable->setMaterial(reflectionName);
+        check("reflection Technique copy actual draw uses inherited sparse range", draw.matchesRange(face.rows, {2, 6}, {8, 16}, .5f, fog));
+        *technique->getPass(0) = *pass;
+        reflected = technique->getPass(0)->getFragmentProgramParameters();
+        check("reflection per-frame Pass refresh deep-copies current range", reflected.get() != owned.get() && readRange(reflected) == readRange(owned));
+        check("reflection refreshed Pass actual far draw discards boundary", draw.matches(empty));
+        reflected->setNamedConstant("viewRangeStrength", 0.f);
+        check("reflection-only parameter update cannot mutate source or canonical", readRange(owned)[4] == 1.f && readRange(canonical) == canonicalBefore);
+        gpu.renderable->setMaterial(gpu.material->getName());
+        reflected.setNull(); reflection.setNull();
+        Ogre::MaterialManager::getSingleton().remove(reflectionName);
+        check("reflection fixture removes private material", Ogre::MaterialManager::getSingleton().getByName(reflectionName).isNull());
+        // Real later opaque geometry behind the early background must still
+        // cover it: this catches an accidental depth write as well as order.
+        clear(renderer);
+        const std::string opaqueName = "HelloMine3D/CaveBoundaryFixtureOpaque";
+        auto opaque = gpu.material->clone(opaqueName);
+        auto* opaquePass = opaque->getTechnique(0)->getPass(0);
+        opaquePass->setDepthCheckEnabled(true);
+        opaquePass->setDepthWriteEnabled(true);
+        const std::array<float, 4> green{{.1f, .8f, .25f, 1.f}};
+        {
+            ProgramOverride programs(*opaquePass, R"GLSL(#version 150
+uniform sampler2D caveBoundaryMask;
+out vec4 fragColour;
+void main() { fragColour = vec4(.1, .8, .25, 1.0); }
+)GLSL");
+            auto* object = scene.createManualObject("CaveBoundaryFixtureOpaque");
+            object->setRenderQueueGroup(Ogre::RENDER_QUEUE_MAIN);
+            object->setCastShadows(false);
+            object->begin(opaqueName, Ogre::RenderOperation::OT_TRIANGLE_LIST);
+            object->position(0, 0, 12); object->textureCoord(0, 0);
+            object->position(16, 0, 12); object->textureCoord(1, 0);
+            object->position(16, 16, 12); object->textureCoord(1, 1);
+            object->position(0, 16, 12); object->textureCoord(0, 1);
+            object->quad(0, 1, 2, 3); object->end();
+            auto* node = scene.getRootSceneNode()->createChildSceneNode("CaveBoundaryFixtureOpaqueNode");
+            node->attachObject(object);
+            check("actual opaque control geometry draws expected colour", draw.matchesSolid(green));
+            renderer.setViewRange({1, 2}, {1024, 1024}, 0.f, fog);
+            sync(renderer, {fullFace()});
+            check("later actual opaque geometry behind background remains fully visible", draw.matchesSolid(green));
+            node->detachObject(object);
+            scene.destroyManualObject(object);
+            scene.destroySceneNode(node);
+        }
+        opaque.setNull();
+        Ogre::MaterialManager::getSingleton().remove(opaqueName);
+        check("opaque fixture removes private material", Ogre::MaterialManager::getSingleton().getByName(opaqueName).isNull());
+        renderer.setViewRange({previous[0], previous[1]}, {previous[2], previous[3]}, previous[4], {previous[5], previous[6], previous[7]});
+        owned->setNamedConstant("linearHdrMode", oldHdr);
+        clear(renderer);
+        glStage("production range draw cases restored");
+    }
+
     void lifecycleCases(Ogre::SceneManager& scene)
     {
         guardCases(scene);
         DrawProbe draw(scene);
+        rangeInterfaceCases(scene, draw);
         const std::array<std::uint16_t, 16> empty{};
         std::string atlasName, materialName;
         const auto texturesBefore = instanceTextures();
@@ -587,6 +946,7 @@ namespace
                   renderer.stats().removalsThisSync == 2048 && renderer.stats().vertexPatchBytesThisSync == 163840 &&
                   renderer.stats().texturePatchBytesThisSync == 0 && gpu.allVerticesZero());
             check("clear active set removes all visible draw", draw.matches(empty));
+            rangeDrawCases(scene, draw, renderer, gpu);
         }
         glStage("production renderer destructor");
         check("destructor removes per-instance texture and material", instanceTextures() == texturesBefore &&

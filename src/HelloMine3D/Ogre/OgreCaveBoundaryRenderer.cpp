@@ -19,6 +19,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -245,6 +246,25 @@ class OgreCaveBoundaryRenderer::Impl
                 throw std::runtime_error("Cave boundary material requires unlit, uncullable, depth-tested background without depth writes or received shadows");
             if (pass->getNumTextureUnitStates() != 1)
                 throw std::runtime_error("Cave boundary material requires one mask texture unit");
+            const auto parameters = pass->getFragmentProgramParameters();
+            const std::array<const char*, 4> rangeNames{{
+                "viewRange", "viewRangeCentre", "viewRangeStrength", "fogColour"}};
+            const std::array<Ogre::GpuConstantType, 4> rangeTypes{{
+                Ogre::GCT_FLOAT2, Ogre::GCT_FLOAT2, Ogre::GCT_FLOAT1, Ogre::GCT_FLOAT3}};
+            const std::array<std::size_t, 4> rangeSizes{{2, 2, 1, 3}};
+            unsigned declared = 0;
+            for (std::size_t i = 0; i < rangeNames.size(); ++i)
+            {
+                const auto* definition = parameters->_findNamedConstantDefinition(rangeNames[i], false);
+                if (!definition) continue;
+                ++declared;
+                if (definition->constType != rangeTypes[i] || definition->arraySize != 1 ||
+                    definition->elementSize != rangeSizes[i])
+                    throw std::runtime_error(std::string("Invalid cave boundary view-range type/size for ") + rangeNames[i]);
+            }
+            if (declared != 0 && declared != rangeNames.size())
+                throw std::runtime_error("Partial cave boundary view-range interface");
+            m_rangeInterface = declared == rangeNames.size();
             auto* unit = pass->getTextureUnitState("caveBoundaryMask");
             if (unit == nullptr)
                 throw std::runtime_error("Missing caveBoundaryMask texture unit");
@@ -370,6 +390,22 @@ class OgreCaveBoundaryRenderer::Impl
         refreshLiveStats();
     }
 
+    void setViewRange(const Ogre::Vector2& range, const Ogre::Vector2& centre,
+                      float strength, const Ogre::Vector3& authoredFog)
+    {
+        // A coherent complete old cave shader retains its existing behaviour.
+        if (!m_rangeInterface) return;
+        for (const float value : {range.x, range.y, centre.x, centre.y,
+                                  strength, authoredFog.x, authoredFog.y, authoredFog.z})
+            if (!std::isfinite(value))
+                throw std::runtime_error("Non-finite cave boundary view-range parameter");
+        auto parameters = m_material->getTechnique(0)->getPass(0)->getFragmentProgramParameters();
+        parameters->setNamedConstant("viewRange", range);
+        parameters->setNamedConstant("viewRangeCentre", centre);
+        parameters->setNamedConstant("viewRangeStrength", strength);
+        parameters->setNamedConstant("fogColour", authoredFog);
+    }
+
     void clear()
     {
         resetFrameStats();
@@ -456,6 +492,7 @@ class OgreCaveBoundaryRenderer::Impl
     Ogre::SceneNode* m_node = nullptr;
     Ogre::TexturePtr m_atlas;
     Ogre::MaterialPtr m_material;
+    bool m_rangeInterface = false;
     std::unique_ptr<BoundaryRenderable> m_renderable;
     std::string m_atlasName;
     std::string m_materialName;
@@ -477,6 +514,12 @@ void OgreCaveBoundaryRenderer::sync(const std::vector<WorldBoundaryMaskFace>& fa
                                     bool uploadNewMasks)
 {
     m_impl->sync(faces, uploadNewMasks);
+}
+
+void OgreCaveBoundaryRenderer::setViewRange(const Ogre::Vector2& range,
+    const Ogre::Vector2& centre, float strength, const Ogre::Vector3& authoredFog)
+{
+    m_impl->setViewRange(range, centre, strength, authoredFog);
 }
 
 void OgreCaveBoundaryRenderer::clear() { m_impl->clear(); }

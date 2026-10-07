@@ -7379,6 +7379,9 @@ namespace
             }
             const float skyBlend = std::clamp((m_viewRangeSkyAvailability - .05f) / .25f, 0.f, 1.f);
             const float viewRangeStrength = skyBlend * skyBlend * (3.f - 2.f * skyBlend);
+            if (m_caveBoundaryRenderer != nullptr)
+                m_caveBoundaryRenderer->setViewRange(
+                    viewRange, viewRangeCentre, viewRangeStrength, fogVector);
             const bool shadowActive =
                 m_directionalShadowQuality !=
                 DirectionalShadowQuality::Off;

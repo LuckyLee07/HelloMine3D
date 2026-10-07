@@ -828,6 +828,11 @@ Ogre用独立696KiB固定quad／R8 atlas表示暗空气后的有限区外背景�
 每帧至多8面激活，旧／dirty quad即时退化，第二确认只清理；地形八section上传与四层batch保持。
 缓存零面、deferred和容量截断均显式保留；不能把全部RD32、底层直接光helper或普通地下探索记成已验证。
 预算和真实保护范围见[地下边界背景合同](../contracts/cave-boundary-background-contract-v1.md)。
+参考画质r14使此背景复用普通几何的逻辑XZ中心、viewRange、已平滑退场强度及fog色；
+露天零覆盖discard、部分覆盖向fog退场，地下strength0与完整近域保持原暗色／mask。
+Bootstrap只同步真实owned material clone的float2／float2／float1／float3参数，反射private pass
+深拷贝；四项全缺的完整旧接口保留原行为，partial或type／size错误拒绝。
+本扩展不增加World查询或保存字段，不改变遮罩、需求、固定GPU预算及八面扫描／更新上限。
 
 V11b局部修复现有GL3Plus纹理集成：A8使用R8存储并保留alpha语义，采样为`(0,0,0,A)`；
 L8／LA原有swizzle保持。A8跨格式上传／复制和完整／裁剪／缩放读回在传输边界转换，

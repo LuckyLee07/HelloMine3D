@@ -38,6 +38,8 @@ PUBLISHED_V10_BUNDLE_ID = 'local.hellomine3d.reference-current-v10'
 PUBLISHED_V10_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete v10.app'
 PUBLISHED_V11_BUNDLE_ID = 'local.hellomine3d.reference-current-v11'
 PUBLISHED_V11_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete v11.app'
+PUBLISHED_V12_BUNDLE_ID = 'local.hellomine3d.reference-current-v12'
+PUBLISHED_V12_PATH = 'build/reference-visual-goal/HelloMine3D Reference Complete v12.app'
 LAUNCHER = '''#!/bin/bash
 set -euo pipefail
 # Diagnostics from the preparing shell must not reach ordinary gameplay.
@@ -253,12 +255,12 @@ def make_plan(args):
     protected = Path(protection['protected_app']).resolve(strict=True)
     old_work = Path(protection['work_app']).resolve(strict=True)
     snapshots = {}
-    protected_ids = {PUBLISHED_V2_BUNDLE_ID, PUBLISHED_V3_BUNDLE_ID, PUBLISHED_V4_BUNDLE_ID, PUBLISHED_V5_BUNDLE_ID, PUBLISHED_V6_BUNDLE_ID, PUBLISHED_V7_BUNDLE_ID, PUBLISHED_V8_BUNDLE_ID, PUBLISHED_V9_BUNDLE_ID, PUBLISHED_V10_BUNDLE_ID, PUBLISHED_V11_BUNDLE_ID}
+    protected_ids = {PUBLISHED_V2_BUNDLE_ID, PUBLISHED_V3_BUNDLE_ID, PUBLISHED_V4_BUNDLE_ID, PUBLISHED_V5_BUNDLE_ID, PUBLISHED_V6_BUNDLE_ID, PUBLISHED_V7_BUNDLE_ID, PUBLISHED_V8_BUNDLE_ID, PUBLISHED_V9_BUNDLE_ID, PUBLISHED_V10_BUNDLE_ID, PUBLISHED_V11_BUNDLE_ID, PUBLISHED_V12_BUNDLE_ID}
     protected_apps = [protected, old_work]
     current = root/'build/reference-visual-goal/WorkbenchCurrent.app'
     if current.exists():
         protected_apps.append(current.resolve(strict=True))
-    for version, relative in [('v2', PUBLISHED_V2_PATH), ('v3', PUBLISHED_V3_PATH), ('v4', PUBLISHED_V4_PATH), ('v5', PUBLISHED_V5_PATH), ('v6', PUBLISHED_V6_PATH), ('v7', PUBLISHED_V7_PATH), ('v8', PUBLISHED_V8_PATH), ('v9', PUBLISHED_V9_PATH), ('v10', PUBLISHED_V10_PATH), ('v11', PUBLISHED_V11_PATH)]:
+    for version, relative in [('v2', PUBLISHED_V2_PATH), ('v3', PUBLISHED_V3_PATH), ('v4', PUBLISHED_V4_PATH), ('v5', PUBLISHED_V5_PATH), ('v6', PUBLISHED_V6_PATH), ('v7', PUBLISHED_V7_PATH), ('v8', PUBLISHED_V8_PATH), ('v9', PUBLISHED_V9_PATH), ('v10', PUBLISHED_V10_PATH), ('v11', PUBLISHED_V11_PATH), ('v12', PUBLISHED_V12_PATH)]:
         published = (root/relative).resolve()
         require(not paths_overlap(output, published), 'Output overlaps the published '+version+' app')
         if published.exists():

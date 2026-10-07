@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -15,6 +16,8 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <vector>
+#include <utility>
 
 namespace {
 namespace fs = std::filesystem;
@@ -181,12 +184,215 @@ Pixel resolveSample(const Target& target, GLuint object, const Pixel& input, flo
     sampler(object, "sceneTexture"); uniform(object, "exposure", exposure);
     glDrawArrays(GL_TRIANGLES, 0, 3); const Pixel result = target.pixel(); glDeleteTextures(1, &tex); return result;
 }
+// Actual full CaveBoundary VS/FS samples. These prove supplied world/range
+// inputs and shader output; Ogre's live logical-centre binding is separate.
+const std::array<float,16> CaveIdentity{{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}};
+struct CaveCase {
+    std::string name;
+    std::array<float,16> world = CaveIdentity;
+    std::array<float,2> range{{8,14}}, centre{{0,0}};
+    float strength=1, mode=0, mask=0.6f;
+};
+CaveCase caveCase(const std::string& name, float x, float z, float strength=1,
+                  float mode=0, std::array<float,2> centre={{0,0}}) {
+    CaveCase value; value.name=name; value.world[12]=x; value.world[13]=64;
+    value.world[14]=z; value.strength=strength; value.mode=mode; value.centre=centre;
+    return value;
+}
+struct CaveSample {
+    Pixel before{}, after{};
+    float depthBefore=0, depthAfter=0;
+    std::array<float,16> world{}, wvp{};
+    std::array<float,2> range{}, centre{};
+    std::array<float,3> fog{};
+    float strength=0, mode=0;
+    GLint maskUnit=-1;
+    bool uniforms=false;
+};
+bool caveDepthExact(const CaveSample& value) {
+    return std::memcmp(&value.depthBefore,&value.depthAfter,sizeof(float))==0;
+}
+CaveSample caveSample(const Target& target, GLuint object, GLuint buffer,
+                      const CaveCase& input, bool writeDepth=false,
+                      const Pixel& background=Pixel{.18f,1,2,.35f}) {
+    struct Vertex {float x,y,z,u,v;};
+    const std::array<Vertex,3> vertices{{{-1,-1,0,.5f,.5f},{3,-1,0,.5f,.5f},{-1,3,0,.5f,.5f}}};
+    glBindBuffer(GL_ARRAY_BUFFER,buffer);
+    glBufferData(GL_ARRAY_BUFFER,sizeof(vertices),vertices.data(),GL_DYNAMIC_DRAW);
+    glUseProgram(object);
+    const GLint position=glGetAttribLocation(object,"vertex"),uv=glGetAttribLocation(object,"uv0");
+    require(position>=0 && uv>=0,"Cave production vertex/UV interface inactive");
+    glEnableVertexAttribArray(position); glEnableVertexAttribArray(uv);
+    glVertexAttribPointer(position,3,GL_FLOAT,GL_FALSE,sizeof(Vertex),nullptr);
+    glVertexAttribPointer(uv,2,GL_FLOAT,GL_FALSE,sizeof(Vertex),reinterpret_cast<void*>(3*sizeof(float)));
+    // Model translation is real; the supplied WVP compensates the camera so
+    // this target's pixel centre is local (0,0,0), hence world=(x,64,z).
+    glUniformMatrix4fv(location(object,"worldViewProj"),1,GL_FALSE,CaveIdentity.data());
+    const GLint world=glGetUniformLocation(object,"world"),range=glGetUniformLocation(object,"viewRange");
+    const GLint centre=glGetUniformLocation(object,"viewRangeCentre"),strength=glGetUniformLocation(object,"viewRangeStrength");
+    const GLint fog=glGetUniformLocation(object,"fogColour");
+    if(world>=0) glUniformMatrix4fv(world,1,GL_FALSE,input.world.data());
+    if(range>=0) glUniform2fv(range,1,input.range.data());
+    if(centre>=0) glUniform2fv(centre,1,input.centre.data());
+    if(strength>=0) glUniform1f(strength,input.strength);
+    if(fog>=0) glUniform3f(fog,.6f,.7f,.8f);
+    uniform(object,"linearHdrMode",input.mode); sampler(object,"caveBoundaryMask");
+    const GLuint tex=texture({input.mask,0,0,1});
+    CaveSample result;
+    glGetUniformfv(object,location(object,"linearHdrMode"),&result.mode);
+    glGetUniformfv(object,location(object,"worldViewProj"),result.wvp.data());
+    glGetUniformiv(object,location(object,"caveBoundaryMask"),&result.maskUnit);
+    if(world>=0 && range>=0 && centre>=0 && strength>=0 && fog>=0) {
+        glGetUniformfv(object,world,result.world.data()); glGetUniformfv(object,range,result.range.data());
+        glGetUniformfv(object,centre,result.centre.data()); glGetUniformfv(object,strength,&result.strength);
+        glGetUniformfv(object,fog,result.fog.data());
+        result.uniforms=result.world==input.world && result.wvp==CaveIdentity && result.range==input.range &&
+            result.centre==input.centre && result.strength==input.strength && result.mode==input.mode &&
+            result.fog==std::array<float,3>{{.6f,.7f,.8f}} && result.maskUnit==0;
+    }
+    glDepthMask(GL_TRUE); glDisable(GL_BLEND); target.clear(background);
+    result.before=target.pixel(); result.depthBefore=target.depthValue();
+    glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(writeDepth?GL_TRUE:GL_FALSE);
+    glDrawArrays(GL_TRIANGLES,0,3);
+    result.after=target.pixel(); result.depthAfter=target.depthValue();
+    glDeleteTextures(1,&tex); glDepthMask(GL_TRUE); glDepthFunc(GL_ALWAYS);
+    require(glGetError()==GL_NO_ERROR,"Cave actual draw/uniform/readback GL error");
+    return result;
+}
+double caveCoverage(const CaveCase& input) {
+    if(input.strength<=0 || input.range[1]<=input.range[0]) return 1;
+    const double distance=std::max(std::abs(double(input.world[12])-input.centre[0]),
+                                   std::abs(double(input.world[14])-input.centre[1]));
+    const double t=std::clamp((distance-input.range[0])/(input.range[1]-input.range[0]),0.0,1.0);
+    return 1-std::clamp(double(input.strength),0.0,1.0)*t*t*(3-2*t);
+}
+bool caveReferenceMatches(const CaveSample& actual, const CaveCase& input, double tolerance) {
+    if(!actual.uniforms || !caveDepthExact(actual)) return false;
+    const double coverage=caveCoverage(input);
+    const std::array<float,3> fog{{.6f,.7f,.8f}},dark{{.035f,.043f,.054f}};
+    for(int c=0;c<4;++c) {
+        double expected=actual.before[c];
+        if(input.mask>=.5f && coverage>0)
+            expected=c==3 ? 1 : (input.mode>=.5f ? decode(fog[c])*(1-coverage)+decode(dark[c])*coverage :
+                                                   fog[c]*(1-coverage)+dark[c]*coverage);
+        if(!std::isfinite(actual.after[c]) || std::abs(actual.after[c]-expected)>tolerance) return false;
+    }
+    return true;
+}
+bool caveOldExact(const CaveSample& actual, const CaveSample& old) {
+    return actual.uniforms && caveDepthExact(actual) && caveDepthExact(old) &&
+        std::memcmp(actual.after.data(),old.after.data(),sizeof(Pixel))==0 &&
+        std::memcmp(actual.before.data(),old.before.data(),sizeof(Pixel))==0 &&
+        std::memcmp(&actual.depthBefore,&old.depthBefore,sizeof(float))==0;
+}
+void caveReadback(const std::string& format, const CaveCase& input, const CaveSample& actual,
+                  const std::string& variant="production") {
+    fs::create_directories(evidence/"cave-range-raw");
+    const auto path=evidence/"cave-range-raw"/(format+"-"+input.name+"-"+variant);
+    std::ofstream raw(path.string()+".readback.f32",std::ios::binary);
+    const std::array<float,10> values{{actual.before[0],actual.before[1],actual.before[2],actual.before[3],
+        actual.after[0],actual.after[1],actual.after[2],actual.after[3],actual.depthBefore,actual.depthAfter}};
+    raw.write(reinterpret_cast<const char*>(values.data()),sizeof(values)); require(raw.good(),"Cannot save cave range pixels");
+    std::ofstream facts(path.string()+".facts.txt"); facts<<std::setprecision(9);
+    facts<<"scope=actual-production-VS-FS-supplied-world-1x1\nformat="<<format
+        <<"\nreadback_type=GL_FLOAT\nvariant="<<variant<<"\nuniform_readback="<<actual.uniforms
+        <<"\ndepth_exact="<<caveDepthExact(actual)<<"\nworld_actual=";
+    for(float v:actual.world) facts<<v<<',';
+    facts<<"\nworld_input="; for(float v:input.world) facts<<v<<',';
+    facts<<"\nwvp_actual="; for(float v:actual.wvp) facts<<v<<',';
+    facts<<"\nrange_actual="<<actual.range[0]<<','<<actual.range[1]<<"\ncentre_actual="<<actual.centre[0]<<','<<actual.centre[1]
+        <<"\nstrength_actual="<<actual.strength<<"\nmode_actual="<<actual.mode<<"\nfog_actual=";
+    for(float v:actual.fog) facts<<v<<',';
+    facts<<"\nmask_unit_actual="<<actual.maskUnit<<"\nmask_input="<<input.mask
+        <<"\nexpected_coverage="<<caveCoverage(input)<<"\nOgre_live_binding=NOT_RUN\nnormal_gameplay=NOT_RUN\n";
+    require(facts.good(),"Cannot save cave uniform readback");
+}
+std::string caveMutate(std::string source, const std::string& from, const std::string& to) {
+    const auto at=source.find(from); require(at!=std::string::npos && source.find(from,at+from.size())==std::string::npos,
+                                           "Missing/duplicate actual cave fault seam: "+from);
+    source.replace(at,from.size(),to); return source;
+}
+void caveRangeChecks(const Target& precise, const Target& hdr, const std::string& vertex,
+                     const std::string& fragment, const std::string& oldFragment) {
+    const GLuint actual=program(vertex,fragment),old=program(vertex,oldFragment);
+    GLint callerVao=0,callerArrayBuffer=0;
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&callerVao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING,&callerArrayBuffer);
+    // Attribute pointers capture VBOs in their VAO. Keep these production-VS
+    // inputs out of the caller's empty gl_VertexID VAO used by later gates.
+    GLuint caveVao=0,buffer=0;
+    glGenVertexArrays(1,&caveVao); glBindVertexArray(caveVao);
+    glGenBuffers(1,&buffer);
+    // Preserve the original mask threshold/decoded-colour gates with actual VS.
+    for(float mask:{.4f,.6f}) {
+        auto input=caveCase("original-mask",0,0,0,1); input.mask=mask;
+        const auto sample=caveSample(precise,actual,buffer,input,true,Pixel{0,0,0,0});
+        check("cave/actual-mask-data/"+std::to_string(mask),mask<.5f ? sample.after[3]==0 : sample.after[3]==1);
+        if(mask>.5f) closeTo("cave/actual-unlit-colour-decode",sample.after[0],decode(.035));
+    }
+    const auto wrongCoverage=caveMutate(fragment,"float coverage = 1.0 - smoothstep(viewRange.x, viewRange.y, edgeDistance);",
+        "float coverage = 1.0 - 0.5 * smoothstep(viewRange.x, viewRange.y, edgeDistance);");
+    const auto noDiscard=caveMutate(fragment,"if (coverage <= 0.0) discard;","if (coverage < -1.0) discard;");
+    write(evidence/"faults/cave-half-range-coverage.frag",wrongCoverage);
+    write(evidence/"faults/cave-no-range-discard.frag",noDiscard);
+    write(evidence/"inputs/cave-pre-range-baseline.frag",oldFragment);
+    const GLuint coverageFault=program(vertex,wrongCoverage),discardFault=program(vertex,noDiscard);
+    for(const auto& format:std::array<std::pair<const char*,const Target*>,2>{{{"RGBA32F",&precise},{"RGBA16F",&hdr}}}) {
+        const double tolerance=format.second==&hdr ? .0003 : .00004;
+        const std::string prefix="cave/range/"+std::string(format.first)+"/";
+        for(float mode:{0.f,1.f}) {
+            const auto off=caveCase("strength0-far-mode"+std::to_string(int(mode)),100,-100,0,mode);
+            const auto near=caveCase("strength1-near-mode"+std::to_string(int(mode)),2,3,1,mode);
+            for(const auto& input:{off,near}) {
+                const auto current=caveSample(*format.second,actual,buffer,input),baseline=caveSample(*format.second,old,buffer,input);
+                caveReadback(format.first,input,current); caveReadback(format.first,input,baseline,"pre-range-baseline");
+                check(prefix+input.name+"-old-pixels-depth-exact",caveOldExact(current,baseline));
+            }
+            for(const auto& input:{caveCase("cutoff-mode"+std::to_string(int(mode)),14,0,1,mode),
+                caveCase("outside-mode"+std::to_string(int(mode)),16,0,1,mode),
+                caveCase("partial-mode"+std::to_string(int(mode)),11,0,1,mode)}) {
+                const auto current=caveSample(*format.second,actual,buffer,input); caveReadback(format.first,input,current);
+                check(prefix+input.name+"-independent-colour-depth",caveReferenceMatches(current,input,tolerance));
+            }
+        }
+        std::vector<CaveCase> cases{caveCase("negative-partial",-43,-48,1,1,{{-32,-48}}),
+            caveCase("diagonal-chebyshev",11,11,1,1),caveCase("logical-centre",139,-85,1,1,{{128,-96}}),
+            caveCase("partial-strength",11,0,.25f,1)};
+        auto masked=caveCase("mask-discard-partial",11,0,1,1); masked.mask=.4f; cases.push_back(masked);
+        auto invalid=caveCase("invalid-range",100,-100,1,1); invalid.range={{14,8}}; cases.push_back(invalid);
+        for(const auto& input:cases) {
+            const auto current=caveSample(*format.second,actual,buffer,input); caveReadback(format.first,input,current);
+            check(prefix+input.name+"-independent-colour-depth",caveReferenceMatches(current,input,tolerance));
+        }
+        const auto far=caveCase("fault-far",16,0,1,1);
+        const auto badCoverage=caveSample(*format.second,coverageFault,buffer,far),badDiscard=caveSample(*format.second,discardFault,buffer,far);
+        caveReadback(format.first,far,badCoverage,"half-range-coverage"); caveReadback(format.first,far,badDiscard,"no-range-discard");
+        check(prefix+"reject-half-range-coverage-at-far-pixels",badCoverage.uniforms && caveDepthExact(badCoverage) && !caveReferenceMatches(badCoverage,far,tolerance));
+        check(prefix+"reject-no-range-discard-at-far-pixels",badDiscard.uniforms && caveDepthExact(badDiscard) && !caveReferenceMatches(badDiscard,far,tolerance));
+    }
+    glDeleteProgram(coverageFault); glDeleteProgram(discardFault); glDeleteProgram(actual); glDeleteProgram(old);
+    glBindVertexArray(static_cast<GLuint>(callerVao));
+    glBindBuffer(GL_ARRAY_BUFFER,static_cast<GLuint>(callerArrayBuffer));
+    glDeleteVertexArrays(1,&caveVao); glDeleteBuffers(1,&buffer);
+    GLint restoredVao=0,restoredArrayBuffer=0;
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&restoredVao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING,&restoredArrayBuffer);
+    const bool callerRestored=restoredVao==callerVao && restoredArrayBuffer==callerArrayBuffer;
+    check("cave/range/restores-caller-VAO-and-array-buffer",callerRestored);
+    std::ofstream state(evidence/"cave-range-caller-state.txt");
+    state<<"scope=actual-glGetIntegerv-before-after-own-VAO-destruction\ncaller_vao_before="<<callerVao
+        <<"\ncaller_array_buffer_before="<<callerArrayBuffer<<"\nprivate_cave_vao="<<caveVao
+        <<"\nprivate_cave_buffer="<<buffer<<"\ncaller_vao_after="<<restoredVao
+        <<"\ncaller_array_buffer_after="<<restoredArrayBuffer<<"\ncaller_state_restored="<<callerRestored<<'\n';
+    require(state.good(),"Cannot save actual caller VAO/buffer state");
+}
+
 void summary(const std::string& renderer, const std::string& version, const std::string& fatal = "") {
     const bool pass = failures == 0 && fatal.empty();
     std::string result = "status=" + std::string(pass ? "PASS" : "FAIL") +
         "\nchecks=" + std::to_string(checks) + "\nfailures=" + std::to_string(failures) +
         "\nrenderer=" + renderer + "\nversion=" + version +
-        "\nscope=offscreen CGL: extracted production colour functions, full resolve, particle, cave mask and caster fragments\n"
+        "\nscope=offscreen CGL: extracted production colour functions, full resolve, particle, full cave mask/range VS/FS with supplied world/uniform readback, and caster fragments\n"
         "native_ogre_fbo=NOT_RUN\nui_composition=NOT_RUN\nnormal_gameplay=NOT_RUN\n";
     if (!fatal.empty()) result += "fatal=" + fatal + "\n";
     write(evidence / "summary.txt", result);
@@ -316,20 +522,35 @@ void main() {
         const GLuint badAlpha = program(particleVertex, gammaAlpha);
         check("fault/gamma-alpha-rejected", std::abs(particleSample(badAlpha, 1, false)[3] - particleLinear[3]) > 0.1);
         glDeleteProgram(badAlpha); glDeleteProgram(particle);
-        const std::string caveVertex = R"GLSL(#version 150
-out vec2 boundaryUV;
-void main() {vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(p*2.0-1.0,0,1);boundaryUV=vec2(0.5);}
-)GLSL";
-        const GLuint cave = program(caveVertex, source("HelloMine3DCaveBoundary.frag"));
-        for (float mask : {0.4f, 0.6f}) {
-            precise.clear(); glUseProgram(cave); const GLuint tex = texture({mask, 0, 0, 1});
-            sampler(cave, "caveBoundaryMask"); uniform(cave, "linearHdrMode", 1); glDrawArrays(GL_TRIANGLES, 0, 3);
-            const Pixel result = precise.pixel();
-            check("cave/actual-mask-data/" + std::to_string(mask), mask < 0.5f ? result[3] == 0 : result[3] == 1);
-            if (mask > 0.5f) closeTo("cave/actual-unlit-colour-decode", result[0], decode(0.035));
-            glDeleteTextures(1, &tex);
-        }
-        glDeleteProgram(cave);
+        // Frozen pre-range production FS at 2a448fdab39523f797f4339f154c824054d720ea.
+        const std::string oldCaveFragment=R"BASELINE(#version 150
+
+// The legacy branch keeps authored display colours untouched. HDR scene
+// shaders decode colour inputs before lighting/blending; alpha/data stay raw.
+uniform float linearHdrMode;
+vec3 sceneColour(vec3 authored)
+{
+    if (linearHdrMode < 0.5) return authored;
+    vec3 c = max(authored, vec3(0.0));
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)),
+               step(vec3(0.04045), c));
+}
+
+
+in vec2 boundaryUV;
+uniform sampler2D caveBoundaryMask;
+out vec4 fragColour;
+
+void main()
+{
+    if (texture(caveBoundaryMask, boundaryUV).r < 0.5)
+        discard;
+    // The same unlit underground background used by the terrain fog.
+    fragColour = vec4(sceneColour(vec3(0.035, 0.043, 0.054)), 1.0);
+}
+)BASELINE";
+        caveRangeChecks(precise,hdr,source("HelloMine3DCaveBoundary.vert"),
+                        source("HelloMine3DCaveBoundary.frag"),oldCaveFragment);
         const std::string casterVertex = R"GLSL(#version 150
 flat out vec3 casterNaturalTreeRoot; uniform float probeDepth;
 void main() {vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(p*2.0-1.0,probeDepth*2.0-1.0,1);casterNaturalTreeRoot=vec3(0);}

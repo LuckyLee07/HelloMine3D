@@ -474,6 +474,7 @@ vertex_program HelloMine3D/CaveBoundaryVertex glsl
     default_params
     {
         param_named_auto worldViewProj worldviewproj_matrix
+        param_named_auto world world_matrix
     }
 }
 
@@ -484,6 +485,10 @@ fragment_program HelloMine3D/CaveBoundaryFragment glsl
     default_params
     {
         param_named caveBoundaryMask int 0
+        param_named viewRange float2 0.0 0.0
+        param_named viewRangeCentre float2 0.0 0.0
+        param_named viewRangeStrength float 0.0
+        param_named fogColour float3 0.6 0.7 0.8
     }
 }
 
