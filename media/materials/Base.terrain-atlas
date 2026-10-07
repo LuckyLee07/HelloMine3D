@@ -136,3 +136,11 @@ clay|8|8|opaque|A36345|Clay|黏土
 forest_floor|9|8|opaque|62482F|Forest floor|林床
 moss_stone|10|8|opaque|6C7451|Moss stone|苔石
 silt|11|8|opaque|5D4939|Silt|淤泥
+
+# Reference architectural kit: four albedos plus bounded fixture materials.
+pale_stone|0|9|opaque|DED1B8|Pale limestone|浅色石灰岩
+rough_stone|1|9|opaque|A89D88|Rough limestone|粗石
+terracotta|2|9|opaque|B96D44|Terracotta tiles|陶瓦
+timber|3|9|opaque|A27C4F|Timber|木材
+metal|4|9|opaque|6D6A61|Dark iron|深色铁件
+lamp_glow|5|9|opaque|FFE6A0|Lantern diffuser|灯具发光罩

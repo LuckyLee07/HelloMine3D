@@ -14,6 +14,8 @@
 #include <utility>
 
 #include "../World/World.h"
+#include "../World/Block/BlockDatabase.h"
+#include "../World/Block/BlockGeometry.h"
 
 Player::Player()
     : Entity({2500, 125, 2500}, {0.f, 0.f, 0.f}, {0.3f, 1.f, 0.3f})
@@ -317,32 +319,39 @@ void Player::collide(World& world, const glm::vec3& vel, float dt)
                         continue;
                     }
 
-                    if (step.y > 0.f) {
-                        position.y = y - box.dimensions.y;
-                        velocity.y = 0.f;
+                    const glm::vec3 before=position-step;
+                    const auto &definition=BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
+                    bool hit=false;float resolved=0.f;int axis=step.y!=0?1:step.x!=0?0:2;
+                    const auto clearAt=[&](const glm::vec3 &candidate) {
+                        const BlockGeometry::Bounds body{candidate-box.dimensions,candidate+box.dimensions};
+                        for(int cx=int(std::floor(body.minimum.x+BoundaryEpsilon));cx<=int(std::floor(body.maximum.x-BoundaryEpsilon));++cx)
+                        for(int cy=int(std::floor(body.minimum.y+BoundaryEpsilon));cy<=int(std::floor(body.maximum.y-BoundaryEpsilon));++cy)
+                        for(int cz=int(std::floor(body.minimum.z+BoundaryEpsilon));cz<=int(std::floor(body.maximum.z-BoundaryEpsilon));++cz) {
+                            const auto neighbour=world.getBlock(cx,cy,cz);
+                            if(BlockGeometry::collides(BlockDatabase::get().getDefinition(static_cast<BlockId>(neighbour.id)),
+                                neighbour,{cx,cy,cz},body)) return false;
+                        }
+                        return true;
+                    };
+                    BlockGeometry::collisionBoxes(definition,block,{x,y,z},[&](const BlockGeometry::Bounds &part) {
+                        const BlockGeometry::Bounds body{position-box.dimensions,position+box.dimensions};
+                        if(!BlockGeometry::intersects(part,body)) return;
+                        const float rise=part.maximum.y-(before.y-box.dimensions.y);
+                        if(BlockGeometry::allowsHalfStep(static_cast<BlockId>(block.id)) && axis!=1 &&
+                           velocity.y<=0.f && rise>BoundaryEpsilon && rise<=.5f+BoundaryEpsilon) {
+                            glm::vec3 raised=position;raised.y=part.maximum.y+box.dimensions.y;
+                            if(clearAt(raised)) {position=raised;m_isOnGround=true;return;}
+                        }
+                        const float contact=step[axis]>0?part.minimum[axis]-box.dimensions[axis]:part.maximum[axis]+box.dimensions[axis];
+                        if(!hit) resolved=contact;
+                        else resolved=step[axis]>0?std::min(resolved,contact):std::max(resolved,contact);
+                        hit=true;
+                    });
+                    if(hit) {
+                        position[axis]=resolved;velocity[axis]=0.f;
+                        if(axis==1 && step.y<0) m_isOnGround=true;
+                        return;
                     }
-                    else if (step.y < 0.f) {
-                        m_isOnGround = true;
-                        position.y = y + box.dimensions.y + 1.f;
-                        velocity.y = 0.f;
-                    }
-                    else if (step.x > 0.f) {
-                        position.x = x - box.dimensions.x;
-                        velocity.x = 0.f;
-                    }
-                    else if (step.x < 0.f) {
-                        position.x = x + box.dimensions.x + 1.f;
-                        velocity.x = 0.f;
-                    }
-                    else if (step.z > 0.f) {
-                        position.z = z - box.dimensions.z;
-                        velocity.z = 0.f;
-                    }
-                    else if (step.z < 0.f) {
-                        position.z = z + box.dimensions.z + 1.f;
-                        velocity.z = 0.f;
-                    }
-                    return;
                 }
             }
         }

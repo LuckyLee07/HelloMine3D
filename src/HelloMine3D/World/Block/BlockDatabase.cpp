@@ -424,10 +424,15 @@ BlockDefinition makeDefinition(const std::string &fileName,
     definition.requiredToolTier = data.requiredToolTier;
     definition.wrongToolDrops = data.wrongToolDrops;
     definition.collidable = data.isCollidable;
+    definition.occludesFaces = data.occludesFaces;
+    definition.fullCellSolid = data.fullCellSolid;
+    definition.aoOccluder = data.aoOccluder;
+    definition.blocksLight = data.blocksLight;
+    // Alpha and whole-cell neighbour coverage are independent for v2 parts.
     definition.transparent = !data.isOpaque;
     definition.liquid = data.id == BlockId::Water ||
                         data.shaderType == BlockShaderType::Liquid;
-    definition.solid = data.isOpaque && data.isCollidable;
+    definition.solid = data.fullCellSolid;
     definition.light = data.light;
     definition.defaultDrop = Material::toMaterial(data.id).id;
     definition.render.texTopCoord = data.texTopCoord;
@@ -520,6 +525,18 @@ BlockDatabase::BlockDatabase()
     addBlock(BlockId::ForestFloor, "ForestFloor");
     addBlock(BlockId::MossStone, "MossStone");
     addBlock(BlockId::Silt, "Silt");
+    addBlock(BlockId::StoneStep, "StoneStep");
+    addBlock(BlockId::StoneWindowFrame, "StoneWindowFrame");
+    addBlock(BlockId::StoneBrick, "StoneBrick");
+    addBlock(BlockId::StoneSlab, "StoneSlab");
+    addBlock(BlockId::StoneCornice, "StoneCornice");
+    addBlock(BlockId::ClayTileStep, "ClayTileStep");
+    addBlock(BlockId::ClayTileEave, "ClayTileEave");
+    addBlock(BlockId::TimberBeam, "TimberBeam");
+    addBlock(BlockId::TimberRailing, "TimberRailing");
+    addBlock(BlockId::StoneWindowSill, "StoneWindowSill");
+    addBlock(BlockId::StonePlanter, "StonePlanter");
+    addBlock(BlockId::Lantern, "Lantern");
 }
 
 BlockDatabase &BlockDatabase::get()

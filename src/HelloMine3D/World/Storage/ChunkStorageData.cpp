@@ -1,4 +1,5 @@
 #include "ChunkStorageData.h"
+#include "../Block/BlockGeometry.h"
 
 #include "../../Util/ResourcePaths.h"
 #include "../WorldConstants.h"
@@ -227,6 +228,9 @@ namespace
             }
         }
 
+        for(std::size_t i=0;i<blockIds.size();++i)
+            if(!BlockGeometry::validMetadata(blockIds[i],metadata[i]))
+                return fail("Invalid architectural block orientation");
         if (input.peek() != std::char_traits<char>::eof()) {
             return fail("Unexpected trailing chunk data");
         }
@@ -303,6 +307,11 @@ bool ChunkStorageData::saveChunkData(
         return false;
     }
 
+    for(std::size_t i=0;i<data.blockIds.size();++i)
+        if(!BlockGeometry::validMetadata(data.blockIds[i],data.metadata[i])) {
+            std::cerr << "Unable to save invalid architectural orientation\n";
+            return false;
+        }
     if (data.blockEntities.size() > MaxStoredBlockEntities) {
         std::cerr << "Unable to save too many chunk block entities: "
                   << chunkPath(data.x, data.z) << '\n';

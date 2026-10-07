@@ -1,4 +1,16 @@
 #version 150
+
+// The legacy branch keeps authored display colours untouched. HDR scene
+// shaders decode colour inputs before lighting/blending; alpha/data stay raw.
+uniform float linearHdrMode;
+vec3 sceneColour(vec3 authored)
+{
+    if (linearHdrMode < 0.5) return authored;
+    vec3 c = max(authored, vec3(0.0));
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)),
+               step(vec3(0.04045), c));
+}
+
 in vec2 particleTileUv;
 in vec2 particleUv;
 in vec4 particleColour;
@@ -26,7 +38,7 @@ void main()
     vec4 texel = texture(terrainAtlas, (tile * tilePixels + pixel) / atlasPixels);
 #endif
     if (texel.a < 0.1) discard;
-    vec3 colour = texel.rgb * particleColour.rgb * mix(0.3, 1.0, environmentLight);
+    vec3 colour = sceneColour(texel.rgb) * sceneColour(particleColour.rgb) * mix(0.3, 1.0, environmentLight);
     float visibility = exp(-particleDistance * particleDistance * fogDensity * fogDensity);
-    fragmentColour = vec4(mix(fogColour, colour, visibility), texel.a * particleColour.a);
+    fragmentColour = vec4(mix(sceneColour(fogColour), colour, visibility), texel.a * particleColour.a);
 }

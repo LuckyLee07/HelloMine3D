@@ -3,6 +3,7 @@
 
 #include "../../Maths/glm.h"
 #include <array>
+#include <bitset>
 #include <cstdint>
 #include <vector>
 
@@ -26,8 +27,8 @@ class ChunkSection : public IChunk {
       public:
         void update(ChunkBlock previous, ChunkBlock current)
         {
-            const bool wasSolid = previous.getData().isOpaque;
-            const bool isSolid = current.getData().isOpaque;
+            const bool wasSolid = previous.getData().occludesFaces;
+            const bool isSolid = current.getData().occludesFaces;
             if (wasSolid == isSolid) {
                 return;
             }
@@ -55,6 +56,8 @@ class ChunkSection : public IChunk {
     bool setBlockLight(int x, int y, int z, LightLevel level);
     LightLevel getBlockLight(int x, int y, int z) const;
 
+    /// Derived fixed 512-byte source index. Must be read under the World lock.
+    const std::bitset<CHUNK_VOLUME> &emittingCells() const noexcept { return m_emittingCells; }
     glm::ivec3 getLocation() const;
 
     bool hasMesh() const;
@@ -117,6 +120,7 @@ class ChunkSection : public IChunk {
     std::array<LightLevel, CHUNK_VOLUME> m_blockLight;
     std::array<Layer, CHUNK_SIZE> m_layers;
     std::vector<std::uint16_t> m_randomTickBlocks;
+    std::bitset<CHUNK_VOLUME> m_emittingCells;
 
     ChunkMeshCollection m_meshes;
     AABB m_aabb;

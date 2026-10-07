@@ -153,7 +153,7 @@ void BlockData::load(const std::string &path,
             "TexBottom",  "TexAll",     "Opaque",   "Collidable",
             "MeshType",   "ShaderType", "Shape",     "Light",
             "Hardness",   "MiningClass", "RequiredToolTier",
-            "WrongToolDrops",
+            "WrongToolDrops", "OccludesFaces", "AoOccluder", "BlocksLight",
         };
         if (validKeys.find(key) == validKeys.end()) {
             fail(path, key, "is unknown at line " +
@@ -213,6 +213,9 @@ void BlockData::load(const std::string &path,
         else if (key == "Collidable") {
             m_data.isCollidable = parseBoolean(path, key, value);
         }
+        else if (key == "OccludesFaces") { m_data.occludesFaces = parseBoolean(path,key,value); }
+        else if (key == "AoOccluder") { m_data.aoOccluder = parseBoolean(path,key,value); }
+        else if (key == "BlocksLight") { m_data.blocksLight = parseBoolean(path,key,value); }
         else if (key == "MeshType") {
             const int meshType = parseInteger(path, key, value);
             if (meshType < static_cast<int>(BlockMeshType::Cube) ||
@@ -299,6 +302,24 @@ void BlockData::load(const std::string &path,
         fail(path, "Shape", "is only valid for resource meshes");
     }
 
+    const bool compound=m_data.shape.isCompound();
+    const bool newId=isArchitecturalBlock(m_data.id);
+    if(compound != newId) fail(path,"Shape","compound shapes require the registered architectural ID");
+    for(const char *key:{"OccludesFaces","AoOccluder","BlocksLight"}) {
+        if(compound) requireKey(key,seenKeys.count(key)!=0);
+        else if(seenKeys.count(key)) fail(path,key,"is reserved for compound shapes");
+    }
+    if(!compound) {
+        m_data.occludesFaces=m_data.isOpaque;
+        m_data.aoOccluder=m_data.isOpaque;
+        m_data.blocksLight=m_data.isOpaque;
+    }
+    m_data.fullCellSolid=m_data.isCollidable &&
+        (compound?m_data.shape.fillsCollisionCell:m_data.isOpaque);
+    if(compound && !m_data.shape.fillsCell && m_data.occludesFaces)
+        fail(path,"OccludesFaces","partial shapes cannot hide whole adjacent faces");
+    if(compound && !m_data.shape.fillsCell && m_data.aoOccluder)
+        fail(path,"AoOccluder","partial shapes cannot become whole-cell AO walls");
     if (m_data.miningClass == MiningClass::None &&
         m_data.requiredToolTier != 0) {
         fail(path, "RequiredToolTier",

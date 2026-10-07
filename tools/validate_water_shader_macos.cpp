@@ -99,6 +99,32 @@ void main() {
     const auto vector = [&](const char* name, float x, float y, float z) {
         glUniform3f(glGetUniformLocation(program, name), x, y, z);
     };
+    // The reference fragment adds a 2D reflection sampler even when its
+    // dynamic feature flag is off. Supply a complete disabled-path texture;
+    // zero/unloadable driver substitution would make this fixture misleading.
+    const GLint reflectionSampler = glGetUniformLocation(program, "planarReflectionTexture");
+    require(reflectionSampler >= 0, "Missing compiled planar reflection sampler");
+    GLuint disabledReflectionTexture = 0;
+    glGenTextures(1, &disabledReflectionTexture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, disabledReflectionTexture);
+    const std::array<unsigned char, 4> disabledReflectionPixel{0, 0, 0, 255};
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA,
+        GL_UNSIGNED_BYTE, disabledReflectionPixel.data());
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glUniform1i(reflectionSampler, 0);
+    scalar("planarReflectionEnabled", 0.f);
+    GLint samplerUnit = -1, textureWidth = 0, textureHeight = 0, textureFormat = 0;
+    glGetUniformiv(program, reflectionSampler, &samplerUnit);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &textureWidth);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &textureHeight);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &textureFormat);
+    require(samplerUnit == 0 && textureWidth == 1 && textureHeight == 1 && textureFormat == GL_RGBA8 &&
+        glGetError() == GL_NO_ERROR, "Disabled planar reflection fixture binding is incomplete");
+    std::cout << "[WATER_SHADER] disabled_planar_sampler_complete=1 PASS\n";
     glUniform2f(glGetUniformLocation(program,"diagnosticLightSources"),-1,-1);
     scalar("environmentLight", 1); scalar("waterDetailStrength", 1);
     vector("waterShallowColour", .15f, .5f, .6f);
@@ -306,6 +332,7 @@ void main() {
     const auto skyNight=sample(4,12,.4f,1); scalar("environmentLight",1);
     require(skyNight!=sample(4,12,.4f,1),"Exposed pool ignores daylight");
     std::cout << "[WATER_SHADER] PASS enclosed-pool-stable no-underground-sky-reflection local-light-response exposed-pool-daylight\n";
+    glDeleteTextures(1, &disabledReflectionTexture);
     glDeleteProgram(program);
 }
 }
@@ -531,6 +558,66 @@ int main(int argc, char **argv)
                 "Large camera coordinates erase the animated water offset in clip space");
         }
         std::cout << "[WATER_SHADER] camera_relative_clip_pairs=" << relativePairs << " PASS\n";
+
+        // The merged shader must keep new eighth-grid cut vertices on their
+        // actual boundary without disturbing the shared projection or the
+        // complete legacy mesh path. These are exact dyadic input positions;
+        // no independent 32F whole-shader bit-pressure suite is needed here.
+        const GLint shore = glGetAttribLocation(program, "uv1");
+        const GLint pin = glGetAttribLocation(program, "uv3");
+        const GLint boundaryGuard = glGetUniformLocation(program, "waterBoundaryPinsV1");
+        require(shore >= 0 && pin >= 0 && boundaryGuard >= 0,
+            "Missing active water boundary pin interface");
+        const Matrix cutWorldA = translation(-256, 64, -256);
+        const Matrix cutWorldB = translation(-272, 48, -272);
+        glVertexAttrib2f(velocity, -.36f, .48f);
+        std::size_t cutCases = 0, guardOffPairs = 0, ordinaryShoreCases = 0;
+        for (float detailAmount : {0.f, 1.f}) {
+            glUniform1f(detail, detailAmount);
+            for (float time : {0.f, 7.125f}) {
+                glUniform1f(globalTime, time);
+                for (float rawShore : {0.f, .25f}) {
+                    glVertexAttrib2f(shore, 4.f, rawShore);
+                    for (float height : {.125f, .5f, .875f}) {
+                        glUniform1f(boundaryGuard, 1.f);
+                        glVertexAttrib1f(pin, 1.f);
+                        const auto a = sample(cutWorldA, 4, height, 4);
+                        const auto b = sample(cutWorldB, 20, 16 + height, 20);
+                        require(a[1] == 64 + height && b[1] == 64 + height,
+                            "Pinned water cut does not retain its exact eighth-grid height");
+                        require(std::memcmp(a.data() + 6, b.data() + 6, sizeof(float) * 4) == 0,
+                            "Pinned shared corner loses clip invariance across section-local Y");
+                        ++cutCases;
+
+                        glUniform1f(boundaryGuard, 0.f);
+                        const auto disabledPin = sample(cutWorldA, 4, height, 4);
+                        glVertexAttrib1f(pin, 0.f);
+                        const auto legacy = sample(cutWorldA, 4, height, 4);
+                        require(disabledPin == legacy,
+                            "Disabled boundary guard changes the complete legacy water path");
+                        require(std::abs(legacy[1] - (64 + height)) > .039f,
+                            "Legacy water lost its original nonzero surface offset");
+                        ++guardOffPairs;
+                    }
+                }
+                glUniform1f(boundaryGuard, 1.f);
+                glVertexAttrib1f(pin, 0.f);
+                for (float rawShore : {.25f, .5f, 1.f}) {
+                    glVertexAttrib2f(shore, 4.f, rawShore);
+                    const auto ordinary = sample(cutWorldA, 4, 1, 4);
+                    require(std::abs(ordinary[1] - 64.9f) < .00001f && ordinary[4] == 1.f,
+                        "Ordinary opaque-shore corner lost its original -0.10 level or flat normal");
+                    ++ordinaryShoreCases;
+                }
+            }
+        }
+        std::cout << "[WATER_SHADER] boundary_pin_cut_cases=" << cutCases
+            << " guard_off_pairs=" << guardOffPairs
+            << " ordinary_shore_cases=" << ordinaryShoreCases << " PASS\n";
+        // Restore the old open-water fixture for all existing checks below.
+        glUniform1f(boundaryGuard, 0.f);
+        glVertexAttrib1f(pin, 0.f);
+        glVertexAttrib2f(shore, 0.f, 0.f);
         glUniform1f(detail, 1.f);
 
         float maxPositionDelta = 0.0f, maxNormalDelta = 0.0f;

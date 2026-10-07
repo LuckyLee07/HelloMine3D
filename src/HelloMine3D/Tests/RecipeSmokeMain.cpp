@@ -10,6 +10,7 @@
 #include "../Util/ResourcePaths.h"
 
 #include <cstdlib>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -1711,6 +1712,68 @@ end
                       }));
     }
 
+    void caseArchitecturalKitRecipes()
+    {
+        const auto readResource = [](const std::string &path) {
+            std::ifstream in(ResourcePaths::media(path),std::ios::binary);
+            return std::string(std::istreambuf_iterator<char>(in),{});
+        };
+        RecipeRegistry recipes; recipes.freeze({{"Base.recipe",readResource("recipes/Base.recipe")}});
+        SmeltingRegistry smelting; smelting.freeze({{"Base.smelting",readResource("smelting/Base.smelting")}});
+        FoodRegistry foods; foods.freeze({{"Base.food",readResource("foods/Base.food")}});
+        check("B-KIT/production-registry-counts",recipes.recipes().size()==39 && smelting.recipes().size()==5);
+        const std::array<const char*,11> ids={{"stone_brick","stone_slab","stone_step","stone_cornice",
+            "stone_window_frame","stone_window_sill","clay_tile_eave","timber_beam","timber_railing","stone_planter","lantern"}};
+        for(const char *part:ids) {
+            const std::string id="hellomine:"+std::string(part),label="B-KIT/"+std::string(part);
+            const auto *recipe=recipes.find(id);
+            Material::ID expected=Material::Nothing;
+            const bool registered=Material::tryParseStringId(id,expected) && recipe && recipe->outputMaterialId==expected &&
+                Material::toMaterial(expected).isBlock && isArchitecturalBlock(Material::toMaterial(expected).toBlockID());
+            check(label+"-formal-output",registered);
+            if(!registered) continue;
+            Inventory inventory;
+            for(const auto &ingredient:recipe->ingredients)
+                inventory.addItem(Material::toMaterial(ingredient.materialId),ingredient.count*2);
+            CraftingSession session(CraftingSession::WorkbenchGridSize);
+            const bool loaded=session.loadRecipe(*recipe);
+            const auto first=session.preview(recipes,inventory);
+            const auto committed=session.commit(recipes,inventory,first,1);
+            bool exact=loaded && first.ready() && first.recipeId==id && committed.succeeded() && committed.outputAdded==recipe->outputCount;
+            for(const auto &ingredient:recipe->ingredients) exact &= inventory.count(ingredient.materialId)==ingredient.count;
+            const auto second=session.preview(recipes,inventory);
+            exact &= second.ready() && session.commit(recipes,inventory,second,1).succeeded() && inventory.count(expected)==recipe->outputCount*2;
+            for(const auto &ingredient:recipe->ingredients) exact &= inventory.count(ingredient.materialId)==0;
+            check(label+"-actual-two-crafts-conserve-input-output",exact);
+            Inventory missing;
+            const auto missingBefore=missing.getSaveState();
+            const auto missingPreview=session.preview(recipes,missing);
+            check(label+"-missing-input-rejects-atomically",missingPreview.status==CraftingPreviewStatus::MissingIngredients &&
+                !session.commit(recipes,missing,missingPreview,1).succeeded() && missing.getSaveState()==missingBefore);
+            Inventory full(static_cast<int>(recipe->ingredients.size()));
+            for(const auto &ingredient:recipe->ingredients) full.addItem(Material::toMaterial(ingredient.materialId),ingredient.count*2);
+            const auto fullBefore=full.getSaveState();const auto fullPreview=session.preview(recipes,full);
+            check(label+"-full-output-rejects-atomically",fullPreview.status==CraftingPreviewStatus::OutputFull &&
+                !session.commit(recipes,full,fullPreview,1).succeeded() && full.getSaveState()==fullBefore);
+            Inventory stale;
+            for(const auto &ingredient:recipe->ingredients) stale.addItem(Material::toMaterial(ingredient.materialId),ingredient.count);
+            const auto stalePreview=session.preview(recipes,stale);stale.addItem(Material::DIRT_BLOCK,1);
+            const auto staleBefore=stale.getSaveState();
+            check(label+"-stale-preview-rejects-atomically",stalePreview.ready() &&
+                session.commit(recipes,stale,stalePreview,1).status==CraftingCommitStatus::StaleInventory && stale.getSaveState()==staleBefore);
+        }
+        const auto *clay=smelting.findRecipe(Material::Clay);const auto *coal=smelting.findFuel(Material::CoalOre);
+        check("B-KIT/clay-roof-uses-normal-furnace-and-fuel",clay && coal && clay->id=="hellomine:clay_tile_step" &&
+            clay->outputMaterialId==Material::ClayTileStep && clay->outputAmount==1 && clay->durationTicks==80 && coal->burnTicks==160);
+        const auto report=ResourceEconomyVerifier::verify(makeBaseResourceEconomyContract(),recipes,smelting,foods);
+        bool reachable=report.passed();
+        for(int value=Material::StoneStep;value<=Material::Lantern;++value) {
+            const auto found=std::find_if(report.metrics.begin(),report.metrics.end(),[&](const ResourceEconomyMetric &metric){return metric.materialId==static_cast<Material::ID>(value);});
+            reachable &= found!=report.metrics.end() && std::isfinite(found->acquisitionTicksPerUnit) && found->acquisitionTicksPerUnit>0 && found->maxStackSize==99;
+        }
+        check("B-KIT/all-twelve-parts-are-economically-reachable-without-cycles",reachable);
+    }
+
     void caseResourceEconomy()
     {
         const auto readResource = [](const std::string &path) {
@@ -1739,14 +1802,14 @@ end
         const SmeltingFuelDefinition *fiberFuel =
             smelting.findFuel(Material::ID::PlantFiber);
         check("N10/base-and-regional-content-are-frozen",
-              recipes.recipes().size() == 28 &&
+              recipes.recipes().size() == 39 &&
                   recipes.find("hellomine:workbench") != nullptr &&
                   recipes.find("hellomine:oak_planks") != nullptr &&
                   recipes.find("hellomine:bread") != nullptr &&
                   recipes.find("hellomine:woodland_cache") != nullptr &&
                   recipes.find("hellomine:river_kiln") != nullptr &&
                   recipes.find("hellomine:highland_crusher") != nullptr &&
-                  smelting.recipes().size() == 4 &&
+                  smelting.recipes().size() == 5 &&
                   smelting.fuels().size() == 2 &&
                   foods.foods().size() == 4);
         check("N10/new-smelting-paths-reuse-three-slot-contract",
@@ -2032,7 +2095,8 @@ int main()
     caseEnemyRegistry();
     caseCombatRecipes();
     caseResourceEconomy();
-    constexpr int ExpectedChecks = 126;
+    caseArchitecturalKitRecipes();
+    constexpr int ExpectedChecks = 184;
     if (checks != ExpectedChecks) {
         ++failures;
         std::cout << "[RECIPE_TEST] FAIL G1/expected-check-count"

@@ -88,6 +88,11 @@ void CocoaMouse::setCursorCaptured(bool captured)
 	[mResponder setCursorCaptured:captured];
 }
 
+void CocoaMouse::clearRelativeMotion()
+{
+	[mResponder clearRelativeMotion];
+}
+
 void CocoaMouse::capture()
 {
 	[mResponder capture];
@@ -170,6 +175,14 @@ void CocoaMouse::capture()
 		CGAssociateMouseAndMouseCursorPosition(true);
 		CGDisplayShowCursor(kCGDirectMainDisplay);
 	}
+}
+
+- (void)clearRelativeMotion
+{
+	// Keep wheel, buttons and absolute UI position across a window resize.
+	mTempState.X.rel = mTempState.Y.rel = 0;
+	MouseState* state = oisMouseObj->getMouseStatePtr();
+	state->X.rel = state->Y.rel = 0;
 }
 
 - (void)updateAbsolutePosition:(NSEvent*)event

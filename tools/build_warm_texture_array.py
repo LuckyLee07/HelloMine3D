@@ -100,6 +100,8 @@ def build(edge=64):
     entries = layout(ROOT / 'media/materials/Base.terrain-atlas')
     old = Image.open(ROOT / 'media/textures/DefaultPack.png').convert('RGBA')
     adventure = adventure_tiles(32)
+    from reference_material_source import tiles as reference_tiles
+    reference = reference_tiles(128)
     biomes = ('desert', 'grassland', 'light_forest', 'temperate_forest', 'ocean')
     layers = [np.zeros((edge, edge, 4), dtype=np.float32) for _ in range(256)]
     records = []
@@ -112,7 +114,10 @@ def build(edge=64):
                 base, index = semantic.split(marker)
                 variant, biome = int(index), candidate
                 break
-        if base in SHARED_BASES:
+        if base in reference:
+            rgba = np.asarray(reference[base], dtype=np.float32) / 255
+            used, provenance = ['reference-visual/' + base], 'authored'
+        elif base in SHARED_BASES:
             # Share the final authored/tinted 16-pixel cells with held blocks,
             # item icons and compatibility rendering, then filter per layer.
             rgba = np.asarray(old.crop((x, y, x + 16, y + 16)).resize(

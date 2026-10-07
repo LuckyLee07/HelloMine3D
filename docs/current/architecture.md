@@ -52,7 +52,7 @@ Premake 从共享的 `src/HelloMine3D` 与资源边界生成 `build/` 下工程�
 | `Maths/` | 13 / 375 | GLM 边界、矩阵、frustum、ray、坐标与噪声算法。 | 以纯值/纯算法为主，无运行时组合根。 | 被各层使用；个别旧 helper 仍引用 Camera/Entity/World 常量。 |
 | `Util/` | 11 / 823 | 文件、路径、资源包解析、随机和通用容器/生命周期 helper。 | effective resource view 从磁盘资源派生；随机单例只用于明确允许的非确定性入口。 | 被多数数据/运行时模块使用，不拥有 Gameplay。 |
 | `Tests/` | 16 / 20,868 | 13 个 headless/Smoke/Soak 目标及崩溃符号化工具。 | 仅验证证据；fixture 和注入不构成真实窗口可玩性。 | 可依赖所有受测模块；生产模块不得依赖 Tests。 |
-| root `Config.h`, `GameplayInput.*`, `RuntimeConfig.*` | 5 / 1,373 | 平台无关输入语义、绑定/冲突/hold-mode、内存配置和 settings v11 解析/原子发布。 | 已加载 `Config` 是应用配置真值；磁盘 `settings.txt` 是持久来源，UI draft 是派生/待提交。 | 被 Ogre 输入壳、Sandbox、Core、Audio/Feedback 和 World 创建入口消费。 |
+| root `Config.h`, `GameplayInput.*`, `RuntimeConfig.*` | 5 / 1,373 | 平台无关输入语义、绑定/冲突/hold-mode、内存配置和 settings v12 解析/原子发布。 | 已加载 `Config` 是应用配置真值；磁盘 `settings.txt` 是持久来源，UI draft 是派生/待提交。 | 被 Ogre 输入壳、Sandbox、Core、Audio/Feedback 和 World 创建入口消费。 |
 
 ## 3. Current Dependency Direction
 
@@ -211,12 +211,12 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 `AL-A1` 为每个公开方法分配两个正交标签：API concept 描述调用语义，responsibility 描述当前主要
 实现领域。重载只列一次；完整声明、重载、公开常量和签名由 public-surface hash 共同保护。
 
-<!-- AL-A1-WORLD-API-HASH sha256=CEDBD82F40ED2EDF387D481572537354A5E38744EEBBDEA3EB72DC05201B57D0 -->
+<!-- AL-A1-WORLD-API-HASH sha256=9FF359DBFE6DB884939272104EDFACAAE782F2A5CE8FFBE23497896B4F2F50CC -->
 <!-- AL-A1-WORLD-API-MAP-BEGIN -->
 | API | Concept | Responsibility | Current boundary |
 | --- | ------- | -------------- | ---------------- |
 | `~World` | `Command` | `World Mutation` | 终止 loader 并释放组合根。 |
-| `acknowledgeSectionMeshUploads` | `Command` | `Streaming` | 仅确认同 revision 的 GPU upload。 |
+| `acknowledgeSectionMeshUploads` | `Command` | `Streaming` | 仅将当前Near、同revision的CpuReady网格确认Clean；实际生产版本携带非零incarnation时还须匹配同实例，0仅兼容既有调用。Clean重传不改变此状态。 |
 | `addCommand` | `Command` | `World Mutation` | 把 typed `IWorldCommand` 加入 frame-owned FIFO；执行后才可发布已发生事实。 |
 | `attackActor` | `Command` | `Combat` | 两个旧重载共享同一责任。 |
 | `canOccupyCombatPosition` | `Query` | `Combat` | 战斗移动占位查询。 |
@@ -225,8 +225,10 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 | `collectActorSnapshots` | `Query` | `Actor` | 发布不可变 Actor render 值。 |
 | `collectCombatProjectileSnapshots` | `Query` | `Combat` | 发布不可变 projectile render 值。 |
 | `collectDebugStats` | `Query` | `Diagnostics` | 聚合只读运行时指标。 |
+| `observeWorldIdentity` | `Query` | `Diagnostics` | 一次 World mutex 内按值复制当前已加载 worldId／seed／terrainGenerationVersion；不读磁盘副本、不加载区块、不修改保存或发布事件。 |
 | `collectLoadedBlockEntityPositions` | `Query` | `World Query` | 查询已驻留 block entity。 |
-| `collectSectionMeshSnapshot` | `Query` | `Streaming` | 发布 CPU-ready mesh snapshot。 |
+| `collectSectionMeshSnapshot` | `Query` | `Streaming` | 复制当前Near live revision／incarnation／meshState及有界CpuReady网格；CpuReady统计不含Clean重传。 |
+| `observeRetainedSectionMeshes` | `Query` | `Streaming` | 实际GPU退役后再次Near的恢复需要：World锁内find已有Resident／Clean section，匹配fullXYZ＋revision＋incarnation后按值复制原CPU网格；最多8请求，与当帧普通CpuReady提供量共享8个上传槽；不加载、dirty、变更版本、事件或保存。 |
 | `consumeWaystoneFeedbackKey` | `Command` | `Progression` | 读取并清除一次性反馈。 |
 | `createBlockEntity` | `Command` | `World Mutation` | 创建权威 block entity。 |
 | `damagePlayer` | `Command` | `Combat` | 提交玩家伤害。 |
@@ -259,6 +261,9 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 | `getWaystoneEncounterSnapshot` | `Query` | `Progression` | 路标遭遇快照。 |
 | `getWorldOutcomeSnapshot` | `Query` | `Progression` | 结局权威状态快照。 |
 | `getWorldTime` | `Query` | `World Query` | 当前世界时间查询。 |
+| `observeLocalLights` | `Query` | `World Query` | World mutex 内复制 resident-only 灯光值，最多27 sections／8 sources／12m；不加载、生成、提交 Gameplay 或保存。 |
+| `observeWaterSurfacePlane` | `Query` | `World Query` | World mutex 内最多1539组已驻留水面采样，返回可选渲染平面；不加载或保留区块。 |
+| `visualRevision` | `Query` | `World Query` | World mutex 内复制当前视觉修订号；只作帧输入身份，不等同GPU已上传版本。 |
 | `initializeWaystone` | `Command` | `Progression` | 初始化路标持久状态。 |
 | `isCombatTargetAvailable` | `Query` | `Combat` | 目标存活/可用性查询。 |
 | `isNaturalMobType` | `Query` | `Actor` | 纯敌人类型 helper。 |
@@ -309,7 +314,7 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 | `setHomeExplorationMarker` | `Command` | `Progression` | 设置单一基地标记。 |
 | `trackExplorationMarker` | `Command` | `Progression` | 设置或取消单一标记追踪。 |
 | `trackedExplorationMarker` | `Query` | `World Query` | 复制当前追踪标记，未跟踪返回空。 |
-| `tryWildlifeStep` | `Runtime Tick` | `Simulation` | 在全局 48 次预算内检查局部支撑、扫掠净空与落地；不加载区块。 |
+| `tryWildlifeStep` | `Runtime Tick` | `Simulation` | 在全局48次预算内检查局部支撑、扫掠净空与落地；不加载区块。可选 pathKind 输出已采用的移动路径，默认nullptr；不另增公开方法或保存状态。 |
 <!-- AL-A1-WORLD-API-MAP-END -->
 
 概念规则：
@@ -325,8 +330,12 @@ save v12。C3 topology 没有 tick 行为，因此不存在伪造的 Network wor
 当前调用关系把边界进一步钉死：`SandboxRuntime/WorldManager` 驱动 `tick/update` 和玩家命令，
 `OgreBootstrap` 消费 mesh/Actor/diagnostic snapshot 并确认 upload，Actor/Block/Interaction 代码通过
 Combat、Actor、World Mutation 与 EventBus 入口协作。AL-A2/AL-A3 都保持当时的 78 项公开面不变；
-C3 为正常 capability 观察新增 `getMechanicalNodeSnapshot`，当时为 79 项；后续扩展的当前责任图为 95 项（54 Query／38 Command／3 Runtime Tick）：Streaming 方法内部转发给
+C3 为正常 capability 观察新增 `getMechanicalNodeSnapshot`，当时为 79 项；后续扩展的当前责任图为 100 项（59 Query／38 Command／3 Runtime Tick）：Streaming 方法内部转发给
 `ChunkRuntime`，20 Hz `World::tick(int)` 内部转发给 `WorldSimulation::fixedTick`。
+
+本次责任图审计先保留旧基线失败：`c304e5b7` 的公开面已有98个方法，而旧表仅95个；遗漏了 `2f87fc67` 新增的三项只读渲染观察，并漏同步较早 `tryWildlifeStep` 的可选 `WildlifeMotionPath* pathKind` 签名。旧 hash 对应 `3fd7431a`，不是当前98项公开面。上述声明与实现逐项复审后补全三行及签名说明；本次新增 `observeWorldIdentity` 才使当前面成为99项。新观察仅在需要时取一次权威锁内值，不扩展每帧debug聚合、事件域、存档格式或World更新算法。实际r4返回失败进一步暴露GPU已离Near退役、Resident数据仍保留Clean网格时没有再次提供上传的连接。本次新增 `observeRetainedSectionMeshes` Query／Streaming使当前面成为100项；它在既有World mutex内只复制有界已有值，正常renderer仍与CpuReady共享每帧8次上传，不添加World更新、保存或事件语义。完整公开声明／锁／复制／预算与失败证据受 [驻留恢复合同](../contracts/reference-residency-render-contract-v1.md) 约束，当前实现与实证分别记录。
+
+Python portable checker沿用原PowerShell的边界、空白归一化、唯一方法与责任行规则；本机PowerShell不可用时只报告其 **NOT_RUN**，保留Windows原门禁。
 
 该表解释了 AL-A1 的真实动机：查询、命令、模拟、流送、持久化、Actor、战斗、进度和诊断目前
 都暴露在一个 facade 中。A1 只冻结责任与新增入口规则，不改变旧调用者或兼容性。
@@ -639,7 +648,7 @@ WorldManager
 
 - `WorldSaveData` 是内存中的当前 metadata payload，写出前由 World 收集 Player、Actor、目标、结局、
   难度、terrain identity 和其他版本化状态。
-- world save format 当前为 v12；新世界 terrain generation 为独立 v28，旧 v1–v27 身份保留；settings 当前为独立 v11（新增可持久化第一/第三人称请求，含 v10 三档小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
+- world save format 当前为 v12；新世界 terrain generation 为独立 v28，旧 v1–v27 身份保留；settings 当前为独立 v12（新增 legacy／linear-hdr 管线请求；含 v11 第一/第三人称、v10 小地图范围、v9 标准/兼容画面选择与旧偏好迁移）。
 - `StorageTransaction` 负责同目录 candidate、flush、真实 reader 校验和原子替换；失败 candidate 不
   成为权威。
 - Chunk 只有成功发布后才清 save-dirty；unload 保存失败则取消卸载。
@@ -823,6 +832,11 @@ Ogre用独立696KiB固定quad／R8 atlas表示暗空气后的有限区外背景�
 每帧至多8面激活，旧／dirty quad即时退化，第二确认只清理；地形八section上传与四层batch保持。
 缓存零面、deferred和容量截断均显式保留；不能把全部RD32、底层直接光helper或普通地下探索记成已验证。
 预算和真实保护范围见[地下边界背景合同](../contracts/cave-boundary-background-contract-v1.md)。
+参考画质r14使此背景复用普通几何的逻辑XZ中心、viewRange、已平滑退场强度及fog色；
+露天零覆盖discard、部分覆盖向fog退场，地下strength0与完整近域保持原暗色／mask。
+Bootstrap只同步真实owned material clone的float2／float2／float1／float3参数，反射private pass
+深拷贝；四项全缺的完整旧接口保留原行为，partial或type／size错误拒绝。
+本扩展不增加World查询或保存字段，不改变遮罩、需求、固定GPU预算及八面扫描／更新上限。
 
 V11b局部修复现有GL3Plus纹理集成：A8使用R8存储并保留alpha语义，采样为`(0,0,0,A)`；
 L8／LA原有swizzle保持。A8跨格式上传／复制和完整／裁剪／缩放读回在传输边界转换，
@@ -1065,6 +1079,53 @@ shader 重放与正常着色分开。每次 GPU 读取／重放后重新查询�
 FBO 的 read selector。最多 24 帧、每帧 256 UI 标记／32 操作、64 个纹理身份、不可变观察载荷 512 MiB；
 index.json重写与Root原图另计，本批九帧、实际2560×1440帧尺寸另行约束。库存注入、静态地图和冻结模拟不证明普通采集、使用或连续移动。
 
+### 参考画质首版边界
+
+`HdrPipeline` 只持有 Ogre viewport 的视觉资源。新 `linear-hdr` 请求在实际 RGBA16F 探测保留大于 1
+的颜色后启用；固定尺寸 scene RTT 防止 Ogre 自动 resize 提前分配，重建前检查最多 3840×2160
+像素，失败完整退回 legacy，并同步天空、洞界等克隆材质。场景 shader 显式转到线性颜色，固定
+曝光 resolve 完成显示转换；HUD 继续在主窗口末绘。legacy 的旧 Off／On 保持，HDR Off 仍需
+resolve。切换管线保存 settings v12 请求并要求重启，能力回退不改写请求。
+
+HDR 请求还会在强制回退和能力／格式探测之前，对实际 resolve material 的 VS／FS 与附加库进行
+临时原生完整链接；资产链接错误明确失败。临时 program 不绑定、不进入 Ogre 缓存，检查后删除，
+当前 GL program 与错误状态必须保持。旧 legacy 请求的早返回及旧 AA-less resolve 兼容保持，见
+[HDR 合同](../contracts/reference-hdr-contract-v1.md)。
+
+`BlockShape` v2 是单格内最多八个按 1/8 m 离散的盒，缓存四向表面和碰撞盒。新增 `StoneStep`
+与 `StoneWindowFrame` 追加 ID 33／34，metadata 0–3 保存朝向；已有 ID 和 metadata 语义保持。
+`BlockGeometry` 被地形、选取、碰撞、反馈和物品视觉共同消费。部分形状不当作整格面遮挡、AO
+遮挡或实心层；光传播首版仍按格处理。掉落物支撑与野生动物半格路径使用实际盒面。
+
+`ReferenceVisualScene` 仅在明确新建且 save/catalogue 为空时通过 World 编辑固定临水样板。
+普通重新打开读取已保存世界，不重复注入。范围和证据见
+[首版合同](../contracts/reference-visual-prototype-contract-v1.md)与
+[执行记录](../reports/reference-visual-prototype-execution-2026-10-06.md)。
+
+完整参考套件的 ID 33–44 共用地图着色显式保留浅石、陶瓦、木材、花槽土和暖灯身份；
+地图仍消费 World 的真实材质及高度。默认关闭的跨水面工程观察只在受保护自有会话内，
+通过正常 WorldManager teleport 与模拟记录实际介质、原生 Water draw、停用 pass/TUS 和同帧 RTT；
+观察完成或失败后先解除监听／query，再销毁 Scene／HDR／Root。不引入持久化字段，普通输入另验，见
+[跨水面合同](../contracts/reference-water-transition-contract-v1.md)。
+同一严格入口的可选 `plane-switch-v1` 模式按实际World选面在两个保存水位间往返，记录组件、
+Ogre pass及linked GL完整矩阵和同帧RTT；真实保留旧面的负控先保存错态再拒绝。无scenario时保留原协议，
+普通无probe路径不创建观察器。见[选面合同](../contracts/reference-water-plane-selection-contract-v1.md)。
+
+停用反射时，具有可选 scalar2D／enabled 接口的 Water pass 新建至多一个独立 owned blank TUS，
+通过 GL3Plus 正常路径借用已有8×8 RGB8完整纹理；enabled仍0、原reflection TUS缺席、RTT停更。
+组件不拥有 Manager纹理，不新增RTT或World状态；恢复active前／reset时只移除exact-owned TUS。
+没有可选接口的完整旧shader保持原停用路径，保留名冲突明确失败。新观察记录实际sampler类型、
+storage、过滤及拥有者；GL4.1查询在目标active unit上用GetIntegerv并严格恢复状态。
+r13四阶段两配置各228／0（原212谓词及37校准不变，新增四phase各四个能力谓词），
+普通输入和其它水位的本版完整循环仍未验，见
+[完整sampler合同](../contracts/reference-water-fallback-sampler-contract-v1.md)。
+
+Water startup复用同一实际compile／link证书，分别检查实际FS声明和linked scalar接口：
+完整五项才启用反射；五项全缺席的合法旧资源继续原HDR近似，不创建RTT／depth／私材／附加shadow；
+部分、类型／数组错误或declared／linked不一致均在第一次RTT前明确失败。每帧只核冻结program数值
+身份与实际pass，World reset清绑定和prepared指针，不延长shader资源寿命；
+见[shader能力合同](../contracts/reference-water-shader-capability-contract-v1.md)。
+
 ## 12. Frozen Version and Boundary Facts
 
 | Identity | A0 value / later override |
@@ -1232,3 +1293,9 @@ v4 保留原 9 个反馈 cue，并追加旷野、森林、内陆水、海岸、�
 不揭示探索地图、不写 World/Actor/Player/存档。环境层首次可听和动物鸣叫可提交最低优先级字幕；
 环境重复与脚步关闭事件字幕，不能反复刷新或覆盖战斗警告。
 完整数据、生命周期、失败与验证边界见[音频反馈合同](../contracts/audio-feedback-contract-v1.md)。
+
+默认关闭的水面深度排序原型只在有界自有HDR capture内安装主队列监听，对已驻留Water
+使用同group priority99预绘深度、保留原colour pass0／priority100；无几何副本、流送或新RTT。
+实际native draw观察验证全depth先于全colour及GPU写mask，逐draw解除监听，销毁顺序在Scene／HDR前。
+当前正式材质未启用该机制，水后玻璃、legacy／旧VS和普通连续路线未因此通过，见
+[原型合同](../contracts/reference-water-depth-prototype-contract-v1.md)。

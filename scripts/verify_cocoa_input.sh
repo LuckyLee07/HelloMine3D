@@ -12,7 +12,16 @@ LOG_DIR="$ROOT_DIR/build/cocoa-input-$(date +%Y%m%d%H%M%S)-$CONFIGURATION"
 mkdir -p "$LOG_DIR"
 OIS_ARCHIVE="$ROOT_DIR/build/External/ois/lib/x64/$CONFIGURATION/libois.a"
 IMGUI_ARCHIVE="$ROOT_DIR/build/External/imgui/lib/x64/$CONFIGURATION/libimgui.a"
-COMMON=(-arch x86_64 -std=c++17 -fblocks)
+# Match verify_xcode.sh: use hardware architecture even under Rosetta.
+INPUT_TEST_ARCH="$(uname -m)"
+if [[ "$(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null || true)" == 1 ]]; then
+    INPUT_TEST_ARCH=arm64
+fi
+case "$INPUT_TEST_ARCH" in
+    arm64|x86_64) ;;
+    *) echo "Unsupported native architecture: $INPUT_TEST_ARCH" >&2; exit 2;;
+esac
+COMMON=(-arch "$INPUT_TEST_ARCH" -std=c++17 -fblocks)
 # Match the deployment target of the tested archives when explicitly supplied.
 if [[ -n "${HELLOMINE3D_INPUT_TEST_MIN_MACOS:-}" ]]; then
     COMMON+=("-mmacosx-version-min=$HELLOMINE3D_INPUT_TEST_MIN_MACOS")

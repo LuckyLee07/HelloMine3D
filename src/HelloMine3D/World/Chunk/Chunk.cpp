@@ -100,13 +100,13 @@ void Chunk::setBlock(int x, int y, int z, ChunkBlock block)
     }
     section.setBlock(x, bY, z, block);
 
-    if (block.getData().isOpaque && y > previousHighest) {
+    if (block.getData().blocksLight && y > previousHighest) {
         m_highestBlocks.get(x, z) = y;
     }
-    else if (!block.getData().isOpaque && y == previousHighest) {
+    else if (!block.getData().blocksLight && y == previousHighest) {
         int newHighest = 0;
         for (int scanY = y - 1; scanY >= 0; --scanY) {
-            if (getBlock(x, scanY, z).getData().isOpaque) {
+            if (getBlock(x, scanY, z).getData().blocksLight) {
                 newHighest = scanY;
                 break;
             }
@@ -164,7 +164,7 @@ std::vector<int> Chunk::rebuildSunlightColumn(int x, int z)
     const int topY = static_cast<int>(m_chunks.size()) * CHUNK_SIZE - 1;
     bool skyVisible = true;
     for (int y = topY; y >= 0; --y) {
-        if (getBlock(x, y, z).getData().isOpaque) {
+        if (getBlock(x, y, z).getData().blocksLight) {
             skyVisible = false;
         }
         if (m_chunks[y / CHUNK_SIZE].setSunlight(
@@ -241,7 +241,7 @@ void Chunk::rebuildBlockLight()
             const glm::ivec3 adjacent = position + offset;
             if (outOfBound(adjacent.x, adjacent.y, adjacent.z) ||
                 getBlock(adjacent.x, adjacent.y,
-                         adjacent.z).getData().isOpaque ||
+                         adjacent.z).getData().blocksLight ||
                 getBlockLight(adjacent.x, adjacent.y, adjacent.z) >=
                     propagated) {
                 continue;

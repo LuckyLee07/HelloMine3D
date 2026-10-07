@@ -4,6 +4,9 @@ in vec4 vertex;
 in vec2 uv0;
 in vec2 uv1;
 in vec3 uv2;
+// Water reuses the existing single-float owner slot: 0 animates normally,
+// 1 pins a new opaque-boundary cut vertex. Other material owners are separate.
+in float uv3;
 
 out vec3 waterWorldPosition;
 out vec3 waterWorldNormal;
@@ -19,6 +22,8 @@ uniform mat4 world;
 uniform vec3 cameraPosition;
 uniform float globalTime;
 uniform float waterDetailStrength;
+// Optional compiled capability: legacy Water overrides keep their old mesh.
+uniform float waterBoundaryPinsV1;
 
 void main()
 {
@@ -29,15 +34,31 @@ void main()
     // sheltered wetland. Shared corners carry identical speeds at chunk seams.
     float motion = clamp(length(uv0), 0.0, 1.0);
     float waveScale = mix(0.025, 1.0, smoothstep(0.04, 1.0, motion));
+    // Every original top corner touching an opaque neighbour has raw shore
+    // >= 0.25, also on its separate top face and across section boundaries.
+    // Keep that contact at the original -0.10 surface offset: its fixed 0.90
+    // height stays above all eighth-grid cuts (at most 0.875). Open-water
+    // corners retain their old wave, giving a shared linear fade to the bank.
+    // The optional guard leaves complete older shader/mesh paths unchanged.
+    if (waterBoundaryPinsV1 > 0.5 && uv1.y > 0.0)
+        waveScale = 0.0;
     float phaseA = globalTime * 0.78 + baseWorldPosition.x * 0.66 +
                    baseWorldPosition.z * 0.21;
     float phaseB = globalTime * 0.53 + baseWorldPosition.z * 0.82 -
                    baseWorldPosition.x * 0.17;
-    // Keep displacement separate from section-local Y. The same surface can
-    // be represented by local Y=1 or Y=17, whose rounded sums otherwise differ.
-    float waveOffset = sin(phaseA) * 0.035 * waveScale * waterDetailStrength;
-    waveOffset += cos(phaseB) * 0.025 * waveScale * waterDetailStrength;
-    waveOffset -= 0.10;
+    // Keep displacement separate from section-local Y so shared vertices
+    // project identically even when represented by different section origins.
+    // New cut boundaries stay on the opaque shape; ordinary shore corners
+    // retain the -0.10 surface offset and open water keeps its full wave.
+    bool fixedBoundary = waterBoundaryPinsV1 > 0.5 && uv3 > 0.5;
+    float waveOffset = 0.0;
+    if (!fixedBoundary)
+    {
+        waveOffset = sin(phaseA) * 0.035 * waveScale * waterDetailStrength;
+        waveOffset += cos(phaseB) * 0.025 * waveScale * waterDetailStrength;
+        waveOffset -= 0.10;
+    }
+
 
     float slopeX = cos(phaseA) * 0.035 * 0.66 +
                    sin(phaseB) * 0.025 * 0.17;

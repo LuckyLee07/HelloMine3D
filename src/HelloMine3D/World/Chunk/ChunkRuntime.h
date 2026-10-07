@@ -25,10 +25,19 @@ class Camera;
 struct WorldSectionMeshVersion {
     glm::ivec3 location{0};
     std::uint32_t blockRevision = 0;
+    std::uint64_t incarnation = 0;
+    ChunkMeshState meshState = ChunkMeshState::Dirty;
 };
 
 struct WorldSectionMeshSnapshot : WorldSectionMeshVersion {
     ChunkMeshCollection meshes;
+    bool retainedCleanReplay = false;
+};
+
+struct WorldRetainedMeshSnapshot {
+    std::vector<WorldSectionMeshSnapshot> sections;
+    std::size_t requestedSections = 0;
+    std::size_t cpuReadyUploadsReserved = 0;
 };
 
 struct WorldBoundaryMaskFace {
@@ -110,6 +119,9 @@ class ChunkRuntime final : public NonCopyable {
 
     WorldMeshSnapshot collectSectionMeshSnapshot(
         bool captureBoundaryMasks = true);
+    WorldRetainedMeshSnapshot observeRetainedSectionMeshes(
+        const std::vector<WorldSectionMeshVersion>& missing,
+        std::size_t cpuReadyUploads);
     void acknowledgeSectionMeshUploads(
         const std::vector<WorldSectionMeshVersion> &versions);
 

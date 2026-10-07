@@ -13,6 +13,16 @@ enum class DirectionalShadowQuality {
     High = 2
 };
 
+enum class RenderPipeline {
+    Legacy = 0,
+    LinearHdr = 1
+};
+
+inline const char* renderPipelineToken(RenderPipeline pipeline) noexcept
+{
+    return pipeline == RenderPipeline::LinearHdr ? "linear-hdr" : "legacy";
+}
+
 enum class PostProcessingQuality {
     Off = 0,
     On = 1
@@ -60,6 +70,7 @@ inline const char *directionalShadowQualityToken(
 
 /// Settings owned by the player and safe to change without recreating a world.
 struct UserSettings {
+    RenderPipeline renderPipeline = RenderPipeline::Legacy;
     VisualDetail visualDetail = VisualDetail::Standard;
     int windowX = 1280;
     int windowY = 720;

@@ -24,6 +24,15 @@ static bool syntheticAppActive=true;
 - (NSPoint)locationInWindow { return self.nativePosition; }
 - (CGFloat)deltaY { return 1; }
 @end
+// Direct responder input only; this event is never posted to the OS.
+@interface MouseRelativeTestEvent : NSObject
+@property NSPoint nativePosition;
+@end
+@implementation MouseRelativeTestEvent
+- (NSPoint)locationInWindow { return self.nativePosition; }
+- (CGFloat)deltaX { return 11; }
+- (CGFloat)deltaY { return -7; }
+@end
 struct Listener: OIS::MouseListener {
     unsigned int held=0, releases=0;
     int x=0, y=0, wheel=0;
@@ -115,6 +124,36 @@ int main() { @autoreleasepool {
     mouse->capture();
     check(-1,"wheel-without-motion-hits-native-position",listener.x==20&&listener.y==25);
     check(-1,"wheel-location-keeps-buffered-delta",listener.wheel==60);
+    // A resize can happen after native deltas queue but before OIS capture.
+    MouseRelativeTestEvent* motion=[[MouseRelativeTestEvent alloc] init];
+    motion.nativePosition=[responder convertPoint:NSMakePoint(30,40) toView:nil];
+    [responder mouseMoved:(NSEvent*)motion];
+    mouse->capture();
+    check(-1,"relative-clear-setup-published-motion",
+          mouse->getMouseState().X.rel==11&&mouse->getMouseState().Y.rel==-7);
+    const int oldX=mouse->getMouseState().X.abs, oldY=mouse->getMouseState().Y.abs;
+    mouse->clearRelativeMotion();
+    check(-1,"relative-clear-removes-published-xy-keeps-position",
+          mouse->getMouseState().X.rel==0&&mouse->getMouseState().Y.rel==0&&
+          mouse->getMouseState().X.abs==oldX&&mouse->getMouseState().Y.abs==oldY);
+    [responder mouseDown:event(NSEventTypeLeftMouseDown)];
+    const unsigned int previousReleases=listener.releases;
+    [responder scrollWheel:(NSEvent*)wheelEvent];
+    [responder mouseMoved:(NSEvent*)motion];
+    mouse->clearRelativeMotion();
+    mouse->capture();
+    check(-1,"relative-clear-removes-native-buffer-keeps-wheel",
+          mouse->getMouseState().X.rel==0&&mouse->getMouseState().Y.rel==0&&
+          mouse->getMouseState().Z.rel==60&&listener.wheel==60);
+    check(-1,"relative-clear-does-not-release-held-button",
+          mouse->getMouseState().buttonDown(OIS::MB_Left)&&
+          (listener.held&1u)&&listener.releases==previousReleases);
+    [responder mouseMoved:(NSEvent*)motion];
+    mouse->capture();
+    check(-1,"relative-clear-allows-subsequent-motion",
+          mouse->getMouseState().X.rel==11&&mouse->getMouseState().Y.rel==-7);
+    [responder mouseUp:event(NSEventTypeLeftMouseUp)];
+    [motion release];
     [wheelEvent release];
     mouse->setEventCallback(nullptr);
     manager->destroyInputObject(mouse); OIS::InputManager::destroyInputSystem(manager);

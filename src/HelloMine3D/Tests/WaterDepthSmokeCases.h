@@ -1,4 +1,5 @@
 #pragma once
+#include "WaterBoundaryClipSmokeCases.h"
 
 // Included after the WorldRuntime shared fixture helpers.
 namespace {
@@ -133,6 +134,7 @@ void caseShoreSurfacePresentation()
 
 void caseWaterDepthPresentation()
 {
+    caseWaterCompoundBoundary();
     caseShoreSurfacePresentation();
     Config config = makeConfig();
     Camera camera(config);

@@ -142,7 +142,7 @@ exec ./HelloMine3D "$@"
     # static Engine change must be visible in the packaged source identity.
     source_entries = []
     for source in sorted((root / "src").rglob("*")):
-        if source.is_file() and source.suffix in (".c", ".cpp", ".h", ".hpp", ".inl", ".m", ".mm"):
+        if source.is_file() and source.suffix in (".c", ".cpp", ".h", ".hpp", ".inl", ".inc", ".m", ".mm"):
             source_entries.append(f"{digest(source)}  {source.relative_to(root).as_posix()}")
     source_receipt = package / "source-tree-sha256.txt"
     source_receipt.write_text("\n".join(source_entries) + "\n")

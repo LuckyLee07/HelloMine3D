@@ -1,0 +1,9 @@
+# HelloMine3D reference surface profile v1
+edge=64
+mips=7
+colour_texture=media/textures/ReferenceColour64.hmt
+colour_hash=58c974f7785dc42b
+normal_texture=media/textures/ReferenceNormal64.hmt
+normal_hash=e972c14f1195c6d1
+surface_texture=media/textures/ReferenceSurface64.hmt
+surface_hash=b9fa90aee15b9ce7

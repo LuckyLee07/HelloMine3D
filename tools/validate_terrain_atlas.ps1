@@ -91,8 +91,8 @@ foreach ($line in $lines | Select-Object -Skip 1) {
          $semanticSet.Add($entry.Semantic) -and
          $coordinateSet.Add("$x,$y")) $trimmed
 }
-Test-Contract "layout-populated-count" ($entries.Count -eq 132) `
-    "expected=132 actual=$($entries.Count)"
+Test-Contract "layout-populated-count" ($entries.Count -eq 138) `
+    "expected=138 actual=$($entries.Count)"
 
 $requiredSemantics = @(
     'grass_top', 'grass_side', 'dirt', 'stone', 'oak_bark_side',
@@ -287,6 +287,18 @@ $expectedBlocks = @{
     ForestFloor = @{TexAll='9,8'}
     MossStone = @{TexAll='10,8'}
     Silt = @{TexAll='11,8'}
+    StoneStep = @{TexTop='0,9'; TexSide='0,9'; TexBottom='0,9'}
+    StoneWindowFrame = @{TexTop='0,9'; TexSide='0,9'; TexBottom='0,9'}
+    StoneBrick = @{TexTop='0,9'; TexSide='0,9'; TexBottom='0,9'}
+    StoneSlab = @{TexTop='0,9'; TexSide='0,9'; TexBottom='0,9'}
+    StoneCornice = @{TexTop='0,9'; TexSide='0,9'; TexBottom='0,9'}
+    ClayTileStep = @{TexTop='2,9'; TexSide='2,9'; TexBottom='2,9'}
+    ClayTileEave = @{TexTop='2,9'; TexSide='2,9'; TexBottom='2,9'}
+    TimberBeam = @{TexTop='3,9'; TexSide='3,9'; TexBottom='3,9'}
+    TimberRailing = @{TexTop='3,9'; TexSide='3,9'; TexBottom='3,9'}
+    StoneWindowSill = @{TexTop='0,9'; TexSide='0,9'; TexBottom='0,9'}
+    StonePlanter = @{TexTop='9,8'; TexSide='0,9'; TexBottom='0,9'}
+    Lantern = @{TexTop='5,9'; TexSide='4,9'; TexBottom='4,9'}
 }
 foreach ($blockName in $expectedBlocks.Keys) {
     $actual = Read-BlockCoordinates $blockName
@@ -308,7 +320,9 @@ $semanticByMaterial = @(
     'cactus_salad', 'trail_ration', 'plant_fiber', 'torch', 'oak_planks',
     'cobblestone', 'oak_door', 'wooden_axe', 'wooden_shovel',
     'ancient_compass', 'raider_ward', 'crusher',
-    'snow', 'gravel', 'clay', 'forest_floor', 'moss_stone', 'silt'
+    'snow', 'gravel', 'clay', 'forest_floor', 'moss_stone', 'silt', 'pale_stone', 'pale_stone',
+    'pale_stone', 'pale_stone', 'pale_stone', 'terracotta', 'terracotta',
+    'timber', 'timber', 'pale_stone', 'pale_stone', 'lamp_glow'
 )
 $materialSource = Get-Content -LiteralPath $materialSourcePath -Raw
 $iconsMatch = [regex]::Match(

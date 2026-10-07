@@ -37,6 +37,11 @@ struct BlockDataHolder : public NonCopyable {
     int light = 0;
     bool isOpaque = false;
     bool isCollidable = false;
+    // Independent shape/lighting roles, defaulted from legacy Opaque.
+    bool occludesFaces = false;
+    bool fullCellSolid = false;
+    bool aoOccluder = false;
+    bool blocksLight = false;
     float hardnessSeconds = 0.25f;
     MiningClass miningClass = MiningClass::None;
     int requiredToolTier = 0;

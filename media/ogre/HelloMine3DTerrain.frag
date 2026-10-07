@@ -1,5 +1,17 @@
 #version 150
 
+// The legacy branch keeps authored display colours untouched. HDR scene
+// shaders decode colour inputs before lighting/blending; alpha/data stay raw.
+uniform float linearHdrMode;
+vec3 sceneColour(vec3 authored)
+{
+    if (linearHdrMode < 0.5) return authored;
+    vec3 c = max(authored, vec3(0.0));
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)),
+               step(vec3(0.04045), c));
+}
+
+
 in vec2 terrainTileUv;
 in vec2 terrainRepeat;
 in float terrainLight;
@@ -39,6 +51,97 @@ uniform vec2 viewRangeCentre;
 uniform float viewRangeStrength;
 
 
+#ifdef TERRAIN_SURFACE
+uniform sampler2DArray terrainNormalArray;
+uniform sampler2DArray terrainSurfaceArray;
+uniform vec4 localLightPositionRadius[8];
+uniform vec4 localLightColourEnergy[8];
+uniform int localLightCount;
+
+vec3 authoredFromLinear(vec3 c)
+{
+    c=max(c,vec3(0.0));
+    return mix(c*12.92,1.055*pow(c,vec3(1.0/2.4))-.055,
+               step(vec3(.0031308),c));
+}
+
+vec3 mappedSurfaceNormal(vec3 normalData, vec3 face, vec3 dx, vec3 dy,
+                         vec2 uvDx, vec2 uvDy)
+{
+    float determinant=uvDx.x*uvDy.y-uvDx.y*uvDy.x;
+    if (abs(determinant)<1e-10 || dot(face,face)<.5) return face;
+    vec3 u=(dx*uvDy.y-dy*uvDx.y)/determinant;
+    vec3 v=(dy*uvDx.x-dx*uvDy.x)/determinant;
+    u-=face*dot(face,u);
+    if (dot(u,u)<1e-10) return face;
+    u=normalize(u);
+    v-=face*dot(face,v)+u*dot(u,v);
+    if (dot(v,v)<1e-10) return face;
+    v=normalize(v);
+    vec3 n=normalData*2.0-1.0;
+    return normalize(u*n.x+v*n.y+face*n.z);
+}
+
+vec3 surfaceSpecular(vec3 albedo, float roughness, float metalness,
+                     vec3 n, vec3 view, vec3 light)
+{
+    float nl=max(dot(n,light),0.0), nv=max(dot(n,view),.001);
+    vec3 sum=view+light;
+    if (nl<=0.0 || dot(sum,sum)<1e-8) return vec3(0.0);
+    vec3 halfDirection=normalize(sum);
+    float nh=max(dot(n,halfDirection),0.0);
+    float vh=max(dot(view,halfDirection),0.0);
+    float a=roughness*roughness, a2=a*a;
+    float denominator=nh*nh*(a2-1.0)+1.0;
+    float distribution=a2/(3.14159265*denominator*denominator);
+    float k=(roughness+1.0)*(roughness+1.0)/8.0;
+    float geometry=(nv/(nv*(1.0-k)+k))*(nl/(nl*(1.0-k)+k));
+    vec3 f0=mix(vec3(.04),albedo,metalness);
+    vec3 fresnel=f0+(1.0-f0)*pow(1.0-vh,5.0);
+    return distribution*geometry*fresnel*nl/(4.0*nv*max(nl,.001));
+}
+
+vec3 referenceSurfaceLighting(vec3 albedo, vec3 n, vec3 data,
+                              float shadowVisibility)
+{
+    float roughness=clamp(data.r,.2,1.0), metalness=clamp(data.g,0.0,1.0);
+    vec3 delta=cameraPosition-terrainWorldPosition;
+    vec3 view=dot(delta,delta)>1e-8?normalize(delta):n;
+    vec2 sources=terrainLightSources.x>=0.0
+        ?clamp(terrainLightSources,0.0,1.0):vec2(clamp(terrainLight,0.0,1.0),0.0);
+    float maximum=max(sources.x,sources.y);
+    float ao=mix(.24,1.0,clamp(terrainLight/max(maximum,.0001),0.0,1.0));
+    // Propagated block light owns local diffuse energy. Nearby indexed sources
+    // add bounded specular direction only; they never replace propagation.
+    vec3 indirect=sceneColour(vec3(.80,.88,1.0))*(.035+.36*sources.x*environmentLight)
+                 +sceneColour(vec3(1.0,.87,.64))*(.68*sources.y);
+    if (playerExposure>=0.0) indirect*=clamp(playerExposure,.12,1.0);
+    vec3 diffuse=albedo*(1.0-metalness);
+    vec3 lit=diffuse*indirect*ao;
+    vec3 sunlight=sceneColour(clamp(sunColour,0.0,1.0))*max(sunIntensity,0.0)*1.35;
+    float nl=max(dot(n,sunDirection),0.0);
+    lit+=(diffuse*(nl/3.14159265)+surfaceSpecular(albedo,roughness,metalness,n,view,
+          sunDirection))*sunlight*sources.x*shadowVisibility*ao;
+    for (int i=0;i<8;++i)
+    {
+        if (i>=localLightCount) break;
+        vec3 lightDelta=localLightPositionRadius[i].xyz-terrainWorldPosition;
+        float distanceSquared=dot(lightDelta,lightDelta);
+        float radius=localLightPositionRadius[i].w;
+        if (distanceSquared<1e-8 || radius<=0.0) continue;
+        float fade=clamp(1.0-distanceSquared/(radius*radius),0.0,1.0);
+        float attenuation=fade*fade/(1.0+distanceSquared*.25);
+        vec3 light=lightDelta*inversesqrt(distanceSquared);
+        lit+=surfaceSpecular(albedo,roughness,metalness,n,view,light)*
+             localLightColourEnergy[i].rgb*localLightColourEnergy[i].w*
+             attenuation*sources.y*ao;
+    }
+    // RME blue is normalized authored emission, with fixed bounded radiance.
+    return lit+albedo*clamp(data.b,0.0,1.0)*4.0;
+}
+#endif
+
+
 // Retire the finite view-distance boundary into the existing atmospheric
 // backdrop, without changing lighting or fog within the near field.
 float viewRangeCoverage(vec3 worldPosition)
@@ -75,7 +178,7 @@ vec3 directionalFogColour(vec3 viewDirection)
     float directionLength = length(viewDirection);
     if (directionLength < 0.00001)
     {
-        return fogColour;
+        return sceneColour(fogColour);
     }
     vec3 normalisedView = viewDirection / directionLength;
     vec2 viewHorizontal = normalisedView.xz;
@@ -84,7 +187,7 @@ vec3 directionalFogColour(vec3 viewDirection)
     float sunLength = length(sunHorizontal);
     if (viewLength < 0.00001 || sunLength < 0.00001)
     {
-        return fogColour;
+        return sceneColour(fogColour);
     }
     float horizonAmount = 1.0 - smoothstep(
         0.12, 0.65, abs(normalisedView.y));
@@ -92,7 +195,7 @@ vec3 directionalFogColour(vec3 viewDirection)
                               sunHorizontal / sunLength), 0.0);
     float amount = clamp(fogDirectionalStrength * horizonAmount *
                          alignment * alignment * alignment, 0.0, 1.0);
-    return mix(fogColour, fogSunwardColour, amount);
+    return sceneColour(mix(fogColour, fogSunwardColour, amount));
 }
 
 // Low-frequency world-space colour breaks up the tiled ground without
@@ -253,6 +356,12 @@ void main()
     {
         discard;
     }
+#ifdef TERRAIN_SURFACE
+    // Colour texture hardware-decodes sRGB exactly once. The established
+    // ecological artistic palette is defined in authored colour coordinates.
+    vec3 rawLinearAlbedo=texel.rgb;
+    texel.rgb=authoredFromLinear(rawLinearAlbedo);
+#endif
     if (blendedPlant) texel.rgb = ecologyPalette(texel.rgb, tileIndex);
     float luminance = dot(texel.rgb, vec3(0.2126, 0.7152, 0.0722));
     vec3 balancedColour = mix(
@@ -264,6 +373,7 @@ void main()
     balancedColour = pow(
         max(balancedColour, vec3(0.0)), vec3(toneGamma));
     balancedColour = naturalPalette(balancedColour, tileIndex, face, footprint);
+    balancedColour = sceneColour(balancedColour);
     float shapedLight = mix(0.24, 1.0, clamp(terrainLight, 0.0, 1.0));
     float environmentExposure = mix(
         0.34, 1.0, clamp(environmentLight, 0.0, 1.0));
@@ -274,8 +384,8 @@ void main()
     float facingSun = max(dot(face, sunDirection), 0.0);
     float sunlight = clamp(terrainLight, 0.0, 1.0) *
         (0.35 + 0.65 * facingSun);
-    vec3 warmLight = mix(vec3(1.0), clamp(sunColour, 0.0, 1.0), 0.35) * 1.06;
-    vec3 lightTint = mix(vec3(0.84, 0.93, 1.0), warmLight, sunlight);
+    vec3 warmLight = mix(vec3(1.0), sceneColour(clamp(sunColour, 0.0, 1.0)), 0.35) * 1.06;
+    vec3 lightTint = mix(sceneColour(vec3(0.84, 0.93, 1.0)), warmLight, sunlight);
     litColour *= mix(vec3(1.0), lightTint,
         clamp(sunIntensity * surfaceLightingStrength, 0.0, 1.0));
     // World meshes retain both propagated sources. Only sky light follows
@@ -294,25 +404,35 @@ void main()
         float localShare = local / max(sky + local, 0.00001);
         vec3 skyTint = mix(vec3(1.0), lightTint,
             clamp(sunIntensity * surfaceLightingStrength, 0.0, 1.0));
-        vec3 localTint = mix(vec3(1.0), vec3(1.04, 0.94, 0.80),
+        vec3 localTint = mix(vec3(1.0), sceneColour(vec3(1.04, 0.94, 0.80)),
             clamp(surfaceLightingStrength, 0.0, 1.0));
         vec3 sourceTint = sourceMaximum > 0.00001 ?
-            mix(skyTint, localTint, localShare) : vec3(0.90, 0.93, 1.0);
+            mix(skyTint, localTint, localShare) : sceneColour(vec3(0.90, 0.93, 1.0));
         litColour = balancedColour * shapedLight * exposure * sourceTint;
     }
-    litColour += fogColour * (1.0 - environmentLight) * 0.035 * skyAvailability;
+    litColour += sceneColour(fogColour) * (1.0 - environmentLight) * 0.035 * skyAvailability;
     // The existing luminous Waystone core keeps its turquoise in moonlight.
     // Only its cyan inset emits; the masonry frame still receives AO/shadow.
     if (surfaceLightingStrength > 0.5 && tileIndex == vec2(15.0, 0.0)) {
         float core = clamp((texel.b - texel.r) * 2.0, 0.0, 1.0);
-        litColour = max(litColour, texel.rgb * core * 0.74);
+        litColour = max(litColour, sceneColour(texel.rgb) * core * 0.74);
     }
+#ifdef TERRAIN_SURFACE
+    vec3 normalData=textureGrad(terrainNormalArray,
+        vec3(fract(terrainRepeat),layer),repeatDx,repeatDy).rgb;
+    vec3 materialData=textureGrad(terrainSurfaceArray,
+        vec3(fract(terrainRepeat),layer),repeatDx,repeatDy).rgb;
+    vec3 surfaceNormal=mappedSurfaceNormal(normalData,face,worldDx,worldDy,repeatDx,repeatDy);
+    vec3 surfaceAlbedo=tileIndex.y==9.0?rawLinearAlbedo:balancedColour;
+    litColour=referenceSurfaceLighting(surfaceAlbedo,surfaceNormal,materialData,
+        1.0);
+#endif
     float fogVisibility = clamp(
         exp(-terrainDistance * terrainDistance * fogDensity * fogDensity),
         0.0, 1.0);
     vec3 localFogColour = directionalFogColour(
         terrainWorldPosition - cameraPosition);
-    localFogColour = mix(vec3(0.035, 0.043, 0.054), localFogColour, skyAvailability);
+    localFogColour = mix(sceneColour(vec3(0.035, 0.043, 0.054)), localFogColour, skyAvailability);
     fragmentColour = vec4(
         mix(localFogColour, litColour, fogVisibility), texel.a);
     applyViewRangeFade(terrainWorldPosition,

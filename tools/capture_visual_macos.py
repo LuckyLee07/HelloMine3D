@@ -129,6 +129,16 @@ def main():
                         help="Hidden render-only avatar motion facts; does not move the player or exercise input")
     parser.add_argument("--shadow", choices=("off", "medium", "high"), default="off")
     parser.add_argument("--post", choices=("off", "on"), default="off")
+    parser.add_argument("--render-pipeline", choices=("legacy", "linear-hdr"))
+    parser.add_argument("--msaa4", action="store_true", help="Request bounded actual four-sample HDR scene comparison")
+    parser.add_argument("--spatial-aa-off", action="store_true",
+                        help="Disable only the bounded spatial HDR resolve for paired diagnostics")
+    parser.add_argument("--planar-reflection-off", action="store_true",
+                        help="Use the normal water fallback for paired diagnostics")
+    parser.add_argument("--planar-diagnostic", action="store_true",
+                        help="Read the actual reflection RTT once; hidden visual capture only")
+    parser.add_argument("--reference-scene", choices=("street", "interior", "details", "water", "second", "upstairs"),
+                        help="Build the bounded reference sample in a fresh save; normal reopening preserves edits")
     parser.add_argument("--locale", choices=("en-US", "zh-CN"), default="zh-CN")
     parser.add_argument("--ui-scale", type=float, choices=(0.85, 1.0, 1.25), default=1.0)
     parser.add_argument("--feedback", choices=("off", "reduced", "full"), default="full")
@@ -181,6 +191,15 @@ def main():
     parser.add_argument("--reuse-app", action="store_true",
                         help="Run the supplied stable app in place; its diagnostic config is updated")
     args = parser.parse_args()
+    if args.planar_diagnostic and (args.performance or args.foreground):
+        parser.error("--planar-diagnostic requires a hidden visual capture without performance readback")
+    if "HELLOMINE3D_REFERENCE_VISUAL_SCENE" in os.environ and not args.reference_scene:
+        parser.error("Inherited reference scene requires explicit --reference-scene")
+    if args.reference_scene and (args.scene == "menu" or args.save_template or
+            args.performance or args.material_identity or args.camera_diagnostics or
+            args.fern_wind or args.shore_edit or args.water_seam or args.player_motion or args.hud_fixture or
+            args.pause_notifications or args.actor_visual or args.panel):
+        parser.error("--reference-scene requires a fresh world without other diagnostic fixtures")
     try:
         capture_times = [int(value) for value in args.capture_ms.split(',')]
         if (not 1 <= len(capture_times) <= 8 or
@@ -193,7 +212,7 @@ def main():
             args.performance or args.material_identity or args.camera_diagnostics or
             args.fern_wind or args.pause_notifications or args.shore_edit or args.water_seam or
             args.player_motion or args.actor_visual or args.hud_fixture or args.panel or
-            args.inspect_slot is not None):
+            args.inspect_slot is not None or args.planar_diagnostic or args.reference_scene):
         parser.error("--capture-format bmp requires generic hidden direct timed capture without fixtures/performance")
     if args.inspect_slot is not None and (args.panel != "pointer" or not args.hud_fixture):
         parser.error("--inspect-slot requires --panel pointer --hud-fixture")
@@ -321,7 +340,7 @@ def main():
             args.actor_visual or args.actor_distance is not None or args.hud_fixture or args.panel or
             args.inspect_slot is not None or args.debug or args.material_identity or
             args.camera_diagnostics or args.fern_wind or args.pause_notifications or args.shore_edit or
-            args.scene == "menu" or args.reuse_app or args.save_template or args.streaming or
+            args.planar_diagnostic or args.reference_scene or args.scene == "menu" or args.reuse_app or args.save_template or args.streaming or
             args.position or args.rotation or args.render_distance != 1 or
             args.visual_detail not in ("standard", "compatibility") or
             args.launch_method != "direct" or args.capture_ms != "5000,10000" or
@@ -440,6 +459,14 @@ seed random
         if not args.minimap_range:
             settings += "minimaprange 128\n"
         settings += f"cameraperspective {args.perspective}\n"
+    if args.render_pipeline is not None:
+        settings = settings.replace(settings.splitlines()[0], "settings_version 12", 1)
+        present = {line.split()[0] for line in settings.splitlines() if line.strip()}
+        for key, default in (("visualdetail", "standard"), ("minimaprange", "128"),
+                             ("cameraperspective", "first")):
+            if key not in present:
+                settings += f"{key} {default}\n"
+        settings += f"renderpipeline {args.render_pipeline}\n"
     (root / "bin/config.txt").write_text(settings)
     environment = {
         "HELLOMINE3D_ROOT": str(root),
@@ -453,6 +480,17 @@ seed random
         "HELLO_RENDER_CAPTURE_MAX_DELTA_MS": "5000",
         "HELLO_RENDER_CAPTURE_EXIT": "0" if args.performance else "1",
     }
+    # Freeze each comparison route independently of the ordinary HDR default
+    # and inherited shell diagnostics. Active MSAA disables spatial AA in-engine.
+    environment["HELLOMINE3D_MSAA4"] = "1" if args.msaa4 else "0"
+    environment["HELLOMINE3D_SPATIAL_AA_OFF"] = "1" if args.spatial_aa_off else "0"
+    if args.planar_reflection_off:
+        environment["HELLOMINE3D_PLANAR_REFLECTION_OFF"] = "1"
+    if args.planar_diagnostic:
+        environment["HELLOMINE3D_PLANAR_DIAGNOSTIC"] = "1"
+    if args.reference_scene:
+        environment["HELLOMINE3D_REFERENCE_VISUAL_SCENE"] = "1"
+        environment["HELLOMINE3D_REFERENCE_VISUAL_VIEW"] = args.reference_scene
     if args.material_identity:
         environment["HELLOMINE3D_MATERIAL_IDENTITY_CAPTURE_DIR"] = str(output / "material-identity")
         environment["HELLO_RENDER_CAPTURE_MS"] = "60000"
@@ -572,7 +610,8 @@ seed random
               "inherited_diagnostic_environment": {
                   key: os.environ[key] for key in (
                       "HELLOMINE3D_VISUAL_CAMERA_SWEEP", "HELLOMINE3D_VISUAL_CAMERA_PATH",
-                      "HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE") if key in os.environ},
+                      "HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_MSAA4", "HELLOMINE3D_SPATIAL_AA_OFF",
+                      "HELLOMINE3D_PLANAR_DIAGNOSTIC", "HELLOMINE3D_PLANAR_REFLECTION_OFF") if key in os.environ},
               "window_size_points": [args.width, args.height],
               "window_mode": "foreground" if args.foreground else "hidden",
               "render_readback": not args.performance,
@@ -580,6 +619,9 @@ seed random
               "platform": platform.platform(), "host_architecture": platform.machine(),
               "command": command, "launch_method": args.launch_method,
               "started_unix": time.time(), "result": "RUNNING"}
+    if args.reference_scene:
+        record["diagnostic_fixture"] = "reference-visual-scene-v1"
+        record["reference_view"] = args.reference_scene
     record_path = output / "capture.json"
     water_oracle_command = None
     water_capture_error = None
@@ -636,7 +678,7 @@ seed random
             sorted((output / "fern-wind").glob("*.png")) if args.fern_wind else \
             sorted((output / "pause-notifications").glob("frame-*.png")) if args.pause_notifications else \
             sorted((output / "shore-edit").glob("phase-*.png")) if args.shore_edit else \
-            sorted((output / "frames").glob(f"*.{args.capture_format}"))
+            sorted((output / "frames").glob(f"capture_*.{args.capture_format}"))
         water_session = None
         if args.water_seam:
             index = output / "water-seam/index.json"
@@ -682,7 +724,13 @@ seed random
                 raise RuntimeError(f"Actual frame is {width}x{height}, expected "
                                    f"{expected_size[0]}x{expected_size[1]} at pixel ratio {args.pixel_ratio}")
         record["frame_format_actual"] = args.capture_format if frames else None
-        artifacts = frames
+        artifacts = list(frames)
+        if args.planar_diagnostic:
+            planar = [output / "frames" / ("planar-diagnostic" + suffix) for suffix in
+                      (".native-linear.rgba32f", ".camera-preview.png", ".facts.txt")]
+            if not all(path.is_file() for path in planar):
+                raise RuntimeError("Actual planar diagnostic did not produce its complete native readback")
+            artifacts += planar
         if args.material_identity:
             index = output / "material-identity/index.json"
             session = json.loads(index.read_text())

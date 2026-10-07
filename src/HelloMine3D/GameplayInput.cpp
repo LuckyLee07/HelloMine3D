@@ -406,9 +406,9 @@ bool GameplayFocusGate::allowsWorldButtons(bool anyButtonDown) noexcept
     return true;
 }
 
-bool GameplayFocusGate::acceptsLookSample() noexcept
+bool GameplayFocusGate::acceptsLookSample(bool hasMotion) noexcept
 {
-    if (!m_focused) {
+    if (!m_focused || !hasMotion) {
         return false;
     }
     if (m_discardNextLookSample) {

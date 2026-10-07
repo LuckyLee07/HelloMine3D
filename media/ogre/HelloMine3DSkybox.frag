@@ -1,5 +1,17 @@
 #version 150
 
+// The legacy branch keeps authored display colours untouched. HDR scene
+// shaders decode colour inputs before lighting/blending; alpha/data stay raw.
+uniform float linearHdrMode;
+vec3 sceneColour(vec3 authored)
+{
+    if (linearHdrMode < 0.5) return authored;
+    vec3 c = max(authored, vec3(0.0));
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)),
+               step(vec3(0.04045), c));
+}
+
+
 in vec3 vDirection;
 
 uniform vec3 skyZenithColour;
@@ -69,7 +81,7 @@ vec3 directionalFogColour(vec3 viewDirection)
     float sunLength = length(sunHorizontal);
     if (viewLength < 0.00001 || sunLength < 0.00001)
     {
-        return skyHorizonColour;
+        return sceneColour(skyHorizonColour);
     }
     float horizonAmount = 1.0 - smoothstep(
         0.12, 0.65, abs(normalisedView.y));
@@ -77,7 +89,7 @@ vec3 directionalFogColour(vec3 viewDirection)
                               sunHorizontal / sunLength), 0.0);
     float amount = clamp(fogDirectionalStrength * horizonAmount *
                          alignment * alignment * alignment, 0.0, 1.0);
-    return mix(skyHorizonColour, fogSunwardColour, amount);
+    return sceneColour(mix(skyHorizonColour, fogSunwardColour, amount));
 }
 
 void sampleLegacyClouds(vec3 direction, out float mask,
@@ -213,14 +225,14 @@ vec3 composePixelCelestials(vec3 colour, vec3 direction)
 
     float sunHalo = smoothstep(0.965, 0.9992, sunAlignment);
     float moonHalo = smoothstep(0.982, 0.9993, moonAlignment);
-    colour += sunColour * sunIntensity * sunHalo * 0.14;
-    colour += vec3(0.62, 0.72, 0.92) * moonIntensity * moonHalo * 0.08;
+    colour += sceneColour(sunColour) * sunIntensity * sunHalo * 0.14;
+    colour += sceneColour(vec3(0.62, 0.72, 0.92)) * moonIntensity * moonHalo * 0.08;
 
     vec2 sunPixel = (floor(sunUv * 8.0) + 0.5) / 8.0;
     float sunCore = 1.0 - step(0.76, length(sunPixel));
     vec3 sunSurface = sunColour * mix(vec3(0.96, 0.79, 0.54),
                                       vec3(1.03, 1.01, 0.92), sunCore);
-    colour = mix(colour, sunSurface, sunMask * sunIntensity);
+    colour = mix(colour, sceneColour(sunSurface) * (linearHdrMode > 0.5 ? 4.0 : 1.0), sunMask * sunIntensity);
 
     vec2 moonPixel = (floor(moonUv * 8.0) + 0.5) / 8.0;
     vec2 firstCrater = abs(moonPixel - vec2(-0.31, 0.25));
@@ -232,7 +244,7 @@ vec3 composePixelCelestials(vec3 colour, vec3 direction)
     float moonRim = step(0.77, length(moonPixel));
     vec3 moonSurface = mix(vec3(0.72, 0.80, 0.91), vec3(0.48, 0.59, 0.73),
                            max(craters * 0.65, moonRim * 0.32));
-    return mix(colour, moonSurface, moonMask * moonIntensity);
+    return mix(colour, sceneColour(moonSurface), moonMask * moonIntensity);
 }
 
 void main()
@@ -240,7 +252,7 @@ void main()
     vec3 direction = normalize(vDirection);
     float upperSky = smoothstep(0.0, 0.78, max(direction.y, 0.0));
     vec3 localHorizonColour = directionalFogColour(direction);
-    vec3 colour = mix(localHorizonColour, skyZenithColour, upperSky);
+    vec3 colour = mix(localHorizonColour, sceneColour(skyZenithColour), upperSky);
 
     // Keep the lower hemisphere on the exact fog colour so distant terrain
     // fades into the sky without a hard horizon band.
@@ -252,7 +264,7 @@ void main()
     float stars = smoothstep(0.996, 1.0, starNoise) *
                   smoothstep(-0.02, 0.18, direction.y) *
                   starIntensity;
-    colour += vec3(0.68, 0.78, 1.0) * stars;
+    colour += sceneColour(vec3(0.68, 0.78, 1.0)) * stars;
 
     float cloudMask = 0.0;
     vec3 cloudColour = cloudShadowColour;
@@ -273,17 +285,17 @@ void main()
         // Celestial bodies and their halos are behind the same cloud layer
         // as the stars. Cloud optical coverage therefore attenuates all three.
         colour = composePixelCelestials(colour, direction);
-        colour = mix(colour, cloudColour, cloudMask);
-        fragColor = vec4(clamp(colour, vec3(0.0), vec3(1.35)), 1.0);
+        colour = mix(colour, sceneColour(cloudColour), cloudMask);
+        fragColor = vec4(linearHdrMode > 0.5 ? max(colour, vec3(0.0)) : clamp(colour, vec3(0.0), vec3(1.35)), 1.0);
         return;
     }
 
     // Preserve the complete legacy appearance when atmosphere is disabled.
-    colour = mix(colour, cloudColour, cloudMask);
+    colour = mix(colour, sceneColour(cloudColour), cloudMask);
     float sunAlignment = dot(direction, normalize(sunDirection));
     float sunHalo = smoothstep(0.965, 0.9992, sunAlignment);
     float sunDisc = smoothstep(0.9988, 0.99975, sunAlignment);
-    colour += sunColour * sunIntensity *
+    colour += sceneColour(sunColour) * sunIntensity *
               (sunHalo * 0.22 + sunDisc * 1.35);
 
     vec3 moonDirection = -normalize(sunDirection);
@@ -291,8 +303,8 @@ void main()
     float moonHalo = smoothstep(0.982, 0.9993, moonAlignment);
     float moonDisc = smoothstep(0.9990, 0.99972, moonAlignment);
     vec3 moonColour = vec3(0.62, 0.72, 0.92);
-    colour += moonColour * moonIntensity *
+    colour += sceneColour(moonColour) * moonIntensity *
               (moonHalo * 0.12 + moonDisc * 0.9);
 
-    fragColor = vec4(clamp(colour, vec3(0.0), vec3(1.35)), 1.0);
+    fragColor = vec4(linearHdrMode > 0.5 ? max(colour, vec3(0.0)) : clamp(colour, vec3(0.0), vec3(1.35)), 1.0);
 }

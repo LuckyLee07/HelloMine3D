@@ -189,6 +189,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
     bool hasVisualDetail = false;
     bool hasMinimapRange = false;
     bool hasCameraPerspective = false;
+    bool hasRenderPipeline = false;
     bool hasSprintMode = false;
     bool hasSneakMode = false;
     bool hasFeedbackIntensity = false;
@@ -226,6 +227,7 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
                 version != FeedbackRuntimeSettingsFormatVersion &&
                 version != VisualDetailRuntimeSettingsFormatVersion &&
                 version != NavigationRuntimeSettingsFormatVersion &&
+                version != CameraPerspectiveRuntimeSettingsFormatVersion &&
                 version != RuntimeSettingsFormatVersion) {
                 fail(path, key, "uses unsupported version " +
                                     std::to_string(version));
@@ -246,6 +248,16 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
             parsed.config.postProcessingQuality =
                 readPostProcessingQuality(path, key, values);
             usesVersionSixKey = true;
+        }
+        else if (key == "renderpipeline") {
+            std::string token;
+            if (!(values >> token) || (token != "legacy" && token != "linear-hdr")) {
+                fail(path, key, "must contain legacy or linear-hdr");
+            }
+            requireEnd(path, key, values);
+            parsed.config.renderPipeline = token == "linear-hdr"
+                ? RenderPipeline::LinearHdr : RenderPipeline::Legacy;
+            hasRenderPipeline = true;
         }
         else if (key == "visualdetail") {
             std::string token;
@@ -538,6 +550,12 @@ ParsedRuntimeConfig parseRuntimeConfig(const std::string &path,
         fail(path, "cameraperspective",
              "is required by settings version 11");
     }
+    if (hasRenderPipeline && (!hasVersion || parsed.version < RenderPipelineRuntimeSettingsFormatVersion)) {
+        fail(path, "settings_version", "older versions cannot contain version 12 settings");
+    }
+    if (hasVersion && parsed.version >= RenderPipelineRuntimeSettingsFormatVersion && !hasRenderPipeline) {
+        fail(path, "renderpipeline", "is required by settings version 12");
+    }
     parsed.needsMigration =
         !hasVersion || parsed.version < RuntimeSettingsFormatVersion;
     try {
@@ -555,6 +573,7 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
     std::ostringstream output;
     output << std::setprecision(9)
            << "settings_version " << RuntimeSettingsFormatVersion << '\n'
+           << "renderpipeline " << renderPipelineToken(config.renderPipeline) << '\n'
            << "renderdistance " << config.renderDistance << '\n'
            << "visualdetail " << visualDetailToken(config.visualDetail) << '\n'
            << "directionalshadowquality "
@@ -619,6 +638,10 @@ std::vector<char> serializeRuntimeConfig(const Config &config)
 
 void validateUserSettings(const UserSettings &settings)
 {
+    if (settings.renderPipeline != RenderPipeline::Legacy &&
+        settings.renderPipeline != RenderPipeline::LinearHdr) {
+        throw std::runtime_error("render pipeline must be legacy or linear-hdr");
+    }
     if (settings.minimapRange != 64 && settings.minimapRange != 128 &&
         settings.minimapRange != 256) {
         rejectUserSetting(RuntimeSettingsValidationKind::InvalidChoice,
@@ -875,7 +898,8 @@ bool RuntimeSettingsSession::prepareApply(
             m_draft.windowX != m_original.windowX ||
             m_draft.windowY != m_original.windowY ||
             m_draft.isFullscreen != m_original.isFullscreen ||
-            m_draft.visualDetail != m_original.visualDetail;
+            m_draft.visualDetail != m_original.visualDetail ||
+            m_draft.renderPipeline != m_original.renderPipeline;
         plan.renderDistanceChanged =
             m_draft.renderDistance != m_original.renderDistance;
         plan.directionalShadowQualityChanged =

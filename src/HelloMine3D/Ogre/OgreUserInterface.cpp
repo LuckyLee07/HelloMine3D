@@ -34,6 +34,7 @@
 #include <utility>
 #include <vector>
 
+#include <GL/gl3w.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <imgui.h>
 
@@ -2501,6 +2502,23 @@ class OgreUserInterface::Impl
             }
             ImGui::EndCombo();
         }
+        if (ImGui::BeginCombo(label("settings.render_pipeline", "##RenderPipeline").c_str(),
+                tr(draft.renderPipeline == RenderPipeline::LinearHdr
+                    ? "settings.render_pipeline_hdr" : "settings.render_pipeline_legacy").c_str()))
+        {
+            for (const auto pipeline : {RenderPipeline::Legacy, RenderPipeline::LinearHdr})
+            {
+                const bool selected = draft.renderPipeline == pipeline;
+                if (ImGui::Selectable(tr(pipeline == RenderPipeline::LinearHdr
+                        ? "settings.render_pipeline_hdr" : "settings.render_pipeline_legacy").c_str(), selected))
+                    draft.renderPipeline = pipeline;
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (ImGui::IsItemHovered()) drawWrappedTooltip(tr("settings.render_pipeline_help"));
+        if (renderPipelineFallback)
+            ImGui::TextWrapped("%s", tr("settings.render_pipeline_fallback").c_str());
         bool postProcessingEnabled =
             draft.postProcessingQuality == PostProcessingQuality::On;
         if (ImGui::Checkbox(
@@ -3110,7 +3128,8 @@ class OgreUserInterface::Impl
             appliedSettings.windowX != settings.windowX ||
             appliedSettings.windowY != settings.windowY ||
             appliedSettings.isFullscreen != settings.isFullscreen ||
-            appliedSettings.visualDetail != settings.visualDetail;
+            appliedSettings.visualDetail != settings.visualDetail ||
+            appliedSettings.renderPipeline != settings.renderPipeline;
         appliedSettings = settings;
         settingsMessage = message.empty()
             ? tr(restartRequired
@@ -3956,6 +3975,19 @@ class OgreUserInterface::Impl
             case BlockId::Workbench:
             case BlockId::OakDoorClosed:
             case BlockId::OakDoorOpen: colour = ImVec4(189, 147, 93, 255); break;
+            // Architectural map colours follow the authored surface families.
+            case BlockId::StoneStep:
+            case BlockId::StoneWindowFrame:
+            case BlockId::StoneBrick:
+            case BlockId::StoneSlab:
+            case BlockId::StoneCornice:
+            case BlockId::StoneWindowSill: colour = ImVec4(222, 209, 184, 255); break;
+            case BlockId::ClayTileStep:
+            case BlockId::ClayTileEave: colour = ImVec4(185, 109, 68, 255); break;
+            case BlockId::TimberBeam:
+            case BlockId::TimberRailing: colour = ImVec4(162, 124, 79, 255); break;
+            case BlockId::StonePlanter: colour = ImVec4(98, 72, 47, 255); break;
+            case BlockId::Lantern: colour = ImVec4(255, 230, 160, 255); break;
             case BlockId::WaystoneCore: colour = ImVec4(116, 195, 210, 255); break;
             case BlockId::Cactus: colour = ImVec4(77, 117, 75, 255); break;
             case BlockId::Air: colour = ImVec4(37, 43, 46, 255); break;
@@ -7868,6 +7900,7 @@ class OgreUserInterface::Impl
     GameApplicationFlow *flow = nullptr;
     WorldManagementService *management = nullptr;
     UserSettings appliedSettings;
+    bool renderPipelineFallback = false;
     std::function<void()> uiFeedback;
     std::vector<PendingCrashReport> crashReports;
     std::string crashReportMessage;
@@ -8367,6 +8400,11 @@ bool OgreUserInterface::dismissSettings() noexcept
     return m_impl->dismissSettings();
 }
 
+void OgreUserInterface::setRenderPipelineFallback(bool fallback) noexcept
+{
+    m_impl->renderPipelineFallback = fallback;
+}
+
 void OgreUserInterface::reportSettingsApplied(
     bool succeeded, const UserSettings &settings, std::string message)
 {
@@ -8393,7 +8431,12 @@ void OgreUserInterface::postViewportUpdate(
         return;
     }
     ImGui::Render();
+    // ImGui colours and shared atlas icons are authored in display space.
+    // Keep them outside scene tone mapping and prevent a second sRGB encode.
+    const GLboolean srgbWasEnabled = glIsEnabled(GL_FRAMEBUFFER_SRGB);
+    glDisable(GL_FRAMEBUFFER_SRGB);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    if (srgbWasEnabled) glEnable(GL_FRAMEBUFFER_SRGB);
     if (m_impl->surfaceMapDiagnostic)
     {
         auto& facts = *m_impl->surfaceMapDiagnostic;

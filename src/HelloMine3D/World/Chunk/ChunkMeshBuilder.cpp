@@ -2,12 +2,14 @@
 
 #include "ChunkMesh.h"
 #include "SectionMeshInput.h"
+#include "WaterBoundaryClip.h"
 
 #include "../Block/BlockData.h"
 #include "../Block/BlockBehavior.h"
 #include "../Block/BlockDatabase.h"
 #include "../Block/BlockTextureCoordinates.h"
 #include "../Block/BlockDefinition.h"
+#include "../Block/BlockGeometry.h"
 #include "../Block/TerrainAppearance.h"
 #include "../Block/WetlandGrassGeometry.h"
 #include "../Block/ForestFernGeometry.h"
@@ -760,9 +762,9 @@ bool ChunkMeshBuilder::isAmbientOccluder(
     // Water, glass and resource flora are transparent in the block contract,
     // so they do not become solid AO walls. Out-of-halo and unloaded samples
     // resolve to Air through SectionMeshInput and follow the same rule.
-    return !BlockDatabase::get()
+    return BlockDatabase::get()
                 .getDefinition(static_cast<BlockId>(block.id))
-                .transparent;
+                .aoOccluder;
 }
 
 void ChunkMeshBuilder::addVertexLitFace(
@@ -909,6 +911,96 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
         }
         return;
     }
+    if (shape.isCompound()) {
+        const auto &render = BlockDatabase::get().getDefinition(
+            static_cast<BlockId>(block.id)).render;
+        const auto &variant = shape.variants[block.metadata & 3u];
+        std::array<VertexLightingQuad, 6> directionalLighting{};
+        std::array<bool, 6> sampled{};
+        for (const auto &face : variant.surfaces) {
+            if (face.boundaryFace < 6) {
+                const auto position = blockPosition + BlockGeometry::boundaryOffset(face.boundaryFace);
+                const auto neighbour = m_pInput->getBlock(position.x,position.y,position.z);
+                if (BlockGeometry::surfaceOccluded(face,BlockDatabase::get().getDefinition(
+                        static_cast<BlockId>(neighbour.id)),neighbour)) continue;
+            }
+            const auto pointAt = [&](int k) {
+                return glm::vec3(face.positions[k*3], face.positions[k*3+1], face.positions[k*3+2]);
+            };
+            // Cached v2 quads are axis-aligned, with outward winding. Derive
+            // the direction after yaw, independently of the material role.
+            const glm::vec3 normal = glm::cross(pointAt(1)-pointAt(0), pointAt(2)-pointAt(0));
+            const int axis = std::abs(normal.x) > 0.f ? 0 : std::abs(normal.y) > 0.f ? 1 : 2;
+            const bool positive = normal[axis] > 0.f;
+            const CubeFace direction = axis == 0 ? (positive ? CubeFace::Right : CubeFace::Left) :
+                axis == 1 ? (positive ? CubeFace::Top : CubeFace::Bottom) :
+                            (positive ? CubeFace::Front : CubeFace::Back);
+            const int directionIndex = static_cast<int>(direction);
+            if (!sampled[directionIndex]) {
+                directionalLighting[directionIndex] = calculateVertexLighting(direction, blockPosition);
+                sampled[directionIndex] = true;
+            }
+            const auto &quad = directionalLighting[directionIndex];
+            const int u = axis == 0 ? 2 : 0;
+            const int v = axis == 1 ? 2 : 1;
+            std::array<float, 4> smooth{}, shaded{}, ao{}, sky{}, local{};
+            for (int k = 0; k < 4; ++k) {
+                smooth[k] = quad.corners[k].smoothLight;
+                shaded[k] = quad.corners[k].finalLight;
+                ao[k] = quad.corners[k].ambientOcclusion;
+                sky[k] = quad.corners[k].skySource;
+                local[k] = quad.corners[k].blockSource;
+            }
+            const glm::vec3 centre = (pointAt(0)+pointAt(1)+pointAt(2)+pointAt(3))*.25f;
+            const float cardinal = axis == 0 ? LIGHT_X : axis == 2 ? LIGHT_Z : positive ? LIGHT_TOP : LIGHT_BOT;
+            const LightLevel cellLight = m_pInput->getCombinedLight(blockPosition.x,blockPosition.y,blockPosition.z);
+            std::array<float, 4> vertexLight{};
+            FaceLightSources vertexSources{};
+            std::array<VertexLightCorner, 4> corners{};
+            for (int k = 0; k < 4; ++k) {
+                const glm::vec3 vertex = pointAt(k);
+                // An inset face point avoids treating its own tangent border
+                // as an obstruction. Interior faces may only read a cardinal
+                // neighbour reachable through this cell's actual empty shape.
+                // A second rail/frame box across the void blocks that route;
+                // retain the authoritative cell light instead of leaking light
+                // through it. At most eight boxes, no added world reads/halo.
+                const glm::vec3 probe = vertex + (centre-vertex)*.001f;
+                bool exposed = true;
+                if (face.boundaryFace >= 6) for (const auto &box : variant.boxes) {
+                    if (probe[u] <= box.minimum[u] || probe[u] >= box.maximum[u] ||
+                        probe[v] <= box.minimum[v] || probe[v] >= box.maximum[v]) continue;
+                    if (positive ? box.maximum[axis] > probe[axis]+.00001f :
+                                   box.minimum[axis] < probe[axis]-.00001f) {
+                        exposed = false; break;
+                    }
+                }
+                auto &corner = corners[k];
+                if (exposed) {
+                    const auto interpolate = [&](const std::array<float, 4> &values) {
+                        return VertexLighting::interpolateQuad(values, quad.flipDiagonal, vertex[u], vertex[v]);
+                    };
+                    corner.smoothLight = interpolate(smooth);
+                    corner.finalLight = interpolate(shaded);
+                    corner.ambientOcclusion = static_cast<std::uint8_t>(std::lround(interpolate(ao)));
+                    corner.skySource = interpolate(sky);
+                    corner.blockSource = interpolate(local);
+                } else {
+                    corner.smoothLight = lightLevelToBrightness(cellLight);
+                    corner.finalLight = combineTerrainLight(cardinal, cellLight);
+                    corner.skySource = source.x; corner.blockSource = source.y;
+                }
+                vertexLight[k] = corner.finalLight;
+                vertexSources[k] = {corner.skySource, corner.blockSource};
+            }
+            const auto tile = face.material == 0 ? render.texTopCoord :
+                face.material == 2 ? render.texBottomCoord : render.texSideCoord;
+            m_pActiveMesh->addFace(face.positions, BlockTextureCoordinates::get(tile.x,tile.y),
+                m_pInput->getLocation(), blockPosition, vertexLight,
+                VertexLighting::shouldFlipDiagonal(corners), face.repeat, &vertexSources, rootTag);
+        }
+        return;
+    }
     for (const BlockShapeFace &face : shape.faces) {
         BlockShapeFace scaledFace = face;
         for (std::size_t y = 1; y < scaledFace.size(); y += 3) {
@@ -966,10 +1058,50 @@ void ChunkMeshBuilder::tryAddFaceToMesh(
                 waterDrift[corner * 2 + 1] = drift.y;
             }
             // Water does not sample the atlas; uv0 carries surface drift while
-            // uv1 retains depth/shore, with no extra vertices or vertex stride.
+            // uv1 retains depth/shore. Clipped faces keep the same vertex stride.
+            const auto lighting=calculateVertexLighting(face,blockPosition);
+            if(m_pInput->waterBoundaryPinsAvailable() && face!=CubeFace::Top && face!=CubeFace::Bottom) {
+                const auto neighbour=m_pInput->getBlock(blockFacing.x,blockFacing.y,blockFacing.z);
+                const auto &definition=BlockDatabase::get().getDefinition(static_cast<BlockId>(neighbour.id));
+                if(BlockGeometry::usesCompound(definition.id) && !definition.transparent && definition.render.shape.isCompound()) {
+                    // CubeFace and shape boundary enums have different ordering.
+                    static constexpr unsigned boundary[6]={5,4,2,3,0,1};
+                    const auto mask=definition.render.shape.variants[BlockGeometry::orientation(neighbour)].boundaryCoverage[boundary[static_cast<int>(face)]^1u];
+                    if(mask!=0) {
+                        const int axis=(face==CubeFace::Left || face==CubeFace::Right)?0:2;
+                        const int u=(axis+1)%3,v=(axis+2)%3;
+                        std::array<WaterBoundaryClip::Point,4> corners{};
+                        for(int i=0;i<4;++i)corners[i]={blockFace[i*3+u],blockFace[i*3+v]};
+                        std::array<int,4> order{0,1,2,3};bool flipped=lighting.flipDiagonal;
+                        if(face==CubeFace::Right || face==CubeFace::Back) {order={1,0,3,2};flipped=!flipped;}
+                        WaterBoundaryClip::visit(mask,corners,flipped,[&](const WaterBoundaryClip::Triangle &triangle,const std::array<int,3> &indices) {
+                            const WaterBoundaryClip::Triangle source{{corners[indices[0]],corners[indices[1]],corners[indices[2]]}};
+                            std::array<float,9> positions{};std::array<float,6> drift{},data{};
+                            std::array<float,3> light{},pins{};std::array<glm::vec2,3> sources{};
+                            sources.fill(glm::vec2(0.f));
+                            for(int vertex=0;vertex<3;++vertex) {
+                                const auto weights=WaterBoundaryClip::weights(triangle[vertex],source);
+                                for(int k=0;k<3;++k) {
+                                    const int corner=indices[k];const float weight=weights[k];
+                                    for(int a=0;a<3;++a)positions[vertex*3+a]+=blockFace[corner*3+a]*weight;
+                                    for(int a=0;a<2;++a) {drift[vertex*2+a]+=waterDrift[corner*2+a]*weight;data[vertex*2+a]+=waterData[corner*2+a]*weight;}
+                                    const auto &sample=lighting.corners[order[corner]];
+                                    light[vertex]+=sample.finalLight*weight;
+                                    sources[vertex]+=glm::vec2(sample.skySource,sample.blockSource)*weight;
+                                }
+                                // Water's spare uv3 is a derived pin only here.
+                                // Keep every original top/bottom and other mesh
+                                // root tag unchanged; do not encode World ownership.
+                                pins[vertex]=WaterBoundaryClip::pin(mask,triangle[vertex],u==1?0:1)?1.f:0.f;
+                            }
+                            m_pActiveMesh->addWaterTriangle(positions,drift,data,m_pInput->getLocation(),blockPosition,light,sources,pins);
+                        });
+                        return;
+                    }
+                }
+            }
             addVertexLitFace(*m_pActiveMesh, face, blockFace, waterDrift,
-                blockPosition, calculateVertexLighting(face, blockPosition),
-                1.f, 1.f, &waterData, false);
+                blockPosition, lighting, 1.f, 1.f, &waterData, false);
             return;
         }
 
@@ -1017,7 +1149,7 @@ bool ChunkMeshBuilder::shouldMakeFace(ChunkBlock block,
         return true;
     }
 
-    if (!adjacentDefinition.transparent) {
+    if (adjacentDefinition.occludesFaces) {
         return false;
     }
 

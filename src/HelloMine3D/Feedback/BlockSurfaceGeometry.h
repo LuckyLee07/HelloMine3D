@@ -28,6 +28,13 @@ inline std::vector<BlockSurfaceFace> blockSurfaceGeometry(
                                          biome, seed, position, block.metadata).coordinates;
     };
     std::vector<BlockSurfaceFace> result;
+    if (render.shape.isCompound()) {
+        for(const auto &face:render.shape.variants[block.metadata & 3u].surfaces) {
+            const auto base=face.material==0?render.texTopCoord:face.material==2?render.texBottomCoord:render.texSideCoord;
+            result.push_back({face.positions,base,face.repeat});
+        }
+        return result;
+    }
     if (render.meshType == BlockMeshType::Resource)
     {
         const float height = definition.behavior->verticalRenderScale(definition, block);

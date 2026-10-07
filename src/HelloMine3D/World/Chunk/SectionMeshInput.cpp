@@ -2,6 +2,7 @@
 
 #include "ChunkSection.h"
 #include "NaturalTreeRootTag.h"
+#include "../Block/BlockDatabase.h"
 #include "../Generation/Terrain/TerrainGenerator.h"
 
 #include <algorithm>
@@ -31,6 +32,8 @@ void SectionMeshInput::capture(
     m_location = section.getLocation();
     m_terrainSeed = terrainSeed;
     m_containsWater = false;
+    // Copied once; an existing snapshot never observes a later startup/test policy.
+    m_waterBoundaryPinsAvailable=BlockDatabase::get().waterBoundaryPinsAvailable();
     m_naturalTreeRootTags.fill(0);
     static_assert(sizeof(m_naturalTreeRootTags) == 8192,
                   "Natural tree ownership uses at most 8 KiB per snapshot");

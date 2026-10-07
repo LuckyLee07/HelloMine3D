@@ -54,6 +54,18 @@ namespace
         "hellomine:forest_floor",
         "hellomine:moss_stone",
         "hellomine:silt",
+        "hellomine:stone_step",
+        "hellomine:stone_window_frame",
+        "hellomine:stone_brick",
+        "hellomine:stone_slab",
+        "hellomine:stone_cornice",
+        "hellomine:clay_tile_step",
+        "hellomine:clay_tile_eave",
+        "hellomine:timber_beam",
+        "hellomine:timber_railing",
+        "hellomine:stone_window_sill",
+        "hellomine:stone_planter",
+        "hellomine:lantern",
     }};
 
     constexpr std::array<Material::IconCoordinate, Material::ID::Count>
@@ -65,7 +77,8 @@ namespace
             {6, 2}, {7, 2}, {8, 2}, {9, 2}, {15, 0}, {10, 2},
             {11, 2}, {12, 2}, {13, 2}, {14, 2}, {6, 1}, {5, 1},
             {7, 1}, {8, 1}, {15, 2}, {15, 3}, {9, 1}, {10, 1},
-            {11, 1}, {6, 8}, {7, 8}, {8, 8}, {9, 8}, {10, 8}, {11, 8},
+            {11, 1}, {6, 8}, {7, 8}, {8, 8}, {9, 8}, {10, 8}, {11, 8}, {0, 9}, {0, 9},
+            {0, 9}, {0, 9}, {0, 9}, {2, 9}, {2, 9}, {3, 9}, {3, 9}, {0, 9}, {0, 9}, {5, 9},
         }};
 }
 
@@ -145,6 +158,18 @@ const Material Material::CLAY_BLOCK(ID::Clay, 99, true, "Clay");
 const Material Material::FOREST_FLOOR_BLOCK(ID::ForestFloor, 99, true, "Forest Floor");
 const Material Material::MOSS_STONE_BLOCK(ID::MossStone, 99, true, "Moss Stone");
 const Material Material::SILT_BLOCK(ID::Silt, 99, true, "Silt");
+const Material Material::STONE_STEP_BLOCK(ID::StoneStep, 99, true, "Stone Step");
+const Material Material::STONE_WINDOW_FRAME_BLOCK(ID::StoneWindowFrame, 99, true, "Stone Window Frame");
+const Material Material::STONE_BRICK_BLOCK(ID::StoneBrick, 99, true, "Stone Brick");
+const Material Material::STONE_SLAB_BLOCK(ID::StoneSlab, 99, true, "Stone Slab");
+const Material Material::STONE_CORNICE_BLOCK(ID::StoneCornice, 99, true, "Stone Cornice");
+const Material Material::CLAY_TILE_STEP_BLOCK(ID::ClayTileStep, 99, true, "Clay Tile Step");
+const Material Material::CLAY_TILE_EAVE_BLOCK(ID::ClayTileEave, 99, true, "Clay Tile Eave");
+const Material Material::TIMBER_BEAM_BLOCK(ID::TimberBeam, 99, true, "Timber Beam");
+const Material Material::TIMBER_RAILING_BLOCK(ID::TimberRailing, 99, true, "Timber Railing");
+const Material Material::STONE_WINDOW_SILL_BLOCK(ID::StoneWindowSill, 99, true, "Stone Window Sill");
+const Material Material::STONE_PLANTER_BLOCK(ID::StonePlanter, 99, true, "Stone Planter");
+const Material Material::LANTERN_BLOCK(ID::Lantern, 99, true, "Lantern");
 
 Material::Material(Material::ID id, int maxStack, bool isBlock,
                    std::string &&name, bool isTool, bool isFood)
@@ -240,6 +265,18 @@ BlockId Material::toBlockID() const
         case ForestFloor: return BlockId::ForestFloor;
         case MossStone: return BlockId::MossStone;
         case Silt: return BlockId::Silt;
+        case StoneStep: return BlockId::StoneStep;
+        case StoneWindowFrame: return BlockId::StoneWindowFrame;
+        case StoneBrick: return BlockId::StoneBrick;
+        case StoneSlab: return BlockId::StoneSlab;
+        case StoneCornice: return BlockId::StoneCornice;
+        case ClayTileStep: return BlockId::ClayTileStep;
+        case ClayTileEave: return BlockId::ClayTileEave;
+        case TimberBeam: return BlockId::TimberBeam;
+        case TimberRailing: return BlockId::TimberRailing;
+        case StoneWindowSill: return BlockId::StoneWindowSill;
+        case StonePlanter: return BlockId::StonePlanter;
+        case Lantern: return BlockId::Lantern;
 
 
         default:
@@ -328,6 +365,18 @@ const Material &Material::toMaterial(BlockId id)
         case BlockId::ForestFloor: return FOREST_FLOOR_BLOCK;
         case BlockId::MossStone: return MOSS_STONE_BLOCK;
         case BlockId::Silt: return SILT_BLOCK;
+        case BlockId::StoneStep: return STONE_STEP_BLOCK;
+        case BlockId::StoneWindowFrame: return STONE_WINDOW_FRAME_BLOCK;
+        case BlockId::StoneBrick: return STONE_BRICK_BLOCK;
+        case BlockId::StoneSlab: return STONE_SLAB_BLOCK;
+        case BlockId::StoneCornice: return STONE_CORNICE_BLOCK;
+        case BlockId::ClayTileStep: return CLAY_TILE_STEP_BLOCK;
+        case BlockId::ClayTileEave: return CLAY_TILE_EAVE_BLOCK;
+        case BlockId::TimberBeam: return TIMBER_BEAM_BLOCK;
+        case BlockId::TimberRailing: return TIMBER_RAILING_BLOCK;
+        case BlockId::StoneWindowSill: return STONE_WINDOW_SILL_BLOCK;
+        case BlockId::StonePlanter: return STONE_PLANTER_BLOCK;
+        case BlockId::Lantern: return LANTERN_BLOCK;
 
 
         default:
@@ -469,6 +518,18 @@ const Material &Material::toMaterial(Material::ID id)
         case ForestFloor: return FOREST_FLOOR_BLOCK;
         case MossStone: return MOSS_STONE_BLOCK;
         case Silt: return SILT_BLOCK;
+        case StoneStep: return STONE_STEP_BLOCK;
+        case StoneWindowFrame: return STONE_WINDOW_FRAME_BLOCK;
+        case StoneBrick: return STONE_BRICK_BLOCK;
+        case StoneSlab: return STONE_SLAB_BLOCK;
+        case StoneCornice: return STONE_CORNICE_BLOCK;
+        case ClayTileStep: return CLAY_TILE_STEP_BLOCK;
+        case ClayTileEave: return CLAY_TILE_EAVE_BLOCK;
+        case TimberBeam: return TIMBER_BEAM_BLOCK;
+        case TimberRailing: return TIMBER_RAILING_BLOCK;
+        case StoneWindowSill: return STONE_WINDOW_SILL_BLOCK;
+        case StonePlanter: return STONE_PLANTER_BLOCK;
+        case Lantern: return LANTERN_BLOCK;
 
 
         default:

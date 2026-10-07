@@ -1,5 +1,17 @@
 #version 150
 
+// The legacy branch keeps authored display colours untouched. HDR scene
+// shaders decode colour inputs before lighting/blending; alpha/data stay raw.
+uniform float linearHdrMode;
+vec3 sceneColour(vec3 authored)
+{
+    if (linearHdrMode < 0.5) return authored;
+    vec3 c = max(authored, vec3(0.0));
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)),
+               step(vec3(0.04045), c));
+}
+
+
 in float actorDistance;
 in vec3 actorWorldPosition;
 in vec3 actorLocalPosition;
@@ -46,7 +58,7 @@ vec3 directionalFogColour(vec3 viewDirection)
     float directionLength = length(viewDirection);
     if (directionLength < 0.00001)
     {
-        return fogColour;
+        return sceneColour(fogColour);
     }
     vec3 normalisedView = viewDirection / directionLength;
     vec2 viewHorizontal = normalisedView.xz;
@@ -55,7 +67,7 @@ vec3 directionalFogColour(vec3 viewDirection)
     float sunLength = length(sunHorizontal);
     if (viewLength < 0.00001 || sunLength < 0.00001)
     {
-        return fogColour;
+        return sceneColour(fogColour);
     }
     float horizonAmount = 1.0 - smoothstep(
         0.12, 0.65, abs(normalisedView.y));
@@ -63,7 +75,7 @@ vec3 directionalFogColour(vec3 viewDirection)
                               sunHorizontal / sunLength), 0.0);
     float amount = clamp(fogDirectionalStrength * horizonAmount *
                          alignment * alignment * alignment, 0.0, 1.0);
-    return mix(fogColour, fogSunwardColour, amount);
+    return sceneColour(mix(fogColour, fogSunwardColour, amount));
 }
 
 // Derived solely from the copied pose/profile: role, guardian, windup, archetype.
@@ -91,7 +103,7 @@ float actorCrestMark()
 
 vec3 readableActorSurface()
 {
-    if (actorSurfaceStrength < 0.5) return actorTint.rgb;
+    if (actorSurfaceStrength < 0.5) return sceneColour(actorTint.rgb);
     vec3 faceNormal = normalize(cross(dFdx(actorWorldPosition), dFdy(actorWorldPosition)));
     float shade = 0.68 + 0.22 * max(faceNormal.y, 0.0) +
                   0.10 * max(dot(faceNormal, normalize(vec3(-0.4, 0.6, -0.5))), 0.0);
@@ -149,7 +161,7 @@ vec3 readableActorSurface()
         }
         float hurt = clamp(actorPartData.z, 0.0, 1.0);
         base = mix(base, vec3(0.66, 0.25, 0.20), hurt * 0.22);
-        return base * shade;
+        return sceneColour(base) * shade;
     }
     if (actorPartData.w > 9.5) {
         // Wildlife uses the same matte voxel lighting as other actors. Broad
@@ -192,7 +204,7 @@ vec3 readableActorSurface()
                 vec2(0.075, 0.075));
             base = mix(base, vec3(0.15, 0.18, 0.17), eye);
         }
-        return base * shade;
+        return sceneColour(base) * shade;
     }
     if (role > 9.5 && role < 10.5) {
         // Compact, faceted spit: a pale leading end and a dark tapered tail.
@@ -261,7 +273,7 @@ vec3 readableActorSurface()
         float brow = front * actorPatch(p.xy, vec2(0.0, 0.18), vec2(0.43, 0.08));
         base = mix(base, base * 0.43, brow);
         vec3 eyeColour = mix(vec3(0.90, 0.79, 0.47), vec3(1.0, 0.31, 0.12), actorPartData.z);
-        return mix(base * shade, eyeColour, actorEyeMask());
+        return mix(sceneColour(base) * shade, sceneColour(eyeColour), actorEyeMask());
     }
     if (archetype > 0.5 && role > 2.5 && role < 6.5) {
         float terminal = 1.0 - smoothstep(-0.27, -0.22, p.y);
@@ -279,7 +291,7 @@ vec3 readableActorSurface()
     }
     if (role > 7.5 && actorPartData.y > 0.5) {
         vec3 core = mix(vec3(0.18, 0.58, 0.64), vec3(0.61, 0.90, 0.88), actorPartData.z);
-        return mix(core * 0.40 * shade, core, actorCrestMark());
+        return mix(sceneColour(core) * 0.40 * shade, sceneColour(core), actorCrestMark());
     }
     if (archetype > 0.5) {
         vec3 cell = floor((p + 0.5) * 12.0);
@@ -288,7 +300,7 @@ vec3 readableActorSurface()
         float detail = 1.0 - smoothstep(0.025, 0.10, footprint);
         base *= 1.0 + (grain - 0.5) * 0.07 * detail;
     }
-    return base * shade;
+    return sceneColour(base) * shade;
 }
 
 // Only eyes and the guardian rune have a bounded light floor. Other material
@@ -298,9 +310,9 @@ vec3 actorCueEmission()
     if (actorSurfaceStrength < 0.5) return vec3(0.0);
     if (actorPartData.w < -0.5) return vec3(0.0);
     if (actorPartData.x > 1.5 && actorPartData.x < 2.5)
-        return mix(vec3(0.90, 0.79, 0.47), vec3(1.0, 0.31, 0.12), actorPartData.z) * actorEyeMask() * 0.64;
+        return sceneColour(mix(vec3(0.90, 0.79, 0.47), vec3(1.0, 0.31, 0.12), actorPartData.z)) * actorEyeMask() * 0.64;
     if (actorPartData.x > 7.5 && actorPartData.y > 0.5)
-        return vec3(0.18, 0.58, 0.64) * actorCrestMark() * 0.38;
+        return sceneColour(vec3(0.18, 0.58, 0.64)) * actorCrestMark() * 0.38;
     return vec3(0.0);
 }
 

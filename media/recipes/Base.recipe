@@ -181,3 +181,68 @@ input hellomine:oak_planks 2
 input hellomine:iron_ingot 1
 output hellomine:crusher 1
 end
+
+# Reference architectural kit v1. No dismantling/reverse recipes.
+recipe hellomine:stone_brick shapeless
+input hellomine:stone 1
+output hellomine:stone_brick 1
+end
+
+recipe hellomine:stone_slab shaped
+row hellomine:stone_brick hellomine:stone_brick hellomine:stone_brick
+output hellomine:stone_slab 6
+end
+
+recipe hellomine:stone_step shaped
+row hellomine:stone_brick _ _
+row hellomine:stone_brick hellomine:stone_brick _
+row hellomine:stone_brick hellomine:stone_brick hellomine:stone_brick
+output hellomine:stone_step 8
+end
+
+recipe hellomine:stone_cornice shaped
+row hellomine:stone_brick hellomine:stone_brick
+row hellomine:stone_brick _
+output hellomine:stone_cornice 4
+end
+
+recipe hellomine:stone_window_frame shaped
+row hellomine:stone_brick hellomine:stone_brick hellomine:stone_brick
+row hellomine:stone_brick _ hellomine:stone_brick
+row hellomine:stone_brick hellomine:stone_brick hellomine:stone_brick
+output hellomine:stone_window_frame 4
+end
+
+recipe hellomine:stone_window_sill shapeless
+input hellomine:stone_slab 1
+output hellomine:stone_window_sill 2
+end
+
+recipe hellomine:clay_tile_eave shapeless
+input hellomine:clay_tile_step 2
+output hellomine:clay_tile_eave 4
+end
+
+recipe hellomine:timber_beam shaped
+row hellomine:oak_planks hellomine:oak_planks hellomine:oak_planks
+output hellomine:timber_beam 4
+end
+
+recipe hellomine:timber_railing shaped
+row hellomine:timber_beam hellomine:oak_planks hellomine:timber_beam
+row hellomine:oak_planks _ hellomine:oak_planks
+output hellomine:timber_railing 4
+end
+
+recipe hellomine:stone_planter shapeless
+input hellomine:stone_slab 2
+input hellomine:forest_floor 1
+output hellomine:stone_planter 1
+end
+
+recipe hellomine:lantern shapeless
+input hellomine:iron_ingot 2
+input hellomine:glass 1
+input hellomine:torch 1
+output hellomine:lantern 1
+end

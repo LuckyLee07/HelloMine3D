@@ -4,6 +4,16 @@
 #include "OgreThirdPersonCameraRig.h"
 #include "OgreCameraDiagnostics.h"
 #include "OgreCaveBoundaryRenderer.h"
+#include "HdrPipeline.h"
+#include "PlanarWaterReflection.h"
+#include "RenderLifecycleDiagnostics.h"
+#include "ReferenceWorldEditDiagnostics.h"
+#include "ReferenceResidencyDiagnostics.h"
+#include "ReferenceSettingsRestartDiagnostics.h"
+#include "ReferenceWaterTransitionDiagnostics.h"
+#include "ReferenceWaterDepthPrepassDiagnostic.h"
+#include <GLSL/OgreGLSLShader.h>
+#include "HdrShaderContract.h"
 #include "../Actor/EnemyPresentationGallery.h"
 #include "../Presentation/DirectionalShadowPresentation.h"
 #include "ChunkSectionRenderable.h"
@@ -32,6 +42,7 @@
 #include <OIS.h>
 #include <Ogre.h>
 #include <OgreCompositorManager.h>
+#include <OgreDepthBuffer.h>
 #include <OgreGL3PlusPlugin.h>
 #include <OgreGL3PlusPrerequisites.h>
 #include <OgreWindowEventUtilities.h>
@@ -47,6 +58,7 @@
 #include <filesystem>
 #include <iostream>
 #include <iomanip>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -76,6 +88,7 @@
 #include "../Diagnostics/RuntimePerformanceCapture.h"
 #include "../Diagnostics/RuntimeProfiler.h"
 #include "../Diagnostics/VisualCameraSweep.h"
+#include "../Diagnostics/ReferenceVisualScene.h"
 #include "../Gameplay/ObjectiveRegistry.h"
 #include "../Item/FoodRegistry.h"
 #include "../Item/RecipeRegistry.h"
@@ -103,6 +116,7 @@
 #include "../World/Block/FurnaceContainer.h"
 #include "../World/Block/TerrainMaterialProfile.h"
 #include "../World/Block/TerrainTextureArray.h"
+#include "../World/Block/ReferenceSurfaceProfile.h"
 #include "../World/Environment/AtmosphereShaderContract.h"
 #include "../World/Environment/RegionalAtmosphere.h"
 #include "../World/Generation/Terrain/TerrainGenerator.h"
@@ -608,6 +622,29 @@ namespace
         int run()
         {
             loadGameConfig();
+            m_referenceRestartOutput=ReferenceSettingsRestartObservation::validateConfig(m_config);
+            m_referenceWaterOutput=ReferenceWaterTransitionProbe::validateConfig(m_config);
+            m_referenceWaterDepthRequested=ReferenceWaterDepthPrepassDiagnostic::validateConfig(m_config.renderPipeline == RenderPipeline::LinearHdr);
+            if (m_config.renderPipeline == RenderPipeline::LinearHdr)
+                validateHdrSceneShaderContract(runtimeResourcePackResolver());
+            const auto lifecycleDirectory = RenderLifecycleProbe::validateEnvironment(
+                m_config.renderPipeline == RenderPipeline::LinearHdr,
+                m_config.visualDetail == VisualDetail::Standard, m_config.isFullscreen,
+                unsigned(m_config.windowX), unsigned(m_config.windowY));
+            if (!lifecycleDirectory.empty()) {
+                m_lifecycleProbe=std::make_unique<RenderLifecycleProbe>(lifecycleDirectory);
+                m_lifecycleWorldDirectory=std::getenv("HELLOMINE3D_SAVE_DIR");
+            }
+            m_referenceEditOutput=ReferenceWorldEditProbe::validateEnvironment(
+                m_config.renderPipeline==RenderPipeline::LinearHdr,
+                m_config.visualDetail==VisualDetail::Standard,m_config.isFullscreen,
+                unsigned(m_config.windowX),unsigned(m_config.windowY),unsigned(m_config.renderDistance),
+                m_config.directionalShadowQuality==DirectionalShadowQuality::Medium);
+            m_referenceResidencyOutput=ReferenceResidencyProbe::validateEnvironment(
+                m_config.renderPipeline==RenderPipeline::LinearHdr,
+                m_config.visualDetail==VisualDetail::Standard,m_config.isFullscreen,
+                unsigned(m_config.windowX),unsigned(m_config.windowY),unsigned(m_config.renderDistance),
+                m_config.directionalShadowQuality==DirectionalShadowQuality::Medium);
             initializeAudio();
             initializeMusic();
             createRoot();
@@ -616,6 +653,30 @@ namespace
             const char* catalogueOverride =
                 std::getenv("HELLOMINE3D_CATALOGUE_DIR");
             const char* saveOverride = std::getenv("HELLOMINE3D_SAVE_DIR");
+            m_referenceVisualRequested = isTrueValue(
+                std::getenv("HELLOMINE3D_REFERENCE_VISUAL_SCENE"));
+            if (m_referenceVisualRequested)
+            {
+                // Scene edits are allowed only once, inside an explicit fresh
+                // save. Reject before catalogue/Sandbox construction can write.
+                if (!saveOverride || !saveOverride[0] ||
+                    !catalogueOverride || !catalogueOverride[0])
+                    throw std::runtime_error("Reference visual scene requires explicit fresh save and catalogue directories.");
+                const auto save = std::filesystem::weakly_canonical(saveOverride);
+                const auto catalogue = std::filesystem::weakly_canonical(catalogueOverride);
+                const auto fresh = [](const std::filesystem::path& path) {
+                    return !std::filesystem::exists(path) ||
+                        (std::filesystem::is_directory(path) && std::filesystem::is_empty(path));
+                };
+                const auto contains = [](const std::filesystem::path& parent,
+                                         const std::filesystem::path& child) {
+                    const auto relative = child.lexically_relative(parent);
+                    return !relative.empty() && *relative.begin() != "..";
+                };
+                if (!fresh(save) || !fresh(catalogue) ||
+                    contains(save, catalogue) || contains(catalogue, save))
+                    throw std::runtime_error("Reference visual scene save/catalogue must be fresh, separate directories; saved worlds are never edited.");
+            }
             // Reject existing/shared paths and all other diagnostics before
             // WorldManagementService or any actual World can create files.
             m_pauseNotificationOutput = PauseNotificationCapture::validateEnvironment(userSettings(m_config));
@@ -718,6 +779,7 @@ namespace
                         m_audio->emitUiClick();
                     }
                 }, std::move(m_pendingCrashReports));
+            m_userInterface->setRenderPipelineFallback(m_hdrPipeline->fallback());
             if (!m_pauseNotificationOutput.empty())
             {
                 m_pauseNotificationCapture = std::make_unique<PauseNotificationCapture>(
@@ -743,7 +805,46 @@ namespace
             m_root->addFrameListener(this);
             Ogre::WindowEventUtilities::addWindowEventListener(m_window, this);
             m_listenersInstalled = true;
-            m_root->startRendering();
+            try {
+                m_root->startRendering();
+                if(m_referenceWaterProbe) {
+                    ReferenceEdit::require(m_referenceWaterProbe->complete() && m_world,"Water transition incomplete normal rendering");
+                    m_referenceWaterProbe->finish(m_world->save());
+                }
+                if(m_referenceEditProbe) {
+                    ReferenceEdit::require(m_world!=nullptr,"World disappeared before completion");
+                    m_referenceEditProbe->finish(*m_world);
+                }
+                if(m_referenceResidencyProbe) {
+                    ReferenceResidency::require(m_referenceResidencyProbe->complete() && m_world,"residency phases incomplete");
+                    ReferenceResidency::require(m_world->save(),"normal World save failed");
+                    m_referenceResidencyProbe->event("normal-save",ReferenceResidency::object({{"saved","true"},{"cells",referenceResidencyCells()}}));
+                    ReferenceResidency::require(clearActiveWorld(true),"normal clear/save/join failed");
+                    m_lifecycleCloseReturned=true;
+                    m_referenceResidencyProbe->worldDestroyed();
+                    ReferenceResidency::require(!m_world && !m_sandbox && !m_logicCamera && !m_worldPlayer && m_sectionVisuals.empty() && m_terrainBatchVisuals.empty() && m_dirtyTerrainBatches.empty() && m_sectionRenderStates.empty() && m_lastLiveSections.empty() && m_localLights.count==0,"normal clear retained world/cache/light");
+                    m_referenceResidencyProbe->event("world-cleared",lifecycleSnapshot());
+                    m_referenceResidencyProbe->detachDraws();
+                    shutdown();m_referenceResidencyProbe->finish();m_referenceResidencyProbe.reset();
+                }
+                if(m_lifecycleProbe) {
+                    if(m_lifecycleProbe->stage()!=11) throw std::runtime_error("Lifecycle rendering ended before all resize/world cycles.");
+                    shutdown();
+                    m_lifecycleProbe->finish();
+                }
+            } catch(const std::exception& error) {
+                if(m_referenceWaterProbe)m_referenceWaterProbe->fail(error.what());
+                if(m_referenceEditProbe)m_referenceEditProbe->fail(error.what(),m_world);
+                if(m_referenceResidencyProbe){std::string facts="null";try{facts=referenceResidencySnapshot(false);}catch(...){}m_referenceResidencyProbe->fail(error.what(),facts);}
+                if(m_lifecycleProbe) {
+                    // Retain actual post-operation facts, including Manager
+                    // names, when a strict lifecycle gate rejects the state.
+                    std::string snapshot="null";
+                    try {snapshot=lifecycleSnapshot();} catch(...) {}
+                    m_lifecycleProbe->fail(error.what(),snapshot);
+                }
+                throw;
+            }
             runtimeOperationTimings().completeLatestActive(
                 RuntimeOperationKind::WorldEntry, m_frameCount > 0);
             runtimeOperationTimings().completeLatestActive(
@@ -1054,7 +1155,19 @@ namespace
             setOptionIfAvailable(*selected, "Full Screen",
                                  m_config.isFullscreen ? "Yes" : "No");
             setOptionIfAvailable(*selected, "VSync", "Yes");
-            setOptionIfAvailable(*selected, "FSAA", "0");
+            const bool requestedMsaa4=HdrPipeline::preferMsaa4(m_config.renderPipeline);
+            const auto& rendererOptions=selected->getConfigOptions();
+            const auto sampleOption=rendererOptions.find("FSAA");
+            const bool fourAdvertised=sampleOption!=rendererOptions.end() &&
+                std::find(sampleOption->second.possibleValues.begin(),sampleOption->second.possibleValues.end(),"4")!=
+                    sampleOption->second.possibleValues.end();
+            const bool fourAvailable=requestedMsaa4 && fourAdvertised && HdrPipeline::msaa4WindowSupported();
+            setOptionIfAvailable(*selected,"FSAA",fourAvailable?"4":"0");
+            if(requestedMsaa4) std::cout<<"[HDR_MSAA4_WINDOW] requested=4 selected="<<(fourAvailable?4:0)
+                <<" configuration_only=1 reason="<<(fourAvailable?"native-pixel-format-supported":"window-format-unavailable")<<'\n';
+            // Both pipelines output display encoded RGB explicitly. HUD shares
+            // that window, so hardware gamma must not encode either one again.
+            setOptionIfAvailable(*selected, "sRGB Gamma Conversion", "No");
             selectWindowSize(
                 *selected, std::to_string(m_config.windowX) + " x " +
                                std::to_string(m_config.windowY));
@@ -1409,6 +1522,11 @@ namespace
                 Ogre::NameValuePairList windowParameters;
                 windowParameters["hidden"] = "true";
                 windowParameters["noActivate"] = "true";
+                windowParameters["gamma"] = "false";
+                const auto& rendererOptions = m_root->getRenderSystem()->getConfigOptions();
+                const auto fsaaOption = rendererOptions.find("FSAA");
+                windowParameters["FSAA"] = fsaaOption == rendererOptions.end()
+                    ? "0" : fsaaOption->second.currentValue;
                 m_window = m_root->createRenderWindow(
                     WindowTitle,
                     static_cast<unsigned int>(m_config.windowX),
@@ -1435,6 +1553,7 @@ namespace
             m_window->setDeactivateOnFocusChange(false);
             m_sceneManager = m_root->createSceneManager(
                 Ogre::ST_GENERIC, "HelloMine3DScene");
+            if(m_lifecycleProbe)m_lifecycleProbe->rootIdentity(m_root.get(),m_sceneManager);
             m_camera = m_sceneManager->createCamera("PlayerCamera");
             m_camera->setPosition(0.0f, 1.0f, 5.0f);
             m_camera->lookAt(0.0f, 1.0f, 0.0f);
@@ -1451,7 +1570,25 @@ namespace
 
             Ogre::ResourceGroupManager::getSingleton()
                 .initialiseAllResourceGroups();
+            m_hdrPipeline = std::make_unique<HdrPipeline>();
+            if(m_lifecycleProbe) m_hdrPipeline->setLifecycleReleaseObserver(
+                [this](const char* owner,const std::string& facts,bool pass){m_lifecycleProbe->release(owner,facts,pass);},
+                std::getenv("HELLOMINE3D_LIFECYCLE_FAULT")!=nullptr);
+            m_hdrPipeline->initialize(*viewport, *m_root->getRenderSystem(),
+                                      m_config.renderPipeline);
+            m_waterReflection = std::make_unique<PlanarWaterReflection>();
+            if(m_lifecycleProbe) m_waterReflection->setLifecycleReleaseObserver(
+                [this](const char* owner,const std::string& facts,bool pass){m_lifecycleProbe->release(owner,facts,pass);});
+            m_waterReflection->initialize(*m_sceneManager, *m_root->getRenderSystem());
+            configureWaterBoundaryPins();
             configureTerrainAppearance();
+            if (m_referenceWaterDepthRequested) m_referenceWaterDepth=std::make_unique<ReferenceWaterDepthPrepassDiagnostic>(*m_root,*m_sceneManager,*m_camera,*m_hdrPipeline);
+            if(!m_referenceEditOutput.empty()) {
+                ReferenceEdit::require(m_hdrPipeline->active() && m_referenceSurfaceEnabled,
+                    "actual HDR/current surface profile required");
+                m_referenceEditProbe=std::make_unique<ReferenceWorldEditProbe>(
+                    m_referenceEditOutput,*m_sceneManager,*m_camera,*m_window);
+            }
             selectAtmosphereMode();
             syncTerrainMaterialParameters();
             if (!m_materialIdentityOutput.empty())
@@ -1498,6 +1635,7 @@ namespace
                 std::make_unique<OgreCaveBoundaryRenderer>(*m_sceneManager);
             m_blockFeedback =
                 std::make_unique<OgreBlockFeedback>(*m_sceneManager);
+            m_hdrPipeline->applySceneParameters();
             TerrainBuildSummary terrain;
             if (!initialSaveDirectory.empty())
             {
@@ -1540,6 +1678,88 @@ namespace
             }
         }
 
+        // Select once before any World, SectionMeshInput or workers exist.
+        // A complete older Water override remains valid and uses its old mesh.
+        void configureWaterBoundaryPins()
+        {
+            auto* pass = materialPass("HelloMine3D/Water");
+            auto vertex = pass->getVertexProgram();
+            auto fragment = pass->getFragmentProgram();
+            if (vertex.isNull() || fragment.isNull() ||
+                vertex->getType() != Ogre::GPT_VERTEX_PROGRAM ||
+                fragment->getType() != Ogre::GPT_FRAGMENT_PROGRAM)
+                throw std::runtime_error("Invalid Water shader program stages.");
+            auto* vs = dynamic_cast<Ogre::GLSLShader*>(vertex.get());
+            auto* fs = dynamic_cast<Ogre::GLSLShader*>(fragment.get());
+            if (!vs || !fs)
+                throw std::runtime_error("Water requires the active GLSL backend.");
+            vertex->load(); fragment->load();
+            if (!vs->compile(true) || !fs->compile(true) ||
+                vertex->hasCompileError() || fragment->hasCompileError())
+                throw std::runtime_error("Invalid compiled Water shader resources.");
+            const GLuint certificate = glCreateProgram();
+            if (!certificate)
+                throw std::runtime_error("Cannot create Water shader capability certificate.");
+            bool guardActive = false, pinActive = false, available = false;
+            try
+            {
+                // Attach Ogre's actual preprocessed/compiled shaders, including
+                // child objects. This temporary link never binds draw state.
+                vs->attachToProgramObject(certificate);
+                fs->attachToProgramObject(certificate);
+                glLinkProgram(certificate);
+                GLint linked = 0;
+                glGetProgramiv(certificate, GL_LINK_STATUS, &linked);
+                if (!linked)
+                {
+                    char log[4096] = {};
+                    glGetProgramInfoLog(certificate, sizeof(log), nullptr, log);
+                    throw std::runtime_error(std::string("Invalid linked Water shader resources: ") + log);
+                }
+                GLint count = 0;
+                glGetProgramiv(certificate, GL_ACTIVE_UNIFORMS, &count);
+                for (GLint i = 0; i < count; ++i)
+                {
+                    char name[256] = {};
+                    GLint size = 0; GLenum type = 0;
+                    glGetActiveUniform(certificate, static_cast<GLuint>(i),
+                        sizeof(name), nullptr, &size, &type, name);
+                    if (std::string(name) == "waterBoundaryPinsV1")
+                        guardActive = type == GL_FLOAT && size == 1;
+                }
+                glGetProgramiv(certificate, GL_ACTIVE_ATTRIBUTES, &count);
+                for (GLint i = 0; i < count; ++i)
+                {
+                    char name[256] = {};
+                    GLint size = 0; GLenum type = 0;
+                    glGetActiveAttrib(certificate, static_cast<GLuint>(i),
+                        sizeof(name), nullptr, &size, &type, name);
+                    if (std::string(name) == "uv3")
+                        pinActive = type == GL_FLOAT && size == 1;
+                }
+                auto parameters = pass->getVertexProgramParameters();
+                const bool namedGuard = parameters->_findNamedConstantDefinition(
+                    "waterBoundaryPinsV1", false) != nullptr;
+                available = guardActive && pinActive && namedGuard;
+                if (namedGuard)
+                    parameters->setNamedConstant("waterBoundaryPinsV1", available ? 1.f : 0.f);
+                // The same real link certifies the independent FS reflection
+                // interface; old VS mesh-pin absence says nothing about it.
+                m_waterReflection->prepareWaterPass(*pass, certificate);
+                glDeleteProgram(certificate);
+            }
+            catch (...)
+            {
+                glDeleteProgram(certificate);
+                throw;
+            }
+            BlockDatabase::get().setWaterBoundaryPinsAvailable(available);
+            std::cout << "[WATER_BOUNDARY_PINS] available=" << available
+                      << " guard_active=" << guardActive << " pin_attribute_active=" << pinActive
+                      << " linked=1 startup_only=1 optional_interface=1 mesh="
+                      << (available ? "opaque-compound-clipped" : "legacy-uncut") << '\n';
+        }
+
         TerrainBuildSummary buildTerrain(
             bool uploadToOgre,
             const std::string &mainSaveDirectory = std::string())
@@ -1565,6 +1785,21 @@ namespace
             {
                 throw std::runtime_error(
                     "Sandbox did not create an active world.");
+            }
+            if(uploadToOgre && !m_referenceRestartOutput.empty()) {
+                ReferenceEdit::require(!m_referenceRestartObservation,"Settings restart single loaded World required");
+                m_referenceRestartObservation=std::make_unique<ReferenceSettingsRestartObservation>(
+                    m_referenceRestartOutput,*m_world,*m_worldPlayer,*m_sceneManager,*m_camera,
+                    m_config,ResourcePaths::bin("config.txt"));
+            }
+            if (uploadToOgre && m_referenceVisualRequested && !m_referenceVisualApplied)
+            {
+                m_referenceVisualApplied = buildReferenceVisualScene(
+                    *m_world, *m_worldPlayer, *m_logicCamera);
+            }
+            if(m_lifecycleProbe) {
+                ++m_lifecycleWorldEpoch; m_lifecycleWorldDirectory=mainSaveDirectory; m_lifecycleCloseReturned=false;
+                lifecycleContext();
             }
             resetAdventureAudioPresentation(true);
             if (m_audio != nullptr)
@@ -2277,6 +2512,17 @@ namespace
                 m_verticalSliceFixturePlaced = true;
             }
 
+            if(!m_referenceWaterOutput.empty()) {
+                ReferenceEdit::require(!m_referenceWaterProbe && m_hdrPipeline->active() && m_referenceSurfaceEnabled,"Water transition single actual HDR/surface World required");
+                m_referenceWaterProbe=std::make_unique<ReferenceWaterTransitionProbe>(m_referenceWaterOutput,*m_world,*m_sceneManager,*m_camera);
+            }
+            if(!m_referenceResidencyOutput.empty()) {
+                ReferenceResidency::require(!m_referenceResidencyProbe && m_hdrPipeline->active() && m_referenceSurfaceEnabled,"single current HDR World required");
+                m_referenceResidencyProbe=std::make_unique<ReferenceResidencyProbe>(
+                    m_referenceResidencyOutput,*m_world,*m_sceneManager,*m_camera,*m_window);
+                m_hdrPipeline->setLifecycleReleaseObserver([this](const char* owner,const std::string& facts,bool pass){m_referenceResidencyProbe->event("component-release",ReferenceResidency::object({{"owner",ReferenceResidency::quote(owner)},{"facts",facts},{"runtime_pass",ReferenceResidency::boolean(pass)}}));});
+                m_waterReflection->setLifecycleReleaseObserver([this](const char* owner,const std::string& facts,bool pass){m_referenceResidencyProbe->event("component-release",ReferenceResidency::object({{"owner",ReferenceResidency::quote(owner)},{"facts",facts},{"runtime_pass",ReferenceResidency::boolean(pass)}}));});
+            }
             configureRcPerformanceFixture();
 
             const VectorXZ center = World::getChunkXZ(
@@ -2391,6 +2637,12 @@ namespace
                                     mesh, sectionLocation, materialName,
                                     renderQueue);
                             retainShoreUploadInput(visual, mesh, materialName, sectionLocation);
+                            if(m_referenceEditProbe)
+                                m_referenceEditProbe->retainUpload(*renderable,mesh,sectionLocation,section->getBlockRevision());
+                            if(m_referenceResidencyProbe) {
+                                m_referenceResidencyProbe->uploaded(sectionLocation,section->getBlockRevision());
+                                m_referenceResidencyProbe->retain(*renderable,{{sectionLocation,&mesh}},sectionLocation);
+                            }
                             renderable->setCastShadows(
                                 std::string(materialName) ==
                                 "HelloMine3D/Terrain");
@@ -2426,6 +2678,7 @@ namespace
 
                     if (uploadToOgre)
                     {
+                        const auto startupMeshState=section->getMeshState();
                         section->markMeshClean();
                         const std::string key =
                             sectionKey(sectionLocation);
@@ -2435,13 +2688,19 @@ namespace
                                 key, std::move(visual));
                             m_sectionRenderStates[key] =
                                 ChunkRenderState::GpuResident;
-                            if (m_materialIdentityCapture || m_floraWindCapture || m_shoreEditCapture || !m_waterSeamOutput.empty())
+                            if(m_referenceResidencyProbe)m_referenceResidencyProbe->witnessUploaded(sectionLocation,section->getBlockRevision(),chunk.getIncarnation(),startupMeshState,"cpu-ready","startup");
+                            if (m_materialIdentityCapture || m_floraWindCapture || m_shoreEditCapture || m_referenceEditProbe || !m_waterSeamOutput.empty())
                                 m_materialIdentityMeshRevisions[key] = section->getBlockRevision();
                         }
                         else
                         {
                             m_sectionRenderStates[key] =
                                 ChunkRenderState::NotResident;
+                            // Startup validated every empty layer above and
+                            // completed the real CPU mesh before this record.
+                            m_emptySectionUploadIdentities[key] = {
+                                sectionLocation, section->getBlockRevision(),
+                                chunk.getIncarnation(), ChunkMeshState::Clean};
                         }
                     }
                 }
@@ -2514,8 +2773,11 @@ namespace
             {
                 m_userInterface->setWorldContext(nullptr, nullptr);
             }
+            if(m_referenceResidencyProbe && requireSave)m_referenceResidencyProbe->worldDestroyed();
             if (m_shoreEditCapture) m_shoreEditCapture->cancelNativeFrame();
             m_shadowPatchCapture.reset();
+            if (m_waterReflection) m_waterReflection->resetWorld();
+            m_localLights = {};
             if (m_blockFeedback != nullptr)
             {
                 m_blockFeedback->clear();
@@ -2527,6 +2789,7 @@ namespace
             m_sectionVisuals.clear();
             clearTerrainBatches();
             m_sectionRenderStates.clear();
+            m_emptySectionUploadIdentities.clear();
             m_materialIdentityMeshRevisions.clear();
             m_lastLiveSections.clear();
             if (m_caveBoundaryRenderer != nullptr)
@@ -2545,6 +2808,7 @@ namespace
             }
             resetPlayerPresentation();
             m_sandbox.reset();
+            if(m_referenceResidencyProbe)m_referenceResidencyProbe->worldDestroyed();
             m_world = nullptr;
             m_regionalAtmosphere.reset();
             m_worldPlayer = nullptr;
@@ -2809,10 +3073,39 @@ namespace
                 m_swapEnd = {};
             }
             Ogre::WindowEventUtilities::messagePump();
+            if(m_referenceResidencyProbe) {
+                // Only pure values are retained for this frame. A failed
+                // best-effort map observation must never survive as absence.
+                m_referenceResidencyObservationFrame=unsigned(m_frameCount);
+                m_referenceResidencyColumnsAvailable=false;
+                m_referenceResidencyWitnessCellsAvailable=false;
+                m_referenceResidencyColumnFacts="[]";
+                m_referenceResidencyWitnessCellFacts={{"{}","{}"}};
+                m_referenceResidencyProbe->beginFrame(unsigned(m_frameCount),m_referenceResidencyInputs,[this]{return referenceResidencySnapshot(false);});
+            }
+            if(m_referenceEditProbe && m_world) {
+                m_referenceEditProbe->beginFrame(*m_world,unsigned(m_frameCount),m_referenceEditInputEvents);
+                if(m_referenceEditProbe->mutationPending()) {
+                    bool ready=false;const auto sections=referenceEditSections(ready);
+                    m_referenceEditProbe->mutationFacts(ReferenceEdit::object({
+                        {"blocks",m_referenceEditProbe->blocks(*m_world)},
+                        {"world_visual_revision",ReferenceEdit::number(m_world->visualRevision())},
+                        {"sections",sections},{"sections_ready",ReferenceEdit::boolean(ready)},
+                        {"section_readiness",m_referenceEditProbe->sectionReadinessFacts()}}));
+                }
+            }
             if (m_shutdownRequested || m_window == nullptr ||
                 m_window->isClosed())
             {
                 return false;
+            }
+
+            if (m_hdrPipeline)
+            {
+                m_hdrPipeline->beforeFrame();
+                syncReferenceSurfaceMode();
+                if (m_userInterface)
+                    m_userInterface->setRenderPipelineFallback(m_hdrPipeline->fallback());
             }
 
             if (m_e2BatchEnabled &&
@@ -2843,6 +3136,13 @@ namespace
             prepareCameraDiagnostics(event.timeSinceLastFrame);
             prepareFloraWindCapture(event.timeSinceLastFrame);
             prepareShoreEditCapture();
+            if(m_referenceWaterProbe) {
+                ReferenceEdit::require(m_worldPlayer && m_sandbox && m_logicCamera,"Water transition actual player/session missing");
+                m_referenceWaterProbe->drive(unsigned(m_frameCount),event.timeSinceLastFrame,*m_worldPlayer,[this](const glm::vec3& requested) {
+                    const bool accepted=m_sandbox->getWorldManager().teleportPlayer(*m_worldPlayer,requested);
+                    if(accepted)m_logicCamera->update();return accepted;
+                });
+            }
             const bool sandboxAdvanced =
                 updateSandbox(event.timeSinceLastFrame);
             if (!sandboxAdvanced && m_sandbox != nullptr)
@@ -2857,7 +3157,11 @@ namespace
             m_frameWorldStats = collectRuntimeStats();
             if (m_world != nullptr)
             {
-                syncEnvironment(m_frameWorldStats.environment, event.timeSinceLastFrame);
+                if (m_referenceSurfaceEnabled && m_camera)
+                    m_localLights=m_world->observeLocalLights(glm::vec3(
+                        m_camera->getDerivedPosition().x,m_camera->getDerivedPosition().y,
+                        m_camera->getDerivedPosition().z));
+                syncEnvironment(m_frameWorldStats.environment, m_referenceEditProbe?0.f:event.timeSinceLastFrame);
                 if (m_playerRenderer != nullptr)
                 {
                     const float exposure = PlayerHandPresentation::updateLighting(
@@ -2867,6 +3171,97 @@ namespace
                         m_frameWorldStats.environment.daylight,
                         event.timeSinceLastFrame);
                     m_playerRenderer->setLighting(exposure);
+                }
+            }
+            if(m_referenceEditProbe) {
+                m_referenceEditProbe->freezeTime();
+                bool ready=false;referenceEditSections(ready);
+                m_referenceEditProbe->arm(m_localLights,ready);
+            }
+            if(m_referenceResidencyProbe) {
+                bool ready=false,witnessReady=false;
+                referenceResidencySections(ready);
+                referenceResidencyWitnessSections(witnessReady);
+                const bool observationsReady=m_referenceResidencyProbe->phase()!=1 &&
+                    m_referenceResidencyProbe->warm() && ready && witnessReady &&
+                    prepareReferenceResidencyFrameObservations(false);
+                m_referenceResidencyProbe->arm(m_localLights,ready && witnessReady && observationsReady);
+            }
+            if(m_referenceRestartObservation && m_world)
+                m_referenceRestartObservation->beginFrame(unsigned(m_frameCount),*m_world,sandboxAdvanced);
+            if (m_waterReflection && m_world && m_camera && m_camera->getViewport())
+            {
+                auto* waterPass=materialPass("HelloMine3D/Water");
+                m_waterReflection->prepareWaterPass(*waterPass);
+                const auto position=m_camera->getDerivedPosition();
+                const glm::vec3 eye(position.x,position.y,position.z);
+                const auto plane=m_world->observeWaterSurfacePlane(eye);
+                if (plane) m_waterReflection->selectPlaneY(
+                    m_referenceWaterProbe && m_referenceWaterProbe->faultSelectedPlane()?66.9f:*plane);
+                else m_waterReflection->clearSelection();
+                PlanarWaterReflection::FrameInput reflection;
+                reflection.enabled=m_config.visualDetail==VisualDetail::Standard &&
+                    !isTrueValue(std::getenv("HELLOMINE3D_PLANAR_REFLECTION_OFF"));
+                reflection.linearHdr=m_hdrPipeline && m_hdrPipeline->active();
+                reflection.cameraUnderwater=m_world->getBlock(World::toBlockCoord(eye.x),
+                    World::toBlockCoord(eye.y),World::toBlockCoord(eye.z))==BlockId::Water;
+                reflection.frameSerial=static_cast<std::uint64_t>(m_frameCount);
+                reflection.sceneRevision=m_world->visualRevision();
+                if(m_referenceEditProbe)
+                    m_referenceEditFrameSceneRevision=reflection.sceneRevision;
+                if(m_referenceResidencyProbe)m_referenceResidencyFrameRevision=reflection.sceneRevision;
+                reflection.authoredBackground=m_camera->getViewport()->getBackgroundColour();
+                reflection.bindViewParameters=[this](const Ogre::String&,Ogre::Pass &pass,
+                                                       const Ogre::Camera&) {
+                    // Mirror is a virtual air view, even though its eye lies
+                    // below the plane. Main frame already supplied dry-air fog;
+                    // underwater frames are rejected before this callback.
+                    bindLocalLightParameters(pass.getFragmentProgramParameters());
+                };
+                if(!m_referenceEditProbe || !m_referenceEditProbe->skipReflection())
+                    m_waterReflection->render(*m_camera,*m_camera->getViewport(),reflection);
+                // The only admitted negative deliberately retains the prior
+                // real pass/TUS on collar frames; ordinary binding is unchanged.
+                if(!m_referenceWaterProbe || !m_referenceWaterProbe->faultBinding())
+                    m_waterReflection->bindWaterPass(*waterPass);
+                if(m_referenceWaterProbe) {
+                    m_referenceWaterFrameRevision=reflection.sceneRevision;
+                    const float delta=plane?eye.y-*plane:0.f;
+                    const unsigned phase=m_referenceWaterProbe->phase();
+                    const bool actualPhase=plane && std::isfinite(delta) &&
+                        std::abs(*plane-m_referenceWaterProbe->expectedPlane())<.001f &&
+                        (m_referenceWaterProbe->planeSwitch()?(!reflection.cameraUnderwater && delta>.15f):
+                         ((phase==0 || phase==3)?(!reflection.cameraUnderwater && delta>.15f):
+                          phase==1?(!reflection.cameraUnderwater && delta>0.f && delta<=.15f):
+                                   (reflection.cameraUnderwater && delta<0.f)));
+                    // Warmth derives from World/eye/normal simulation only. A
+                    // deliberately stale component plane must reach observation.
+                    m_referenceWaterProbe->arm(sandboxAdvanced && actualPhase);
+                }
+                if (!m_planarDiagnosticCaptured && m_hiddenWindow && m_frameCount >= 240 &&
+                    m_waterReflection->statistics().active &&
+                    isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) &&
+                    isTrueValue(std::getenv("HELLOMINE3D_PLANAR_DIAGNOSTIC")))
+                {
+                    const char* directory = std::getenv("HELLO_RENDER_CAPTURE_DIR");
+                    if (directory && directory[0])
+                    {
+                        m_waterReflection->captureDiagnostic(
+                            std::string(directory) + "/planar-diagnostic");
+                        m_planarDiagnosticCaptured = true;
+                    }
+                }
+                if (m_frameCount%240==0)
+                {
+                    const auto &stats=m_waterReflection->statistics();
+                    std::cout<<"[REFERENCE_FRAME] frame="<<m_frameCount<<" reflection="<<stats.active
+                             <<" reason="<<stats.reason<<" updates="<<stats.updateCount
+                             <<" colour_bytes="<<stats.colourBytes<<" depth_stencil_bytes="<<stats.depthStencilBytes
+                             <<" private_passes="<<stats.privatePasses<<" batches="<<stats.colourBatches
+                             <<" shadow_updates="<<stats.shadowUpdates<<" shadow_batches="<<stats.shadowBatches
+                             <<" cpu_ms="<<stats.cpuMilliseconds<<" sources="<<m_localLights.count
+                             <<" source_sections="<<m_localLights.inspectedSections
+                             <<" source_cells="<<m_localLights.inspectedCells<<'\n';
                 }
             }
             observeMaterialIdentityGeometry();
@@ -2999,6 +3394,23 @@ namespace
                     m_shadowPatchCapture->commit(m_renderCapture->shadowPatchCheckpoint(),m_frameWorldStats.worldTime);
                 m_shadowPatchFramePending=false;
             }
+            finishReferenceEditFrame();
+            finishReferenceResidencyFrame();
+            finishReferenceWaterTransitionFrame();
+            if(m_referenceRestartObservation && m_referenceRestartObservation->ready()) {
+                std::optional<float> spatialAaStrength;
+                if(m_hdrPipeline && m_hdrPipeline->active()) {
+                    const auto parameters=materialPass("HelloMine3D/HdrResolve")->getFragmentProgramParameters();
+                    const auto* definition=parameters->_findNamedConstantDefinition("spatialAaStrength",false);
+                    ReferenceEdit::require(definition!=nullptr,"Settings restart actual HDR spatial parameter missing");
+                    float strength=0;parameters->_readRawConstants(definition->physicalIndex,1,&strength);
+                    ReferenceEdit::require(std::isfinite(strength),"Settings restart actual HDR spatial parameter nonfinite");
+                    spatialAaStrength=strength;
+                }
+                auto planar=m_waterReflection->lifecycleFacts().json();
+                planar=planar.substr(0,planar.size()-1)+",\"frame\":"+ReferenceEdit::number(m_waterReflection->statistics().frameSerial)+"}";
+                m_referenceRestartObservation->finish(*m_world,*m_worldPlayer,*m_window,m_hdrPipeline->lifecycleFacts().json(),planar,spatialAaStrength);
+            }
             ++m_frameCount;
             return true;
         }
@@ -3094,6 +3506,10 @@ namespace
                 }
             }
 
+            if(m_lifecycleProbe) {
+                advanceRenderLifecycleProbe();
+                if(m_lifecycleProbe->stage()==11) return false;
+            }
             const bool captureComplete =
                 m_renderCapture != nullptr &&
                 m_renderCapture->shouldCloseWindow();
@@ -3106,8 +3522,524 @@ namespace
                    !(m_pauseNotificationCapture && m_pauseNotificationCapture->isComplete()) &&
                    !m_shoreComplete &&
                    !m_waterSeamComplete &&
+                   !(m_referenceEditProbe && m_referenceEditProbe->complete()) &&
+                   !(m_referenceResidencyProbe && m_referenceResidencyProbe->complete()) &&
                    !captureComplete && !frameLimitReached &&
                    !RuntimePerformanceCapture::shouldCloseWindow();
+        }
+
+
+        std::string referenceResidencyCells() const {
+            using namespace ReferenceResidency;std::vector<std::string> cells;
+            for(const auto& sample:ReferenceResidencyProbe::Samples){const auto b=m_world->getBlock(sample.p.x,sample.p.y,sample.p.z);cells.push_back(object({{"position",xyz(sample.p)},{"id",number(b.id)},{"metadata",number(b.metadata)}}));require(b==sample.block,"current target ID/meta differs from template");}return array(cells);
+        }
+        std::string referenceResidencySections(bool& ready) const {
+            using namespace ReferenceResidency;ready=false;if(!m_world || !m_referenceResidencyProbe)return "[]";
+            const auto snapshot=m_world->collectSectionMeshSnapshot(false);std::vector<std::string> sections;bool all=true;
+            for(const auto& v:snapshot.liveSectionVersions)if(m_referenceResidencyProbe->selected(v.location)) {
+                const auto state=m_sectionRenderStates.find(sectionKey(v.location));const auto upload=m_referenceResidencyProbe->uploadedRevision(v.location);
+                const bool gpu=state!=m_sectionRenderStates.end() && state->second==ChunkRenderState::GpuResident;
+                const bool offered=std::any_of(snapshot.cpuReadySections.begin(),snapshot.cpuReadySections.end(),[&](const auto& s){return s.location==v.location;});
+                const bool current=upload && *upload==v.blockRevision;all=all && gpu && current && !offered;
+                sections.push_back(object({{"location",xyz(v.location)},{"live_revision",number(v.blockRevision)},{"uploaded_revision",upload?number(*upload):"null"},{"gpu_resident",boolean(gpu)},{"offered_cpu_ready",boolean(offered)}}));
+            }
+            ready=all && sections.size()==2;
+            return array(sections);
+        }
+        bool prepareReferenceResidencyFrameObservations(bool departed) {
+            using namespace ReferenceResidency;
+            require(m_referenceResidencyProbe && m_world &&
+                m_referenceResidencyObservationFrame==unsigned(m_frameCount),
+                "same-frame observation owner missing");
+            const std::vector<VectorXZ> coords{{201,-186},{199,-196}};
+            const auto values=m_world->observeSurfaceMap(coords);
+            // {} means try-lock unavailable, not known=false or data absent.
+            if(values.empty())return false;
+            require(values.size()==coords.size(),"incomplete target column batch");
+            std::vector<std::string> columns;
+            bool expectedKnown=true;
+            for(std::size_t i=0;i<values.size();++i) {
+                columns.push_back(object({{"position",array({number(coords[i].x),number(coords[i].z)})},
+                    {"known",boolean(values[i].known)},{"height",number(values[i].height)},
+                    {"material",number(unsigned(values[i].material))},
+                    {"observation",quote("World.observeSurfaceMap-try-lock-complete-batch")},
+                    {"observed_frame",number(m_frameCount)}}));
+                expectedKnown=expectedKnown && values[i].known==!departed;
+            }
+            m_referenceResidencyColumnFacts=array(columns);
+            m_referenceResidencyColumnsAvailable=true;
+            if(!expectedKnown)return false;
+            if(departed)return true; // Never query old target/witness cells here.
+            const std::array<glm::ivec3,2> positions{{{225,67,-175},{225,72,-177}}};
+            const std::array<ChunkBlock,2> expected{{ChunkBlock(Block_t(4),2),ChunkBlock(Block_t(5),2)}};
+            bool cellsReady=true;
+            for(std::size_t i=0;i<positions.size();++i) {
+                const auto& pos=positions[i];
+                // Existing blocking World lock + find-only accessor. Absent or
+                // unloaded data returns Air; these fixed witnesses are non-Air.
+                const auto block=m_world->getBlock(pos.x,pos.y,pos.z);
+                const bool known=block.id!=static_cast<Block_t>(BlockId::Air);
+                cellsReady=cellsReady && known && block==expected[i];
+                m_referenceResidencyWitnessCellFacts[i]=object({{"position",xyz(pos)},
+                    {"id",number(block.id)},{"metadata",number(block.metadata)},
+                    {"known",boolean(known)},
+                    {"observation",quote("blocking-World.getBlock-find-only-nonAir")},
+                    {"observed_frame",number(m_frameCount)}});
+            }
+            m_referenceResidencyWitnessCellsAvailable=cellsReady;
+            return cellsReady;
+        }
+        std::string referenceResidencyWitnessSections(bool& ready,bool withCells=false) const {
+            using namespace ReferenceResidency;ready=false;if(!m_world || !m_referenceResidencyProbe)return "[]";
+            const auto snapshot=m_world->collectSectionMeshSnapshot(false);std::vector<std::string> fields;bool all=true;
+            for(const auto& v:snapshot.liveSectionVersions)if(ReferenceResidencyProbe::witness(v.location)) {
+                const auto u=m_referenceResidencyProbe->witnessUpload(v.location);const auto state=m_sectionRenderStates.find(sectionKey(v.location));
+                const bool gpu=state!=m_sectionRenderStates.end() && state->second==ChunkRenderState::GpuResident;
+                const bool offered=std::any_of(snapshot.cpuReadySections.begin(),snapshot.cpuReadySections.end(),[&](const auto& candidate){return candidate.location==v.location;});
+                const bool current=u && u->revision==v.blockRevision && u->incarnation==v.incarnation && v.meshState==ChunkMeshState::Clean;const auto floor=m_referenceResidencyProbe->returnWitnessFloor();
+                const bool fresh=u && (m_referenceResidencyProbe->phase()!=2 || (u->serial>floor && u->frame>m_referenceResidencyProbe->returnMovementFrame()));
+                all=all && gpu && current && !offered && fresh;
+                std::vector<std::string> cells;
+                if(withCells && m_referenceResidencyProbe->phase()!=1) {
+                    require(m_referenceResidencyWitnessCellsAvailable &&
+                        m_referenceResidencyObservationFrame==unsigned(m_frameCount),
+                        "same-frame known witness cells not observed before draw");
+                    cells.push_back(m_referenceResidencyWitnessCellFacts[v.location.z==-11?0:1]);
+                }
+                fields.push_back(object({{"cells",array(cells)},{"location",xyz(v.location)},{"mesh_state",quote(chunkMeshStateName(v.meshState))},{"incarnation",number(v.incarnation)},{"upload_source",u?quote(u->source):"null"},{"upload_domain",u?quote(u->domain):"null"},{"upload_source_mesh_state",u?quote(chunkMeshStateName(u->sourceState)):"null"},{"upload_source_incarnation",u?number(u->incarnation):"null"},{"upload_frame_facts",u?u->frameFacts:"null"},{"live_revision",number(v.blockRevision)},{"uploaded_revision",u?number(u->revision):"null"},{"upload_serial",u?number(u->serial):"null"},{"uploaded_frame",u?number(u->frame):"null"},{"return_upload_serial_floor",number(floor)},{"gpu_resident",boolean(gpu)},{"offered_cpu_ready",boolean(offered)}}));
+            }
+            ready=all && fields.size()==2;return array(fields);
+        }
+        std::string referenceResidencySnapshot(bool withCurrentCells) const {
+            using namespace ReferenceResidency;bool ready=false;const auto sections=referenceResidencySections(ready);bool witnessReady=false;const auto witnessSections=referenceResidencyWitnessSections(witnessReady,withCurrentCells);
+            const auto snapshot=m_world?m_world->collectSectionMeshSnapshot(false):WorldMeshSnapshot{};
+            std::vector<std::string> live,states,visuals,batches,dirty;
+            for(const auto& v:snapshot.liveSectionVersions)if(column(v.location))live.push_back(xyz(v.location));
+            for(const auto& v:m_sectionRenderStates)for(const auto& loc:m_lastLiveSections)if(column(loc) && v.first==sectionKey(loc))states.push_back(object({{"location",xyz(loc)},{"state",number(unsigned(v.second))}}));
+            // Keys are evidence too: a deliberately retained render-state can
+            // remain after its live location disappeared.
+            std::vector<std::string> stateKeys;for(const auto& v:m_sectionRenderStates)stateKeys.push_back(quote(v.first));
+            for(const auto& v:m_sectionVisuals)if(column(v.second.location))visuals.push_back(object({{"location",xyz(v.second.location)},{"key",quote(v.first)},{"node",quote(v.second.node?v.second.node->getName():"")},{"renderables",number(v.second.renderables.size())},{"batch_cpu_owned",boolean(bool(v.second.batchMeshes))}}));
+            for(const auto& v:m_terrainBatchVisuals)if(column(v.second.location))batches.push_back(object({{"origin",xyz(v.second.location)},{"key",quote(v.first)},{"renderables",number(v.second.renderables.size())}}));
+            for(const auto& v:m_dirtyTerrainBatches)if(column(v.second))dirty.push_back(xyz(v.second));
+            // Reuse the one actual observation from this frame, never issue a
+            // second best-effort query after drawing or native readback.
+            const bool columnsAvailable=m_referenceResidencyColumnsAvailable &&
+                m_referenceResidencyObservationFrame==unsigned(m_frameCount);
+            const auto columns=columnsAvailable?m_referenceResidencyColumnFacts:"[]";
+            std::string worldId;std::ifstream meta(std::filesystem::path(m_referenceResidencyOutput).parent_path()/"save/world.meta");for(std::string line;std::getline(meta,line);)if(line.compare(0,9,"world_id ")==0){worldId=line.substr(9);break;}
+            const auto actualIdentity=m_world?m_world->observeWorldIdentity():WorldIdentityObservation{};
+            const auto& p=m_worldPlayer;const auto pFacts=p?object({{"position",xyz(p->position)},{"rotation",xyz(p->rotation)},{"velocity",xyz(p->velocity)},{"interpolation_epoch",number(p->getInterpolationEpoch())}}):"null";
+            const auto logic=m_logicCamera?object({{"position",xyz(m_logicCamera->position)},{"rotation",xyz(m_logicCamera->rotation)}}):"null";
+            const auto planar=m_waterReflection && m_waterReflection->statistics().active?m_waterReflection->worldEditDiagnosticFacts():"null";
+            return object({{"identity",object({{"root_instance",lifecycleAddress(m_root.get())},{"scene_instance",lifecycleAddress(m_sceneManager)},{"window_instance",lifecycleAddress(m_window)},{"world_instance",lifecycleAddress(m_world)},{"world_id",quote(actualIdentity.worldId)},{"actual_world_id",quote(actualIdentity.worldId)},{"disk_world_id",quote(worldId)},{"actual_seed",number(actualIdentity.seed)},{"actual_terrain_generation_version",number(actualIdentity.terrainGenerationVersion)},{"save_directory",quote(ReferenceResidency::value("HELLOMINE3D_SAVE_DIR"))}})},
+                {"player",pFacts},{"logic_camera",logic},{"main_camera",m_camera?camera(*m_camera):"null"},{"world_time",number(m_world?m_world->getWorldTime():0.f)},{"simulation_delta",number(m_referenceResidencyDelta)},
+                {"frame_input_scene_revision",number(m_referenceResidencyFrameRevision)},{"later_current_world_visual_revision",number(m_world?m_world->visualRevision():0)},
+                {"chunk_event_counts",m_referenceResidencyProbe->aggregateEventFacts()},{"target_chunks",m_referenceResidencyProbe->targetFacts()},{"native_objects",m_referenceResidencyProbe->nativeFacts()},{"cells",withCurrentCells && m_world?referenceResidencyCells():"[]"},{"columns",columns},{"column_observation_available",boolean(columnsAvailable)},{"sections",sections},{"sections_ready",boolean(ready)},{"view_witness_sections",witnessSections},{"view_witness_ready",boolean(witnessReady)},{"return_upload_serial_floor",number(m_referenceResidencyProbe->returnWitnessFloor())},{"return_movement_frame",number(m_referenceResidencyProbe->returnMovementFrame())},
+                {"global_cpu_ready_total",number(snapshot.cpuReadyTotal)},{"global_cpu_ready_deferred",number(snapshot.cpuReadyDeferred)},{"offered_cpu_ready_total",number(snapshot.cpuReadySections.size())},
+                {"cache",object({{"target_live_sections",array(live)},{"target_render_states",array(states)},{"render_state_keys",array(stateKeys)},{"target_section_visuals",array(visuals)},{"target_batches",array(batches)},{"target_dirty_batches",array(dirty)}})},
+                {"draws",m_referenceResidencyProbe->drawFacts()},{"render_object_access",m_referenceResidencyProbe->accessFacts()},{"local_lights",lights(m_localLights)},{"hdr",m_hdrPipeline?m_hdrPipeline->lifecycleFacts().json():"null"},{"planar",planar},{"lifecycle",lifecycleSnapshot()}});
+        }
+        void finishReferenceWaterTransitionFrame()
+        {
+            if(!m_referenceWaterProbe || !m_referenceWaterProbe->ready())return;
+            using namespace ReferenceEdit;
+            require(m_world && m_worldPlayer && m_logicCamera && m_window && m_camera && m_hdrPipeline && m_waterReflection,"Water transition actual objects missing");
+            const auto eye=m_camera->getDerivedPosition();
+            const glm::ivec3 cell(World::toBlockCoord(eye.x),World::toBlockCoord(eye.y),World::toBlockCoord(eye.z));
+            const auto block=m_world->getBlock(cell.x,cell.y,cell.z),above=m_world->getBlock(cell.x,cell.y+1,cell.z);
+            const bool underwater=block==BlockId::Water;
+            const float depth=underwater?cell.y+1.f-eye.y:0.f;
+            const float immersion=underwater?(above==BlockId::Water?1.f:WorldEnvironment::cameraWaterImmersion(depth)):0.f;
+            const auto observedPlane=m_world->observeWaterSurfacePlane(glm::vec3(eye.x,eye.y,eye.z));
+            const auto& stats=m_waterReflection->statistics();
+            const auto hdr=m_hdrPipeline->lifecycleFacts(),target=m_waterReflection->lifecycleFacts();
+            const auto pass=materialPass("HelloMine3D/Water");
+            const auto parameters=pass->getFragmentProgramParameters();
+            const auto* definition=parameters->_findNamedConstantDefinition("planarReflectionEnabled",false);
+            require(definition,"Water transition actual Ogre flag missing");
+            float passEnabled=0;parameters->_readRawConstants(definition->physicalIndex,1,&passEnabled);
+            const auto* tus=pass->getTextureUnitState("planarReflection");
+            const auto identity=m_world->observeWorldIdentity();
+            const bool planeSwitch=m_referenceWaterProbe->planeSwitch();
+            std::vector<std::string> column;
+            if(planeSwitch) {
+                struct Sample {glm::ivec3 position;ChunkBlock expected;};
+                const std::array<Sample,11> samples{{
+                    {{194,63,-183},ChunkBlock(Block_t(32),0)},
+                    {{194,64,-183},ChunkBlock(Block_t(7),0)},
+                    {{194,65,-183},ChunkBlock(Block_t(7),0)},
+                    {{194,66,-183},ChunkBlock(Block_t(7),0)},
+                    {{194,67,-183},ChunkBlock(Block_t(0),0)},
+                    {{194,68,-183},ChunkBlock(Block_t(0),0)},
+                    {{176,34,-176},ChunkBlock(Block_t(3),0)},
+                    {{176,63,-176},ChunkBlock(Block_t(7),0)},
+                    {{176,64,-176},ChunkBlock(Block_t(7),0)},
+                    {{176,65,-176},ChunkBlock(Block_t(0),0)},
+                    {{176,66,-176},ChunkBlock(Block_t(0),0)}}};
+                std::array<ChunkBlock,11> actual{};
+                for(std::size_t i=0;i<samples.size();++i){const auto& pos=samples[i].position;actual[i]=m_world->getBlock(pos.x,pos.y,pos.z);}
+                // Air alone is not a loaded-cell certificate. Each complete
+                // column is witnessed by its actual non-Air Water and bed.
+                for(std::size_t i=0;i<samples.size();++i){
+                    require(actual[i]==samples[i].expected,"Water plane unchanged resident water/Air/bed differs");
+                    column.push_back(object({{"position",xyz(samples[i].position)},{"id",number(actual[i].id)},{"metadata",number(actual[i].metadata)},{"known","true"},{"observation",quote("blocking-World.getBlock-find-only-column-water-bed-witness")},{"observed_frame",number(m_frameCount)}}));
+                }
+            } else {
+                for(int y=64;y<=66;++y){const auto b=m_world->getBlock(194,y,-183);require(b==ChunkBlock(Block_t(7),0),"Water transition unchanged loaded column differs");column.push_back(object({{"position",xyz(glm::ivec3(194,y,-183))},{"id",number(b.id)},{"metadata",number(b.metadata)},{"observation",quote("blocking-World.getBlock-find-only-nonAir")},{"observed_frame",number(m_frameCount)}}));}
+            }
+            Fields factFields{{"frame",number(m_frameCount)},{"identity",object({{"root_instance",lifecycleAddress(m_root.get())},{"scene_instance",lifecycleAddress(m_sceneManager)},{"window_instance",lifecycleAddress(m_window)},{"world_instance",lifecycleAddress(m_world)},{"world_id",quote(identity.worldId)},{"seed",number(identity.seed)},{"terrain_generation_version",number(identity.terrainGenerationVersion)},{"save_directory",quote(value("HELLOMINE3D_SAVE_DIR"))}})},
+                {"main_camera",camera(*m_camera)},{"logic_camera",object({{"position",xyz(m_logicCamera->position)},{"rotation",xyz(m_logicCamera->rotation)}})},
+                {"player",object({{"position",xyz(m_worldPlayer->position)},{"rotation",xyz(m_worldPlayer->rotation)},{"velocity",xyz(m_worldPlayer->velocity)}})},
+                {"requested_player",xyz(m_referenceWaterProbe->requested())},{"production_teleports",number(m_referenceWaterProbe->teleportCount())},{"simulation_delta",number(m_referenceWaterProbe->delta())},{"warm_frames",number(m_referenceWaterProbe->warmFrames())},
+                {"world_time",number(m_world->getWorldTime())},{"frame_input_scene_revision",number(m_referenceWaterFrameRevision)},{"later_current_world_visual_revision",number(m_world->visualRevision())},
+                {"medium",object({{"observation_domain",quote("actual-World.getBlock-main-eye")},{"cell",xyz(cell)},{"id",number(block.id)},{"metadata",number(block.metadata)},{"above_id",number(above.id)},{"camera_underwater",boolean(underwater)},{"surface_depth",number(depth)},{"immersion",number(immersion)}})},
+                {"selected_plane_y",observedPlane?number(*observedPlane):"null"},{"eye_plane_delta",observedPlane?number(eye.y-*observedPlane):"null"},{"water_column",array(column)},
+                {"physical_window",array({number(m_window->getWidth()),number(m_window->getHeight())})},{"update_floor",number(m_referenceWaterProbe->updateFloor())},
+                {"hdr",hdr.json()},{"planar",m_waterReflection->transitionDiagnosticFacts(*pass)},{"draw",m_referenceWaterProbe->drawFacts()}};
+            if(planeSwitch) {
+                factFields.push_back({"world_plane_observation",quote("actual-World.observeWaterSurfacePlane-main-eye")});
+                // Stale-plane fault may make the component inactive. Preserve
+                // that real state rather than requesting an active-view query.
+                factFields.push_back({"planar_view",stats.active?m_waterReflection->worldEditDiagnosticFacts():"null"});
+            }
+            const auto facts=object(factFields);
+            // Preserve real corrupted pass/driver facts before any strict gate;
+            // never label a requested pose or submitted parameter as GPU draw.
+            m_referenceWaterProbe->observed(facts);
+            require(m_window->getWidth()==2560 && m_window->getHeight()==1440 && m_hdrPipeline->active() && RenderLifecycle::valid(hdr.native,2560,1440,4),"Water transition actual native HDR4 storage missing");
+            require(observedPlane && std::abs(*observedPlane-m_referenceWaterProbe->expectedPlane())<.001f && stats.frameSerial==std::uint64_t(m_frameCount) && stats.sceneRevision==m_referenceWaterFrameRevision,"Water transition actual frame/plane mismatch");
+            if(planeSwitch) {
+                const auto* planeDefinition=parameters->_findNamedConstantDefinition("planarReflectionPlaneY",false);
+                require(planeDefinition,"Water plane actual Ogre plane missing");float passPlane=0;
+                parameters->_readRawConstants(planeDefinition->physicalIndex,1,&passPlane);
+                require(std::isfinite(passPlane) &&
+                    std::abs(passPlane-*observedPlane)<.001f && std::abs(m_referenceWaterProbe->linkedPlane()-*observedPlane)<.001f,
+                    "Water plane actual World/component/pass/driver plane mismatch");
+                require(m_referenceWaterProbe->linkedMatrixMatchesPass(*pass),"Water plane actual pass/driver matrix mismatch");
+            }
+            require(target.targetCount<=1 && target.depthCount<=1 && target.cameraCount==1 && target.privateMaterials<=PlanarWaterReflection::MaximumPrivateMaterials && target.privatePasses<=PlanarWaterReflection::MaximumPrivatePasses && !target.listenersActive && !target.observerFailures,"Water transition component bound/listener violation");
+            const bool active=planeSwitch || m_referenceWaterProbe->phase()==0 || m_referenceWaterProbe->phase()==3;
+            const float distance=eye.y-*observedPlane;
+            if(active) {
+                require(!underwater && distance>.15f && stats.active && stats.reason=="rendered" && stats.lastRenderedFrame==std::uint64_t(m_frameCount) && stats.updateCount>m_referenceWaterProbe->updateFloor(),"Water transition actual above update not current");
+                require(m_referenceWaterProbe->linkedEnabled()==1.f && m_referenceWaterProbe->linkedTexture()==target.native.resolved.object && m_referenceWaterProbe->linkedStorage(1280,720) && passEnabled==1.f && tus && target.waterSamplerBound && target.ownedDepthAttached && RenderLifecycle::valid(target.native,1280,720,0) && !target.textureName.empty() && tus->getTextureName()==target.textureName,"Water transition actual active binding/storage mismatch");
+                m_waterReflection->captureDiagnostic(m_referenceWaterProbe->prefix());
+            } else {
+                const bool correctMedium=m_referenceWaterProbe->phase()==1?(!underwater && distance>0.f && distance<=.15f):(underwater && distance<0.f);
+                require(correctMedium && !stats.active && stats.reason=="underwater-or-surface-crossing" && stats.updateCount==m_referenceWaterProbe->updateFloor() && stats.lastRenderedFrame<std::uint64_t(m_frameCount),"Water transition inactive medium/update mismatch");
+                require(m_referenceWaterProbe->linkedEnabled()==0.f && passEnabled==0.f && !tus && !target.waterSamplerBound,"Water transition inactive pass/TUS retained");
+            }
+            m_window->writeContentsToFile(m_referenceWaterProbe->mainPng());
+            require(glGetError()==GL_NO_ERROR,"Water transition main PNG GL error");
+            m_referenceWaterProbe->inventory();m_referenceWaterProbe->checkpoint(facts,stats.updateCount);
+            if(m_referenceWaterProbe->complete()) {
+                m_worldPlayer->rotation=m_referenceWaterProbe->rotation();
+                require(m_sandbox->getWorldManager().teleportPlayer(*m_worldPlayer,m_referenceWaterProbe->origin()),"Water transition original player restore rejected");
+                m_logicCamera->update();m_referenceWaterProbe->restored(*m_worldPlayer);m_shutdownRequested=true;
+            }
+        }
+
+        void finishReferenceResidencyFrame() {
+            if(!m_referenceResidencyProbe)return;using namespace ReferenceResidency;
+            const auto phase=m_referenceResidencyProbe->phase();if(!m_referenceResidencyProbe->warm())return;
+            if(phase==1) {
+                if(!m_referenceResidencyProbe->targetsAbsent())return;
+                if(!prepareReferenceResidencyFrameObservations(true))return;
+                const auto facts=referenceResidencySnapshot(false);
+                // Facts are retained before any failure, including the real
+                // fault's intentionally live old visual/buffer.
+                m_referenceResidencyProbe->event("departed-observation",facts);
+                require(m_referenceResidencyColumnsAvailable &&
+                    m_referenceResidencyObservationFrame==unsigned(m_frameCount),
+                    "departed observation not the original complete batch");
+                const auto live=m_world->collectSectionMeshSnapshot(false);for(const auto& v:live.liveSections)require(!column(v),"old target still Near");
+                for(const auto& v:m_sectionVisuals)require(!column(v.second.location),"old target visual retained");for(const auto& v:m_terrainBatchVisuals)require(!column(v.second.location),"old target batch retained");
+                for(int z:{-12,-13})for(int y=0;y<64;++y)require(!m_sectionRenderStates.count(sectionKey({12,y,z})),"old render state retained");
+                m_referenceResidencyProbe->checkInventory();
+                m_referenceResidencyProbe->checkpoint(facts);
+                m_referenceResidencyProbe->markReturnMovement();
+                const auto from=m_worldPlayer->position,to=m_referenceResidencyProbe->originPosition();m_worldPlayer->rotation=m_referenceResidencyProbe->originRotation();
+                require(m_sandbox->getWorldManager().teleportPlayer(*m_worldPlayer,to),"return teleport rejected");m_logicCamera->update();
+                m_referenceResidencyProbe->event("teleport",object({{"direction",quote("return")},{"return_upload_serial_floor",number(m_referenceResidencyProbe->returnWitnessFloor())},{"return_movement_frame",number(m_referenceResidencyProbe->returnMovementFrame())},{"from",xyz(from)},{"requested",xyz(to)},{"accepted","true"},{"actual_player",xyz(m_worldPlayer->position)},{"logic_camera",xyz(m_logicCamera->position)}}));return;
+            }
+            if(!m_referenceResidencyProbe->armed())return;
+            bool ready=false;referenceResidencySections(ready);require(ready,"selected actual upload changed during observed frame");
+            if(phase==2)require(m_referenceResidencyProbe->returned(),"return lacks actual storage/new incarnation");
+            bool witnesses=false;referenceResidencyWitnessSections(witnesses);
+            require(witnesses,"visible witness upload changed during observed frame");
+            const auto& r=m_waterReflection->statistics();require(r.active && r.frameSerial==static_cast<std::uint64_t>(m_frameCount) && r.sceneRevision==m_referenceResidencyFrameRevision,"RTT not current original frame");
+            lifecycleLiveReady(); // Numeric production native/storage/ownership guards; input counter remains separately checked.
+            require(m_referenceResidencyColumnsAvailable && m_referenceResidencyWitnessCellsAvailable &&
+                m_referenceResidencyObservationFrame==unsigned(m_frameCount),
+                "same-frame observations missing before native readback");
+            // All authority/current-upload/pose observations are materialized
+            // before consuming either bounded readback. They contain values,
+            // not World/Ogre references or resource lifetime extensions.
+            const auto actual=referenceResidencySnapshot(true);
+            if(phase!=0) {const auto& a=m_referenceResidencyProbe->originPosition();const auto& rot=m_referenceResidencyProbe->originRotation();require(m_worldPlayer->position.x==a.x && m_worldPlayer->position.z==a.z && m_worldPlayer->rotation==rot,"actual returned horizontal pose differs");}
+            const auto prefix=m_referenceResidencyProbe->prefix();m_waterReflection->captureDiagnostic(prefix);m_window->writeContentsToFile(m_referenceResidencyProbe->mainPng());require(glGetError()==GL_NO_ERROR,"main readback GL error");
+            m_referenceResidencyProbe->checkInventory();
+            const auto facts=object({{"frame",number(m_frameCount)},{"actual",actual},{"planar_prefix",quote(std::filesystem::path(prefix).filename().string())},{"main_png",quote(std::filesystem::path(m_referenceResidencyProbe->mainPng()).filename().string())},{"main_readback_gl_error","0"}});
+            if(phase==0)m_referenceResidencyProbe->anchor(*m_worldPlayer);
+            m_referenceResidencyProbe->checkpoint(facts);
+            if(phase==0) {
+                const auto from=m_worldPlayer->position;glm::vec3 to=from+glm::vec3(192.f,0.f,0.f);
+                require(m_sandbox->getWorldManager().teleportPlayer(*m_worldPlayer,to),"depart teleport rejected");
+                const auto surface=m_world->observeSurfaceMap({{World::toBlockCoord(to.x),World::toBlockCoord(to.z)}});require(surface.size()==1 && surface[0].known,"far target preload did not provide actual surface");
+                to.y=float(surface[0].height)+1.02f;require(m_sandbox->getWorldManager().teleportPlayer(*m_worldPlayer,to),"safe far teleport rejected");m_logicCamera->update();
+                m_referenceResidencyProbe->event("teleport",object({{"direction",quote("depart")},{"from",xyz(from)},{"requested",xyz(to)},{"accepted","true"},{"far_surface_height",number(surface[0].height)},{"actual_player",xyz(m_worldPlayer->position)},{"logic_camera",xyz(m_logicCamera->position)}}));
+            }
+        }
+
+        std::string referenceEditSections(bool& ready)
+        {
+            using namespace ReferenceEdit;
+            ready=false;if(!m_referenceEditProbe || !m_world)return "[]";
+            const auto snapshot=m_world->collectSectionMeshSnapshot(false);
+            // Global worker offers include unrelated sections. Current selected
+            // input revisions, resident uploads and selected offers define this
+            // observation; the global queue remains diagnostic evidence only.
+            std::vector<std::string> sections;bool all=true;
+            for(const auto& section:snapshot.liveSectionVersions) {
+                if(!m_referenceEditProbe->sectionSelected(section.location))continue;
+                const auto key=sectionKey(section.location);
+                const auto uploaded=m_materialIdentityMeshRevisions.find(key);
+                const auto resident=m_sectionRenderStates.find(key);
+                const bool cpu=std::any_of(snapshot.cpuReadySections.begin(),snapshot.cpuReadySections.end(),
+                    [&](const auto& v){return v.location==section.location;});
+                const bool gpu=resident!=m_sectionRenderStates.end() && resident->second==ChunkRenderState::GpuResident;
+                const bool known=uploaded!=m_materialIdentityMeshRevisions.end();
+                const bool current=known && uploaded->second==section.blockRevision;
+                all=all && current && gpu && !cpu;
+                // cpuReadySections is the budgeted offered subset, not a full
+                // CPU state query; input invalidation advances blockRevision.
+                sections.push_back(object({{"location",xyz(section.location)},{"live_revision",number(section.blockRevision)},
+                    {"uploaded_revision",known?number(uploaded->second):"null"},{"gpu_resident",boolean(gpu)},
+                    {"cpu_ready",boolean(cpu)},{"offered_cpu_ready",boolean(cpu)},
+                    {"upload_known",boolean(known)},{"revision_current",boolean(current)}}));
+            }
+            ready=all && !sections.empty();const auto facts=array(sections);
+            m_referenceEditProbe->recordSectionReadiness(object({{"selected_ready",boolean(ready)},{"sections",facts},
+                {"global_cpu_ready_total",number(snapshot.cpuReadyTotal)},
+                {"global_cpu_ready_deferred",number(snapshot.cpuReadyDeferred)},
+                {"offered_cpu_ready_total",number(snapshot.cpuReadySections.size())}}));
+            return facts;
+        }
+        void finishReferenceEditFrame()
+        {
+            if(!m_referenceEditProbe || !m_referenceEditProbe->frameArmed())return;
+            using namespace ReferenceEdit;
+            bool ready=false;const auto sections=referenceEditSections(ready);
+            require(ready,"actual section upload readiness lost within original frame");
+            m_referenceEditProbe->requireExpected(*m_world);
+            require(m_window->getWidth()==2560 && m_window->getHeight()==1440,"actual physical window must be2560x1440");
+            require(m_hdrPipeline->active() && m_referenceSurfaceEnabled,"actual HDR/surface path lost");
+            const auto hdr=m_hdrPipeline->lifecycleFacts();
+            require(RenderLifecycle::valid(hdr.native,2560,1440,4),"actual HDR4 storage required");
+            const auto planar=m_waterReflection->worldEditDiagnosticFacts();
+            const auto prefix=m_referenceEditProbe->prefix();
+            m_waterReflection->captureDiagnostic(prefix);
+            m_window->writeContentsToFile(m_referenceEditProbe->mainPng());
+            const auto error=glGetError();require(error==GL_NO_ERROR,"main readback GL error");
+            std::vector<std::string> actors;for(const auto& actor:m_frameActorSnapshots)
+                actors.push_back(object({{"id",number(actor.id)},{"type",quote(actor.type)},{"position",xyz(actor.position)},
+                    {"rotation",xyz(actor.rotation)},{"wildlife_motion_seconds",number(actor.wildlifeMotionSeconds)},
+                    {"item_age_seconds",number(actor.itemAgeSeconds)}}));
+            const glm::ivec3 lightProbe(201,68,-186);
+            const auto sample=m_world->getBlock(lightProbe.x,lightProbe.y,lightProbe.z);
+            const glm::ivec3 receiver(201,68,-192);const auto receiverBlock=m_world->getBlock(receiver.x,receiver.y,receiver.z);
+            require(receiverBlock==ChunkBlock(Block_t(35),0),"fixed unedited receiver block/meta differs");
+            std::vector<std::string> receiverAir;
+            for(int x=201;x<=202;++x)for(int y=68;y<=69;++y) {
+                const auto b=m_world->getBlock(x,y,-191);require(b==ChunkBlock(Block_t(0),0),"receiver neighbouring light sample must be actual Air");
+                receiverAir.push_back(object({{"position",xyz(glm::ivec3(x,y,-191))},{"id",number(b.id)},{"metadata",number(b.metadata)},
+                    {"sky",number(m_world->getSunlight(x,y,-191))},{"block",number(m_world->getBlockLight(x,y,-191))}}));
+            }
+            const auto receiverFacts=object({{"cell",xyz(receiver)},{"id",number(receiverBlock.id)},{"metadata",number(receiverBlock.metadata)},
+                {"face",quote("positive-z")},{"corners",array({xyz(glm::ivec3(201,68,-191)),xyz(glm::ivec3(202,68,-191)),xyz(glm::ivec3(202,69,-191)),xyz(glm::ivec3(201,69,-191))})},
+                {"air_samples",array(receiverAir)}});
+            // The worker may advance global revision after this frame's actual
+            // upload/light/reflection input. Keep those observation clocks apart.
+            const auto laterWorldRevision=m_world->visualRevision();
+            const auto facts=object({{"frame",number(m_frameCount)},{"normal_input","false"},{"input_event_count",number(m_referenceEditInputEvents)},
+                {"simulation_delta","0"},{"animation_time","4"},{"blocks",m_referenceEditProbe->blocks(*m_world)},
+                {"world_instance",lifecycleAddress(m_world)},{"root_instance",lifecycleAddress(m_root.get())},{"scene_instance",lifecycleAddress(m_sceneManager)},
+                {"world_visual_revision",number(laterWorldRevision)},
+                {"frame_input_scene_revision",number(m_referenceEditFrameSceneRevision)},
+                {"frame_local_light_revision",number(m_localLights.revision)},
+                {"later_current_world_visual_revision",number(laterWorldRevision)},
+                {"world_time",number(m_frameWorldStats.worldTime)},
+                {"save_directory",quote(std::getenv("HELLOMINE3D_SAVE_DIR"))},{"sections",sections},{"sections_ready",boolean(ready)},
+                {"section_readiness",m_referenceEditProbe->sectionReadinessFacts()},
+                {"local_lights",lights(m_localLights)},{"receiver",receiverFacts},{"light_probe",object({{"position",xyz(lightProbe)},{"id",number(sample.id)},{"metadata",number(sample.metadata)},
+                    {"sky",number(m_world->getSunlight(lightProbe.x,lightProbe.y,lightProbe.z))},{"block",number(m_world->getBlockLight(lightProbe.x,lightProbe.y,lightProbe.z))}})},
+                {"camera",camera(*m_camera)},{"actors",array(actors)},{"physical_window",array({"2560","1440"})},
+                {"hdr",hdr.json()},{"planar",planar},{"draws",m_referenceEditProbe->drawFacts()},
+                {"main_png",quote(std::filesystem::path(m_referenceEditProbe->mainPng()).filename().string())},
+                {"planar_prefix",quote(std::filesystem::path(prefix).filename().string())},{"main_readback_gl_error",number(error)}});
+            m_referenceEditProbe->checkpoint(facts);
+            const auto& reflection=m_waterReflection->statistics();
+            require(reflection.frameSerial==static_cast<std::uint64_t>(m_frameCount) && reflection.sceneRevision==m_referenceEditFrameSceneRevision,
+                "reflection did not update this original frame/revision");
+        }
+
+        static void lifecycleRequire(bool condition,const char* reason)
+        { if(!condition)throw std::runtime_error(std::string("Render lifecycle: ")+reason); }
+        static std::string lifecycleAddress(const void* object)
+        { std::ostringstream out;out<<object;return RenderLifecycle::quote(out.str()); }
+        void lifecycleContext()
+        {
+            if(!m_lifecycleProbe)return;
+            std::string id;std::ifstream input(std::filesystem::path(m_lifecycleWorldDirectory)/"world.meta");
+            for(std::string line;std::getline(input,line);)if(line.compare(0,9,"world_id ")==0){id=line.substr(9);break;}
+            lifecycleRequire(!id.empty(),"Actual clone world identity missing.");
+            m_lifecycleProbe->context(m_lifecycleWorldEpoch,m_world,m_lifecycleWorldDirectory,id);
+        }
+        unsigned lifecycleCameraCount() const
+        {
+            if(!m_sceneManager)return 0;
+            unsigned count=0;auto it=m_sceneManager->getCameraIterator();while(it.hasMoreElements()){it.getNext();++count;}return count;
+        }
+        static std::vector<std::string> lifecycleManagerNames(Ogre::ResourceManager& manager)
+        {
+            std::vector<std::string> names;auto it=manager.getResourceIterator();
+            while(it.hasMoreElements()){const auto resource=it.getNext();names.push_back(resource->getGroup()+":"+resource->getName());}
+            std::sort(names.begin(),names.end());return names;
+        }
+        std::string lifecycleSnapshot() const
+        {
+            std::ostringstream o;o<<std::boolalpha;
+            o<<"{\"root_alive\":"<<bool(m_root)<<",\"scene_alive\":"<<(m_sceneManager!=nullptr)
+             <<",\"root_instance\":"<<lifecycleAddress(m_root.get())<<",\"scene_instance\":"<<lifecycleAddress(m_sceneManager)
+             <<",\"window_instance\":"<<lifecycleAddress(m_window)<<",\"world_present\":"<<(m_world!=nullptr)
+             <<",\"sandbox_present\":"<<bool(m_sandbox)<<",\"sandbox_instance\":"<<lifecycleAddress(m_sandbox.get())
+             <<",\"loader_lifetime_owner_present\":"<<bool(m_sandbox)<<",\"normal_close_save_and_join_returned\":"<<m_lifecycleCloseReturned<<",\"hidden\":"<<m_hiddenWindow
+             <<",\"input_event_count\":"<<m_lifecycleInputEvents<<",\"perf_enabled\":"<<RuntimePerformanceCapture::isEnabled()
+             <<",\"requested_points\":["<<m_lifecyclePointWidth<<','<<m_lifecyclePointHeight<<']'
+             <<",\"window_pixels\":["<<(m_window?m_window->getWidth():0)<<','<<(m_window?m_window->getHeight():0)<<']';
+            const auto* viewport=m_window && m_window->getNumViewports()?m_window->getViewport(0):nullptr;
+            o<<",\"main_viewport_bound\":"<<(m_camera && viewport && m_camera->getViewport()==viewport)
+             <<",\"viewport_pixels\":["<<(viewport?viewport->getActualWidth():0)<<','<<(viewport?viewport->getActualHeight():0)<<']'
+             <<",\"hdr_component\":"<<bool(m_hdrPipeline)<<",\"planar_component\":"<<bool(m_waterReflection)
+             <<",\"hdr\":"<<(m_hdrPipeline?m_hdrPipeline->lifecycleFacts():RenderLifecycleTargetFacts{}).json()
+             <<",\"planar\":"<<(m_waterReflection?m_waterReflection->lifecycleFacts():RenderLifecycleTargetFacts{}).json()
+             <<",\"scene_camera_count\":"<<lifecycleCameraCount()
+             <<",\"cache\":{\"sections\":"<<m_sectionVisuals.size()<<",\"batches\":"<<m_terrainBatchVisuals.size()
+             <<",\"dirty_batches\":"<<m_dirtyTerrainBatches.size()<<",\"render_states\":"<<m_sectionRenderStates.size()
+             <<",\"last_live_sections\":"<<m_lastLiveSections.size()
+             <<",\"empty_section_upload_identities\":"<<m_emptySectionUploadIdentities.size()
+             <<",\"material_identity_revisions\":"<<m_materialIdentityMeshRevisions.size()
+             <<",\"local_lights\":"<<m_localLights.count
+             <<",\"dynamic_shadow_off\":"<<(m_directionalShadowQuality==DirectionalShadowQuality::Off &&
+                 !m_directionalSunLight && !m_directionalSunNode &&
+                 (!m_sceneManager || m_sceneManager->getShadowTechnique()==Ogre::SHADOWTYPE_NONE))<<'}';
+            o<<",\"managers_available\":"<<bool(m_root)<<",\"manager\":";
+            if(!m_root)o<<"null";
+            else {
+                o<<'{';bool comma=false;
+                const auto manager=[&](const char* name,Ogre::ResourceManager& value){if(comma)o<<',';comma=true;const auto names=lifecycleManagerNames(value);o<<RenderLifecycle::quote(name)<<":{\"count\":"<<names.size()<<",\"memory_bytes\":"<<value.getMemoryUsage()<<",\"names\":"<<RenderLifecycle::namesJson(names)<<'}';};
+                manager("texture",Ogre::TextureManager::getSingleton());manager("material",Ogre::MaterialManager::getSingleton());
+                manager("mesh",Ogre::MeshManager::getSingleton());manager("program",Ogre::HighLevelGpuProgramManager::getSingleton());
+                manager("compositor",Ogre::CompositorManager::getSingleton());o<<'}';
+            }
+            o<<'}';return o.str();
+        }
+        void lifecycleLiveReady() const
+        {
+            lifecycleRequire(m_world && m_sandbox && m_hdrPipeline && m_waterReflection,"Actual world/components missing.");
+            const auto h=m_hdrPipeline->lifecycleFacts(),p=m_waterReflection->lifecycleFacts();
+            const auto* viewport=m_window->getViewport(0);
+            lifecycleRequire(m_camera->getViewport()==viewport,"Main camera retained a non-main viewport.");
+            lifecycleRequire(h.active && h.targetCount==1 && h.depthCount==1 && h.ownedDepthAttached && h.depthPool==Ogre::DepthBuffer::POOL_NO_DEPTH && h.native.colour.samples==4 &&
+                RenderLifecycle::valid(h.native,unsigned(viewport->getActualWidth()),unsigned(viewport->getActualHeight()),4),"Actual HDR attachment/4samples invalid.");
+            lifecycleRequire(p.active && p.updateCount>0 && p.targetCount==1 && p.depthCount==1 && p.ownedDepthAttached && p.depthPool==Ogre::DepthBuffer::POOL_NO_DEPTH && p.cameraCount==1 && p.privateMaterials>0 &&
+                p.privateMaterials<=PlanarWaterReflection::MaximumPrivateMaterials && p.privatePasses<=PlanarWaterReflection::MaximumPrivatePasses &&
+                p.waterSamplerBound && p.binderBound && !p.listenersActive && !h.observerFailures && !p.observerFailures,"Real reflected residents or scoped ownership absent.");
+            lifecycleRequire(RenderLifecycle::valid(p.native,p.width,p.height,0) && p.width==(h.width+1)/2 && p.height==(h.height+1)/2 &&
+                std::uint64_t(h.width)*h.height<=8294400 && std::uint64_t(p.width)*p.height<=PlanarWaterReflection::MaximumPixels,"Real target dimensions/budget invalid.");
+            lifecycleRequire(m_lifecycleInputEvents==0 && m_hiddenWindow,"Ordinary input encountered in hidden probe.");
+        }
+        void lifecycleEmptyReady(bool establishBaseline)
+        {
+            lifecycleRequire(!m_world && !m_sandbox && !m_logicCamera && !m_worldPlayer,"Normal World/Sandbox unload did not complete.");
+            lifecycleRequire(m_sectionVisuals.empty() && m_terrainBatchVisuals.empty() && m_dirtyTerrainBatches.empty() &&
+                m_sectionRenderStates.empty() && m_lastLiveSections.empty() && m_emptySectionUploadIdentities.empty() && m_materialIdentityMeshRevisions.empty() &&
+                m_localLights.count==0,"Resident visual/cache/local light survived world close.");
+            lifecycleRequire(m_directionalShadowQuality==DirectionalShadowQuality::Off && !m_directionalSunLight &&
+                !m_directionalSunNode && m_sceneManager->getShadowTechnique()==Ogre::SHADOWTYPE_NONE,
+                "Dynamic shadow resources survived world close.");
+            const auto p=m_waterReflection->lifecycleFacts();
+            lifecycleRequire(!p.active && p.targetCount==0 && p.depthCount==0 && p.privateMaterials==0 && p.privatePasses==0 && p.cameraCount==1 &&
+                !p.selected && !p.binderBound && !p.waterSamplerBound && !p.lodCameraBound && !p.listenersActive && !p.observerFailures,"Planar world-reset retained owned resources/references.");
+            lifecycleRequire(m_hdrPipeline->active(),"Menu must retain the active HDR target.");
+            lifecycleRequire(m_camera && m_camera->getViewport()==m_window->getViewport(0),
+                "Menu camera retained a non-main viewport.");
+            const std::array<Ogre::ResourceManager*,5> managers{{&Ogre::TextureManager::getSingleton(),&Ogre::MaterialManager::getSingleton(),&Ogre::MeshManager::getSingleton(),&Ogre::HighLevelGpuProgramManager::getSingleton(),&Ogre::CompositorManager::getSingleton()}};
+            for(std::size_t i=0;i<managers.size();++i) {
+                const auto names=lifecycleManagerNames(*managers[i]);
+                if(establishBaseline)m_lifecycleEmptyManagerNames[i]=names;
+                else if(names!=m_lifecycleEmptyManagerNames[i]) {
+                    constexpr std::array<const char*,5> kinds{{"texture","material","mesh","program","compositor"}};
+                    std::vector<std::string> added,removed;
+                    std::set_difference(names.begin(),names.end(),m_lifecycleEmptyManagerNames[i].begin(),
+                        m_lifecycleEmptyManagerNames[i].end(),std::back_inserter(added));
+                    std::set_difference(m_lifecycleEmptyManagerNames[i].begin(),m_lifecycleEmptyManagerNames[i].end(),
+                        names.begin(),names.end(),std::back_inserter(removed));
+                    std::cerr<<"[RENDER_LIFECYCLE_MANAGER_DIFFERENCE] kind="<<kinds[i]
+                             <<" added="<<RenderLifecycle::namesJson(added)
+                             <<" removed="<<RenderLifecycle::namesJson(removed)<<'\n';
+                    lifecycleRequire(false,"Warm menu ResourceManager names changed after world cycle.");
+                }
+            }
+        }
+        void advanceRenderLifecycleProbe()
+        {
+            auto& probe=*m_lifecycleProbe;probe.observeFrame(unsigned(m_frameCount));lifecycleContext();
+            const unsigned stage=probe.stage();if(stage>=11)return;
+            if(!probe.begun()) {
+                probe.begin(unsigned(m_frameCount),lifecycleSnapshot());
+                if(stage>=1 && stage<=3) {
+                    const auto old=m_hdrPipeline->lifecycleFacts();m_lifecycleExpectedHdrGeneration=old.generation+1;
+                    const unsigned ratio=unsigned(m_window->getWidth())/m_lifecyclePointWidth;
+                    lifecycleRequire((ratio==1 || ratio==2) && m_window->getHeight()==m_lifecyclePointHeight*ratio,"Unknown native window point/pixel scale.");
+                    m_lifecyclePointWidth=stage==1?960u:stage==2?1600u:1280u;
+                    m_lifecyclePointHeight=stage==1?540u:stage==2?900u:720u;
+                    m_lifecycleExpectedWidth=m_lifecyclePointWidth*ratio;m_lifecycleExpectedHeight=m_lifecyclePointHeight*ratio;
+                    m_window->resize(m_lifecyclePointWidth,m_lifecyclePointHeight);
+                    // Same public native resize callback used by Cocoa delegates.
+                    // Next normal frame messagePump/beforeFrame performs target resize.
+                    m_window->windowMovedOrResized();windowResized(m_window);return;
+                }
+                if(stage==4 || stage==7 || stage==10) {
+                    lifecycleLiveReady();
+                    lifecycleRequire(clearActiveWorld(true),"Normal save/closeAllWorlds/stop-loader join failed.");
+                    m_lifecycleCloseReturned=true;
+                    m_applicationFlow.returnToMainMenu();lifecycleContext();lifecycleEmptyReady(stage==4);
+                    probe.commit(unsigned(m_frameCount),lifecycleSnapshot());return;
+                }
+                if(stage==5 || stage==8) {
+                    const std::string directory=stage==5?std::getenv("HELLOMINE3D_LIFECYCLE_SAVE_B"):std::getenv("HELLOMINE3D_SAVE_DIR");
+                    lifecycleRequire(m_applicationFlow.beginLoading(stage==5?"lifecycle-directory-b":"lifecycle-directory-a"),"Normal loading transition rejected.");
+                    buildTerrain(true,directory);
+                    lifecycleRequire(configureDirectionalShadows(m_config.directionalShadowQuality),"Normal shadow rebuild failed.");
+                    syncActorVisuals();m_userInterface->setWorldContext(m_worldPlayer,m_world);
+                    lifecycleRequire(m_applicationFlow.completeLoading(true),"Normal loading completion rejected.");
+                    lifecycleContext();probe.commit(unsigned(m_frameCount),lifecycleSnapshot());return;
+                }
+            }
+            // Wait for actual normal frames and actual reflection scene draws;
+            // no mock/native-field rewrite or direct HDR definition mutation.
+            if(unsigned(m_frameCount)-probe.stageFrame()<12)return;
+            if(!m_waterReflection->statistics().active || m_waterReflection->statistics().privateMaterials==0)return;
+            lifecycleLiveReady();
+            if(stage>=1 && stage<=3) {
+                const auto h=m_hdrPipeline->lifecycleFacts();
+                lifecycleRequire(m_window->getWidth()==m_lifecycleExpectedWidth && m_window->getHeight()==m_lifecycleExpectedHeight &&
+                    unsigned(m_camera->getViewport()->getActualWidth())==m_lifecycleExpectedWidth && unsigned(m_camera->getViewport()->getActualHeight())==m_lifecycleExpectedHeight &&
+                    h.width==m_lifecycleExpectedWidth && h.height==m_lifecycleExpectedHeight && h.generation==m_lifecycleExpectedHdrGeneration,"Real window/HDR resize or generation did not change exactly once.");
+            }
+            probe.commit(unsigned(m_frameCount),lifecycleSnapshot());
         }
 
         bool shoreSectionSelected(glm::ivec3 section) const
@@ -3695,7 +4627,7 @@ namespace
                     uploaded == m_materialIdentityMeshRevisions.end() ||
                     uploaded->second != current->blockRevision || gpu == m_sectionRenderStates.end() ||
                     gpu->second != ChunkRenderState::GpuResident) return false;
-                // The public locked snapshot has no incarnation; preserve
+                // This existing diagnostic does not retain incarnation; preserve
                 // this gap instead of reading the loader's unlocked Chunk map.
                 state.section = location; state.incarnationKnown = false;
                 state.liveRevision = current->blockRevision; state.uploadRevision = uploaded->second;
@@ -4152,7 +5084,7 @@ namespace
             {
                 return false;
             }
-            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture || m_shoreEditCapture || !m_waterSeamOutput.empty())
+            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture || m_shoreEditCapture || m_referenceEditProbe || !m_waterSeamOutput.empty())
             {
                 // This bounded diagnostic freezes simulation only in its isolated
                 // world. Normal World residency/mesh upload and renderer sync run.
@@ -4165,6 +5097,7 @@ namespace
                 return true;
             }
             updateRcPerformanceScenario(deltaSeconds);
+            if(m_referenceResidencyProbe)m_referenceResidencyDelta=deltaSeconds;
             if (!m_applicationFlow.acceptsWorldSimulation() ||
                 (m_userInterface != nullptr && m_userInterface->wantsHudPointer()))
             {
@@ -4232,7 +5165,8 @@ namespace
             const auto mouseButtons = m_mouseFrameInput.consume(
                 heldMouseButtons, worldInputActive, m_focusGate);
             if (worldInputActive &&
-                m_focusGate.acceptsLookSample())
+                m_focusGate.acceptsLookSample(
+                    m_pendingLookDelta.x != 0.f || m_pendingLookDelta.y != 0.f))
             {
                 const GameplayLookDelta look = calculateGameplayLookDelta(
                     m_pendingLookDelta.x, m_pendingLookDelta.y,
@@ -4279,6 +5213,8 @@ namespace
             m_sandbox->update(input,
                               freezeValidationCapture ? 0.0f : deltaSeconds,
                               m_blockFeedbackCapture || (!diagnosticsActive && worldInputActive));
+            if(m_referenceRestartObservation)
+                m_referenceRestartObservation->normalUpdate(freezeValidationCapture?0.f:deltaSeconds);
             if (m_userInterface != nullptr &&
                 m_sandbox->getFoodUseResult().has_value())
             {
@@ -4799,6 +5735,7 @@ namespace
                     }
 
                     const auto visual = m_sectionVisuals.find(it->first);
+                    if(m_referenceResidencyProbe && visual!=m_sectionVisuals.end() && m_referenceResidencyProbe->skipRetirement(visual->second.location)) { ++it; continue; }
                     if (visual != m_sectionVisuals.end())
                     {
                         destroySectionVisual(visual->second);
@@ -4809,16 +5746,45 @@ namespace
                         transitionRenderState(it->first,
                                               ChunkRenderState::NotResident);
                     }
+                    m_emptySectionUploadIdentities.erase(it->first);
                     it = m_sectionRenderStates.erase(it);
                 }
                 m_lastLiveSections = snapshot.liveSections;
             }
 
+            // Clean CPU output may outlive its former Near GPU representation.
+            // Request only missing, current Clean versions; never rebuild or
+            // dirty World data just to restore an Ogre-owned representation.
+            std::vector<WorldSectionMeshVersion> missingClean;
+            std::vector<glm::ivec3> missingLocations;
+            for(const auto& v:snapshot.liveSectionVersions) {
+                if(v.meshState!=ChunkMeshState::Clean || m_sectionVisuals.count(sectionKey(v.location)))continue;
+                const auto empty=m_emptySectionUploadIdentities.find(sectionKey(v.location));
+                if(empty!=m_emptySectionUploadIdentities.end() && empty->second.blockRevision==v.blockRevision && empty->second.incarnation==v.incarnation)continue;
+                missingLocations.push_back(v.location);
+            }
+            const auto center=World::getChunkXZ(World::toBlockCoord(m_worldPlayer->position.x),World::toBlockCoord(m_worldPlayer->position.z));
+            for(const auto& location:ChunkRuntime::planSectionMeshUploads(missingLocations,center,ChunkRuntime::MaxSectionUploadsPerFrame)) {
+                const auto v=std::find_if(snapshot.liveSectionVersions.begin(),snapshot.liveSectionVersions.end(),[&](const auto& candidate){return candidate.location==location;});
+                missingClean.push_back(*v);
+            }
+            WorldRetainedMeshSnapshot replay;
+            if(!missingClean.empty() && snapshot.cpuReadySections.size()<ChunkRuntime::MaxSectionUploadsPerFrame)
+                replay=m_world->observeRetainedSectionMeshes(missingClean,snapshot.cpuReadySections.size());
+            if(snapshot.cpuReadySections.size()+replay.sections.size()>ChunkRuntime::MaxSectionUploadsPerFrame)
+                throw std::runtime_error("Combined normal/replay section upload budget exceeded");
+            if(m_referenceResidencyProbe) {
+                using namespace ReferenceResidency;const auto records=[](const auto& parts){std::vector<std::string> facts;for(const auto& v:parts)facts.push_back(object({{"location",xyz(v.location)},{"revision",number(v.blockRevision)},{"incarnation",number(v.incarnation)},{"mesh_state",quote(chunkMeshStateName(v.meshState))}}));return array(facts);};
+                m_referenceResidencyProbe->recordUploadFrameFacts(object({{"frame",number(m_frameCount)},{"cpu_ready_offered",records(snapshot.cpuReadySections)},{"retained_clean_requested",records(missingClean)},{"retained_clean_copied",records(replay.sections)},{"normal_count",number(snapshot.cpuReadySections.size())},{"replay_count",number(replay.sections.size())},{"combined_count",number(snapshot.cpuReadySections.size()+replay.sections.size())},{"maximum_count",number(ChunkRuntime::MaxSectionUploadsPerFrame)}}));
+            }
             std::vector<WorldSectionMeshVersion> uploaded;
-            uploaded.reserve(snapshot.cpuReadySections.size());
-            for (WorldSectionMeshSnapshot& section :
-                 snapshot.cpuReadySections)
+            std::vector<WorldSectionMeshSnapshot*> uploadParts;
+            for(auto& section:snapshot.cpuReadySections)uploadParts.push_back(&section);
+            for(auto& section:replay.sections)uploadParts.push_back(&section);
+            uploaded.reserve(uploadParts.size());
+            for (auto* part : uploadParts)
             {
+                auto& section=*part;
                 const std::string key = sectionKey(section.location);
                 ChunkRenderState state = m_sectionRenderStates[key];
                 if (state == ChunkRenderState::GpuResident)
@@ -4839,7 +5805,7 @@ namespace
                 }
                 uploadSectionVisual(section);
                 uploaded.push_back(
-                    {section.location, section.blockRevision});
+                    {section.location, section.blockRevision, section.incarnation, section.meshState});
             }
             flushTerrainBatches();
             for (const auto& section : uploaded)
@@ -4874,6 +5840,7 @@ namespace
             {
                 m_caveBoundaryRenderer->sync(acknowledged.boundaryMasks, false);
             }
+            std::vector<std::string> acceptedUploadFacts;
             for (const WorldSectionMeshVersion& version : uploaded)
             {
                 const std::string key = sectionKey(version.location);
@@ -4894,21 +5861,54 @@ namespace
                 const bool acceptedCurrent =
                     current != acknowledged.liveSectionVersions.end() &&
                     current->blockRevision == version.blockRevision &&
+                    current->incarnation == version.incarnation &&
+                    current->meshState == ChunkMeshState::Clean &&
                     !stillCpuReady;
                 const bool hasVisual =
                     m_sectionVisuals.find(key) != m_sectionVisuals.end();
+                if(m_referenceResidencyProbe) {
+                    using namespace ReferenceResidency;
+                    acceptedUploadFacts.push_back(object({
+                        {"location",xyz(version.location)},
+                        {"revision",number(version.blockRevision)},
+                        {"incarnation",number(version.incarnation)},
+                        {"mesh_state",quote(chunkMeshStateName(version.meshState))},
+                        {"accepted_current",boolean(acceptedCurrent)},
+                        {"has_visual",boolean(hasVisual)},
+                        {"current_revision",current!=acknowledged.liveSectionVersions.end()?number(current->blockRevision):"null"},
+                        {"current_incarnation",current!=acknowledged.liveSectionVersions.end()?number(current->incarnation):"null"},
+                        {"current_mesh_state",current!=acknowledged.liveSectionVersions.end()?quote(chunkMeshStateName(current->meshState)):"null"}}));
+                }
                 if (!acceptedCurrent && hasVisual)
                 {
                     auto visual = m_sectionVisuals.find(key);
                     destroySectionVisual(visual->second);
                     m_sectionVisuals.erase(visual);
                 }
+                if(acceptedCurrent && !hasVisual)m_emptySectionUploadIdentities[key]=version;
+                else m_emptySectionUploadIdentities.erase(key);
                 transitionRenderState(
                     key, acceptedCurrent && hasVisual
                              ? ChunkRenderState::GpuResident
                              : ChunkRenderState::NotResident);
             }
             flushTerrainBatches();
+            if(m_referenceResidencyProbe) {
+                using namespace ReferenceResidency;
+                const auto records=[](const auto& parts){std::vector<std::string> facts;for(const auto& v:parts)facts.push_back(object({{"location",xyz(v.location)},{"revision",number(v.blockRevision)},{"incarnation",number(v.incarnation)},{"mesh_state",quote(chunkMeshStateName(v.meshState))}}));return array(facts);};
+                m_referenceResidencyProbe->completeUploadFrameFacts(object({
+                    {"frame",number(m_frameCount)},
+                    {"cpu_ready_offered",records(snapshot.cpuReadySections)},
+                    {"retained_clean_requested",records(missingClean)},
+                    {"retained_clean_copied",records(replay.sections)},
+                    {"cpu_ready_uploaded",records(snapshot.cpuReadySections)},
+                    {"retained_clean_uploaded",records(replay.sections)},
+                    {"accepted_uploads",array(acceptedUploadFacts)},
+                    {"normal_count",number(snapshot.cpuReadySections.size())},
+                    {"replay_count",number(replay.sections.size())},
+                    {"combined_count",number(uploaded.size())},
+                    {"maximum_count",number(ChunkRuntime::MaxSectionUploadsPerFrame)}}));
+            }
         }
 
         void syncActorVisuals(float deltaSeconds = 0.f)
@@ -5249,6 +6249,8 @@ namespace
         bool uploadSectionVisual(WorldSectionMeshSnapshot& section)
         {
             const std::string key = sectionKey(section.location);
+            m_emptySectionUploadIdentities.erase(key);
+            if(m_referenceResidencyProbe)m_referenceResidencyProbe->uploaded(section.location,section.blockRevision);
             const auto existing = m_sectionVisuals.find(key);
             if (existing != m_sectionVisuals.end())
             {
@@ -5278,7 +6280,10 @@ namespace
                 retainShoreUploadInput(visual, mesh, material, section.location);
                 auto object = std::make_unique<ChunkSectionRenderable>(
                     name + suffix, mesh, section.location, material, queue);
+                if(m_referenceResidencyProbe)m_referenceResidencyProbe->retain(*object,{{section.location,&mesh}},section.location);
                 object->setCastShadows(shadows);
+                if(m_referenceEditProbe)
+                    m_referenceEditProbe->retainUpload(*object,mesh,section.location,section.blockRevision);
                 if (!visual.node)
                     visual.node = m_sceneManager->getRootSceneNode()->createChildSceneNode(
                         name + "_Node", Ogre::Vector3(
@@ -5317,7 +6322,8 @@ namespace
             }
             if (!visual.node && !visual.batchMeshes) return false;
             m_sectionVisuals.emplace(key, std::move(visual));
-            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture || m_shoreEditCapture || !m_waterSeamOutput.empty())
+            if(m_referenceResidencyProbe)m_referenceResidencyProbe->witnessUploaded(section.location,section.blockRevision,section.incarnation,section.meshState,section.retainedCleanReplay?"retained-clean-replay":"cpu-ready","frame");
+            if (m_materialIdentityCapture || m_cameraDiagnostics || m_floraWindCapture || m_shoreEditCapture || m_referenceEditProbe || !m_waterSeamOutput.empty())
                 m_materialIdentityMeshRevisions[key] = section.blockRevision;
             return true;
         }
@@ -5354,6 +6360,7 @@ namespace
                     if (parts.empty()) return;
                     auto object = std::make_unique<ChunkSectionRenderable>(name + suffix,
                         parts, origin, material, queue);
+                    if(m_referenceResidencyProbe)m_referenceResidencyProbe->retain(*object,parts,origin);
                     object->setCastShadows(shadows);
                     if (!visual.node)
                         visual.node = m_sceneManager->getRootSceneNode()->createChildSceneNode(
@@ -5399,6 +6406,9 @@ namespace
 
         void destroySectionVisual(SectionVisual& visual)
         {
+            std::vector<ReferenceResidencyProbe::Retired> retired;
+            if(m_referenceResidencyProbe)m_referenceResidencyProbe->forgetWitness(visual.location);
+            if(m_referenceResidencyProbe)for(auto& object:visual.renderables){const auto value=m_referenceResidencyProbe->detach(*object);if(value)retired.push_back(*value);}
             if (visual.batchMeshes)
             {
                 const auto origin = terrainRenderBatchOrigin(visual.location);
@@ -5410,12 +6420,14 @@ namespace
                 if (m_floraWindCapture) m_floraWindCapture->detachRenderable(*renderable);
                 if (m_shoreEditCapture) m_shoreEditCapture->detachRenderable(*renderable);
                 if (m_shadowPatchCapture) m_shadowPatchCapture->detachRenderable(*renderable);
+                if (m_referenceEditProbe) m_referenceEditProbe->detach(*renderable);
                 if (renderable->isAttached())
                 {
                     renderable->detachFromParent();
                 }
             }
             visual.renderables.clear();
+            if(m_referenceResidencyProbe)m_referenceResidencyProbe->retired(retired);
             visual.fernDiagnosticFlora.reset();
             if (visual.node != nullptr && m_sceneManager != nullptr)
             {
@@ -5966,7 +6978,9 @@ namespace
                     enabled ? receiver.shadowVertex : receiver.vertex);
                 const bool terrain = std::string(receiver.fragment) == "HelloMine3D/TerrainFragment";
                 pass->setFragmentProgram(terrain && runtimeTerrainMaterialProfile().usesTextureArray()
-                    ? (enabled ? "HelloMine3D/TerrainShadowArrayFragment" : "HelloMine3D/TerrainArrayFragment")
+                    ? (m_referenceSurfaceEnabled
+                        ? (enabled ? "HelloMine3D/TerrainShadowSurfaceFragment" : "HelloMine3D/TerrainSurfaceFragment")
+                        : (enabled ? "HelloMine3D/TerrainShadowArrayFragment" : "HelloMine3D/TerrainArrayFragment"))
                     : (enabled ? receiver.shadowFragment : receiver.fragment));
                 if (enabled)
                 {
@@ -6122,6 +7136,13 @@ namespace
                     DirectionalShadowQuality::Off;
                 return;
             }
+            // CONTENT_SHADOW units own the last shadow TexturePtr. Drop our
+            // receiver units before SceneManager destroys its shadow textures
+            // and calls refcount-aware ShadowTextureManager::clearUnused().
+            // Other scenes' references remain protected by Ogre's own policy.
+            m_directionalShadowQuality = DirectionalShadowQuality::Off;
+            m_directionalShadowStrength = 0.f;
+            setDirectionalShadowReceiverPrograms(false);
             m_sceneManager->setShadowTechnique(Ogre::SHADOWTYPE_NONE);
             m_directionalShadowDiagnosticsEmitted = false;
             if (m_directionalSunLight != nullptr)
@@ -6139,10 +7160,6 @@ namespace
                 m_sceneManager->destroySceneNode(m_directionalSunNode);
                 m_directionalSunNode = nullptr;
             }
-            m_directionalShadowQuality =
-                DirectionalShadowQuality::Off;
-            m_directionalShadowStrength = 0.f;
-            setDirectionalShadowReceiverPrograms(false);
             if (m_actorRenderer != nullptr)
             {
                 m_actorRenderer->setCastShadows(false);
@@ -6161,7 +7178,6 @@ namespace
                 return false;
             }
 
-            m_sceneManager->setShadowTechnique(Ogre::SHADOWTYPE_NONE);
             if (m_directionalSunLight != nullptr)
             {
                 m_directionalSunLight->setCastShadows(false);
@@ -6170,6 +7186,9 @@ namespace
                 DirectionalShadowQuality::Off;
             m_directionalShadowStrength = 0.f;
             setDirectionalShadowReceiverPrograms(false);
+            // Match normal world-close ordering: base receiver references are
+            // gone before Ogre's refcount-aware shadow cache cleanup.
+            m_sceneManager->setShadowTechnique(Ogre::SHADOWTYPE_NONE);
             if (m_actorRenderer != nullptr)
             {
                 m_actorRenderer->setCastShadows(false);
@@ -6514,10 +7533,133 @@ namespace
                           << " retained_cpu_bytes=" << data.rgba.size()
                           << " legacy_atlas_bytes=262144 reloadable=1\n";
             }
+            syncReferenceSurfaceMode();
             std::cout << "[TERRAIN_APPEARANCE] standard=" << profile.usesTextureArray()
                       << " leaf_geometry=cube"
                       << " reason=" << profile.renderingModeReason()
                       << " max_array_layers=" << maxLayers << '\n';
+        }
+
+        void syncReferenceSurfaceMode()
+        {
+            bool surfaceShaderAvailable=false;
+            if (m_hdrPipeline && m_hdrPipeline->active())
+            {
+                unsigned supported=0;
+                for (const char* name:{"HelloMine3D/TerrainSurfaceFragment",
+                                      "HelloMine3D/TerrainShadowSurfaceFragment"})
+                {
+                    auto program=Ogre::HighLevelGpuProgramManager::getSingleton().getByName(name);
+                    if (program.isNull()) continue; // Complete old program set.
+                    const auto parameters=program->getDefaultParameters();
+                    unsigned fields=0;
+                    for (const char* field:{"terrainNormalArray","terrainSurfaceArray",
+                                           "localLightCount","localLightPositionRadius","localLightColourEnergy"})
+                        fields+=parameters->_findNamedConstantDefinition(field,false)!=nullptr;
+                    if (fields!=0 && fields!=5)
+                        throw std::runtime_error(std::string("Incomplete reference surface shader interface: ")+name);
+                    supported+=fields==5;
+                }
+                if (supported==1)
+                    throw std::runtime_error("Reference surface shader interfaces disagree between receiver variants.");
+                surfaceShaderAvailable=supported==2;
+            }
+            const bool enabled = m_hdrPipeline && m_hdrPipeline->active() &&
+                runtimeTerrainMaterialProfile().usesTextureArray() && surfaceShaderAvailable &&
+                runtimeReferenceSurfaceProfile().usableWithEffectiveTerrain();
+            if (enabled == m_referenceSurfaceEnabled) return;
+            if (enabled && m_referenceArrays[0].isNull())
+            {
+                const auto &profile = runtimeReferenceSurfaceProfile().parameters();
+                std::size_t bytes = 0;
+                for (unsigned channel=0;channel<3;++channel)
+                {
+                    m_referenceLoaders[channel] = std::make_unique<TerrainArrayLoader>(
+                        TerrainTextureArray::load(runtimeResourcePackResolver().resolve(profile.textures[channel])));
+                    const auto &data=m_referenceLoaders[channel]->data;
+                    m_referenceArrays[channel]=Ogre::TextureManager::getSingleton().createManual(
+                        "HelloMine3D/ReferenceSurface"+std::to_string(channel),
+                        Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+                        Ogre::TEX_TYPE_2D_ARRAY,data.edge,data.edge,data.layers,
+                        static_cast<int>(data.mipCount-1),Ogre::PF_BYTE_RGBA,
+                        Ogre::TU_STATIC_WRITE_ONLY,m_referenceLoaders[channel].get(),channel==0);
+                    if (m_referenceArrays[channel].isNull() ||
+                        m_referenceArrays[channel]->isHardwareGammaEnabled()!=(channel==0))
+                        throw std::runtime_error("Invalid reference surface channel gamma/storage.");
+                    m_referenceArrays[channel]->load();
+                    bytes+=data.rgba.size();
+                }
+                for (const char *name:{"HelloMine3D/TerrainSurfaceFragment",
+                                      "HelloMine3D/TerrainShadowSurfaceFragment"})
+                {
+                    auto program=Ogre::HighLevelGpuProgramManager::getSingleton().getByName(name);
+                    if (program.isNull()) throw std::runtime_error(std::string("Missing surface shader: ")+name);
+                    program->load();
+                    auto *shader=dynamic_cast<Ogre::GLSLShader*>(program.get());
+                    if (!shader || !shader->compile(true) || program->hasCompileError())
+                        throw std::runtime_error(std::string("Invalid surface shader: ")+name);
+                }
+                std::cout<<"[REFERENCE_SURFACE] channels=3 edge=64 layers=256 mips=7"
+                         <<" colour_srgb=1 data_srgb=0 gpu_bytes="<<bytes
+                         <<" reload_cpu_bytes="<<bytes<<" source_index_bytes_per_section=512\n";
+            }
+            m_referenceSurfaceEnabled=enabled;
+            for (const char *name:{"HelloMine3D/Terrain","HelloMine3D/Transparent",
+                                  OgrePlayerRenderer::HeldMaterialName,
+                                  OgrePlayerRenderer::HeldTransparentMaterialName,"HelloMine3D/Flora"})
+            {
+                auto *pass=materialPass(name);
+                for(int i=static_cast<int>(pass->getNumTextureUnitStates())-1;i>=1;--i)
+                {
+                    auto *unit=pass->getTextureUnitState(static_cast<unsigned short>(i));
+                    if (unit->getName()=="referenceNormal" || unit->getName()=="referenceSurface" ||
+                        unit->getContentType()==Ogre::TextureUnitState::CONTENT_SHADOW)
+                        pass->removeTextureUnitState(static_cast<unsigned short>(i));
+                }
+                pass->getTextureUnitState(0)->setTexture(enabled?m_referenceArrays[0]:m_terrainArray);
+                if (enabled)
+                {
+                    pass->getTextureUnitState(0)->setTextureFiltering(Ogre::TFO_TRILINEAR);
+                    for(unsigned channel=1;channel<3;++channel)
+                    {
+                        auto *unit=pass->createTextureUnitState();
+                        unit->setName(channel==1?"referenceNormal":"referenceSurface");
+                        unit->setTexture(m_referenceArrays[channel]);
+                        unit->setTextureAddressingMode(Ogre::TextureUnitState::TAM_WRAP);
+                        unit->setTextureFiltering(Ogre::TFO_TRILINEAR);
+                    }
+                }
+                else
+                {
+                    auto *unit=pass->getTextureUnitState(0);
+                    unit->setTextureFiltering(Ogre::FT_MIN,Ogre::FO_POINT);
+                    unit->setTextureFiltering(Ogre::FT_MAG,Ogre::FO_POINT);
+                    unit->setTextureFiltering(Ogre::FT_MIP,Ogre::FO_LINEAR);
+                }
+            }
+            setDirectionalShadowReceiverPrograms(m_directionalShadowQuality!=DirectionalShadowQuality::Off);
+            std::cout<<"[REFERENCE_SURFACE_MODE] active="<<enabled
+                     <<" resource_reason="<<runtimeReferenceSurfaceProfile().selectionReason()
+                     <<" shader_available="<<surfaceShaderAvailable<<" colour_domain="
+                     <<(enabled?"linear-srgb-sampled":"authored-legacy")<<'\n';
+        }
+
+        void bindLocalLightParameters(Ogre::GpuProgramParametersSharedPtr parameters)
+        {
+            if (!m_referenceSurfaceEnabled ||
+                !parameters->_findNamedConstantDefinition("localLightCount",false)) return;
+            std::array<float,32> positions{},radiance{};
+            for(std::size_t i=0;i<m_localLights.count;++i)
+            {
+                const auto &light=m_localLights.sources[i];
+                positions[i*4]=light.position.x; positions[i*4+1]=light.position.y;
+                positions[i*4+2]=light.position.z; positions[i*4+3]=light.radius;
+                radiance[i*4]=light.colour.r; radiance[i*4+1]=light.colour.g;
+                radiance[i*4+2]=light.colour.b; radiance[i*4+3]=light.energy;
+            }
+            parameters->setNamedConstant("localLightCount",static_cast<int>(m_localLights.count));
+            parameters->setNamedConstant("localLightPositionRadius",positions.data(),8,4);
+            parameters->setNamedConstant("localLightColourEnergy",radiance.data(),8,4);
         }
 
         void syncTerrainMaterialParameters()
@@ -6557,6 +7699,9 @@ namespace
                 parameters->setNamedConstant(
                     "toneGamma", profile.toneGamma);
             }
+            // Program switches (including shadow On/Off) replace parameter
+            // sets. Rebind the frozen active colour mode after every switch.
+            if (m_hdrPipeline) m_hdrPipeline->applySceneParameters();
         }
 
         void syncEnvironment(const WorldEnvironmentState& air, float deltaSeconds)
@@ -6659,6 +7804,9 @@ namespace
             }
             const float skyBlend = std::clamp((m_viewRangeSkyAvailability - .05f) / .25f, 0.f, 1.f);
             const float viewRangeStrength = skyBlend * skyBlend * (3.f - 2.f * skyBlend);
+            if (m_caveBoundaryRenderer != nullptr)
+                m_caveBoundaryRenderer->setViewRange(
+                    viewRange, viewRangeCentre, viewRangeStrength, fogVector);
             const bool shadowActive =
                 m_directionalShadowQuality !=
                 DirectionalShadowQuality::Off;
@@ -6700,6 +7848,7 @@ namespace
                 Ogre::GpuProgramParametersSharedPtr parameters =
                     materialPass(materialName)
                         ->getFragmentProgramParameters();
+                bindLocalLightParameters(parameters);
                 parameters->setNamedConstant(
                     "environmentLight", state.daylight);
                 parameters->setNamedConstant("fogColour", fogVector);
@@ -6770,6 +7919,7 @@ namespace
                         ->getFragmentProgramParameters();
                 parameters->setNamedConstant("actorSurfaceStrength",
                     m_v10cAtmosphereEnabled ? 1.f : 0.f);
+                bindLocalLightParameters(parameters);
                 parameters->setNamedConstant(
                     "environmentLight", state.daylight);
                 parameters->setNamedConstant("fogColour", fogVector);
@@ -6889,6 +8039,11 @@ namespace
 
         bool keyPressed(const OIS::KeyEvent& event) override
         {
+            if(m_lifecycleProbe) ++m_lifecycleInputEvents;
+            if(m_referenceEditProbe) ++m_referenceEditInputEvents;
+            if(m_referenceResidencyProbe)++m_referenceResidencyInputs;
+            if(m_referenceRestartObservation)m_referenceRestartObservation->input();
+            if(m_referenceWaterProbe)m_referenceWaterProbe->input();
             const bool isJumpKey = event.key == toOisKey(
                 m_config.inputBindings.get(GameplayAction::Jump));
             const bool firstJumpPress = isJumpKey && m_jumpHeldKey != event.key;
@@ -7058,6 +8213,11 @@ namespace
 
         bool keyReleased(const OIS::KeyEvent& event) override
         {
+            if(m_lifecycleProbe) ++m_lifecycleInputEvents;
+            if(m_referenceEditProbe) ++m_referenceEditInputEvents;
+            if(m_referenceResidencyProbe)++m_referenceResidencyInputs;
+            if(m_referenceRestartObservation)m_referenceRestartObservation->input();
+            if(m_referenceWaterProbe)m_referenceWaterProbe->input();
             if (m_jumpHeldKey == event.key) m_jumpHeldKey.reset();
             if (event.key == OIS::KC_GRAVE)
             {
@@ -7078,6 +8238,11 @@ namespace
 
         bool mouseMoved(const OIS::MouseEvent& event) override
         {
+            if(m_lifecycleProbe) ++m_lifecycleInputEvents;
+            if(m_referenceEditProbe) ++m_referenceEditInputEvents;
+            if(m_referenceResidencyProbe)++m_referenceResidencyInputs;
+            if(m_referenceRestartObservation)m_referenceRestartObservation->input();
+            if(m_referenceWaterProbe)m_referenceWaterProbe->input();
             if (m_userInterface != nullptr)
             {
                 m_userInterface->mouseMoved(event);
@@ -7110,6 +8275,11 @@ namespace
         bool mousePressed(const OIS::MouseEvent& event,
                           OIS::MouseButtonID button) override
         {
+            if(m_lifecycleProbe) ++m_lifecycleInputEvents;
+            if(m_referenceEditProbe) ++m_referenceEditInputEvents;
+            if(m_referenceResidencyProbe)++m_referenceResidencyInputs;
+            if(m_referenceRestartObservation)m_referenceRestartObservation->input();
+            if(m_referenceWaterProbe)m_referenceWaterProbe->input();
             // Decide ownership before the UI can consume/close on this click.
             for (std::size_t i = 0; i < GameplayMouseButtonCount; ++i)
             {
@@ -7130,6 +8300,11 @@ namespace
         bool mouseReleased(const OIS::MouseEvent& event,
                            OIS::MouseButtonID button) override
         {
+            if(m_lifecycleProbe) ++m_lifecycleInputEvents;
+            if(m_referenceEditProbe) ++m_referenceEditInputEvents;
+            if(m_referenceResidencyProbe)++m_referenceResidencyInputs;
+            if(m_referenceRestartObservation)m_referenceRestartObservation->input();
+            if(m_referenceWaterProbe)m_referenceWaterProbe->input();
             if (m_userInterface != nullptr)
             {
                 m_userInterface->mouseButton(event, button, false);
@@ -7142,6 +8317,12 @@ namespace
             updateAspectRatio();
             updateMouseBounds();
             refreshNativeCursorClip();
+            // A resized captured cursor can report a window-management delta.
+            // Treat it like an ownership boundary before accepting world input.
+            // Native events may already be buffered before the next OIS capture.
+            if (m_mouse != nullptr) m_mouse->clearRelativeMotion();
+            clearTransientInput();
+            m_focusGate.suppressUntilRelease();
         }
 
         void windowMoved(Ogre::RenderWindow*) override
@@ -7408,6 +8589,9 @@ namespace
                 RuntimePerformanceCapture::shutdown();
                 m_runtimeStarted = false;
             }
+            m_referenceWaterProbe.reset();
+            m_referenceRestartObservation.reset();
+            m_referenceEditProbe.reset();
             m_renderCapture.reset();
             m_materialIdentityCapture.reset();
             m_cameraDiagnostics.reset();
@@ -7418,6 +8602,18 @@ namespace
             m_pauseNotificationCapture.reset();
             m_userInterface.reset();
             destroyPostProcessingResources();
+            if(m_lifecycleProbe && !m_lifecycleProbe->failed() && m_lifecycleProbe->stage()==11)
+                m_lifecycleProbe->begin(unsigned(m_frameCount),lifecycleSnapshot());
+            if(m_referenceResidencyProbe)m_referenceResidencyProbe->detachDraws();
+            m_referenceWaterDepth.reset();
+            m_waterReflection.reset();
+            m_hdrPipeline.reset();
+            if(m_referenceResidencyProbe){ReferenceResidency::require(m_root && m_sceneManager && !m_waterReflection && !m_hdrPipeline,"component ownership teardown order");m_referenceResidencyProbe->event("components-destroyed",lifecycleSnapshot());}
+            if(m_lifecycleProbe && !m_lifecycleProbe->failed() && m_lifecycleProbe->stage()==11 && m_lifecycleProbe->begun()) {
+                lifecycleRequire(m_root && m_sceneManager && !m_world && m_sectionVisuals.empty() && m_terrainBatchVisuals.empty(),"Components must release before live Scene/Root.");
+                lifecycleRequire(lifecycleCameraCount()==1,"Reflection camera survived component destruction.");
+                m_lifecycleProbe->commit(unsigned(m_frameCount),lifecycleSnapshot());
+            }
             m_blockFeedback.reset();
             m_actorRenderer.reset();
             m_playerRenderer.reset();
@@ -7430,6 +8626,7 @@ namespace
             clearTerrainBatches();
             m_caveBoundaryRenderer.reset();
             m_sectionRenderStates.clear();
+            m_emptySectionUploadIdentities.clear();
             m_materialIdentityMeshRevisions.clear();
             m_lastLiveSections.clear();
             destroyDirectionalShadowResources();
@@ -7445,20 +8642,66 @@ namespace
             m_regionalAtmosphere.reset();
             m_worldPlayer = nullptr;
             m_sandbox.reset();
+            if(m_referenceResidencyProbe)m_referenceResidencyProbe->worldDestroyed();
             m_logicCamera.reset();
             m_music.reset();
             m_audio.reset();
 
+            if(m_lifecycleProbe && !m_lifecycleProbe->failed() && m_lifecycleProbe->stage()==12)
+                m_lifecycleProbe->begin(unsigned(m_frameCount),lifecycleSnapshot());
             m_camera = nullptr;
             m_sceneManager = nullptr;
             m_window = nullptr;
             m_terrainArray.setNull();
+            for (auto &texture : m_referenceArrays) texture.setNull();
             m_root.reset();
+            if(m_referenceResidencyProbe)m_referenceResidencyProbe->event("root-shutdown",lifecycleSnapshot());
+            if(m_lifecycleProbe && !m_lifecycleProbe->failed() && m_lifecycleProbe->stage()==12 && m_lifecycleProbe->begun())
+                m_lifecycleProbe->commit(unsigned(m_frameCount),lifecycleSnapshot());
             m_terrainArrayLoader.reset();
+            for (auto &loader : m_referenceLoaders) loader.reset();
             m_gl3PlusPlugin.reset();
         }
 
         std::unique_ptr<Ogre::Root> m_root;
+        std::unique_ptr<RenderLifecycleProbe> m_lifecycleProbe;
+        std::uint64_t m_lifecycleWorldEpoch=0, m_lifecycleExpectedHdrGeneration=0;
+        bool m_lifecycleCloseReturned=false;
+        unsigned m_lifecycleInputEvents=0, m_lifecycleExpectedWidth=0, m_lifecycleExpectedHeight=0;
+        unsigned m_lifecyclePointWidth=1280, m_lifecyclePointHeight=720;
+        std::string m_lifecycleWorldDirectory;
+        std::array<std::vector<std::string>,5> m_lifecycleEmptyManagerNames;
+        std::unique_ptr<HdrPipeline> m_hdrPipeline;
+        std::unique_ptr<PlanarWaterReflection> m_waterReflection;
+        std::unique_ptr<ReferenceWaterDepthPrepassDiagnostic> m_referenceWaterDepth;
+        bool m_referenceWaterDepthRequested = false;
+        std::unique_ptr<ReferenceWaterTransitionProbe> m_referenceWaterProbe;
+        std::string m_referenceWaterOutput;
+        std::uint64_t m_referenceWaterFrameRevision=0;
+        std::unique_ptr<ReferenceSettingsRestartObservation> m_referenceRestartObservation;
+        std::string m_referenceRestartOutput;
+        std::unique_ptr<ReferenceWorldEditProbe> m_referenceEditProbe;
+        std::unique_ptr<ReferenceResidencyProbe> m_referenceResidencyProbe;
+        unsigned m_referenceResidencyObservationFrame=0;
+        bool m_referenceResidencyColumnsAvailable=false;
+        bool m_referenceResidencyWitnessCellsAvailable=false;
+        std::string m_referenceResidencyColumnFacts="[]";
+        std::array<std::string,2> m_referenceResidencyWitnessCellFacts{{"{}","{}"}};
+        std::string m_referenceResidencyOutput;
+        std::unordered_map<std::string,WorldSectionMeshVersion> m_emptySectionUploadIdentities;
+        unsigned m_referenceResidencyInputs=0;
+        float m_referenceResidencyDelta=0;
+        std::uint64_t m_referenceResidencyFrameRevision=0;
+        std::string m_referenceEditOutput;
+        unsigned m_referenceEditInputEvents=0;
+        std::uint64_t m_referenceEditFrameSceneRevision=0;
+        bool m_planarDiagnosticCaptured = false;
+        std::array<std::unique_ptr<TerrainArrayLoader>,3> m_referenceLoaders;
+        std::array<Ogre::TexturePtr,3> m_referenceArrays;
+        bool m_referenceSurfaceEnabled = false;
+        LocalLightSnapshot m_localLights;
+        bool m_referenceVisualRequested = false;
+        bool m_referenceVisualApplied = false;
         std::unique_ptr<TerrainArrayLoader> m_terrainArrayLoader;
         Ogre::TexturePtr m_terrainArray;
         Config m_config;
@@ -7691,6 +8934,11 @@ int runOgreBootstrap(bool validateOnly,
 
     try
     {
+        ReferenceWaterTransitionProbe::validateEntrypoint(validateOnly);
+        ReferenceSettingsRestartObservation::validateEntrypoint(validateOnly);
+        ReferenceResidencyProbe::validateEntrypoint(validateOnly);
+        ReferenceWorldEditProbe::validateEntrypoint(validateOnly);
+        RenderLifecycleProbe::validateEntrypoint(validateOnly);
         const std::string root = ResourcePaths::projectRoot();
         const std::vector<StartupResourceRequirement> startupResources =
             loadStartupResourceManifest(root);
@@ -7706,12 +8954,17 @@ int runOgreBootstrap(bool validateOnly,
         validateStartupResources(root, startupResources);
         runtimeTerrainMaterialProfile().freezeFromResourceView(
             runtimeResourcePackResolver());
+        runtimeReferenceSurfaceProfile().freezeFromResourceView(runtimeResourcePackResolver());
+        std::cout<<"[REFERENCE_SURFACE_PROFILE] available="<<runtimeReferenceSurfaceProfile().available()
+                 <<" compatible="<<runtimeReferenceSurfaceProfile().usableWithEffectiveTerrain()
+                 <<" reason="<<runtimeReferenceSurfaceProfile().selectionReason()<<'\n';
         validateAtmosphereShaderContract(
             runtimeResourcePackResolver());
         validateDirectionalShadowShaderContract(
             runtimeResourcePackResolver());
         validatePostProcessingShaderContract(
             runtimeResourcePackResolver());
+        validateHdrShaderContract(runtimeResourcePackResolver());
         validateCaveBoundaryShaderContract(
             runtimeResourcePackResolver());
         BlockDatabase::get();

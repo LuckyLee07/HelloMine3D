@@ -1,4 +1,6 @@
 #include "ChunkSection.h"
+#include "../Block/BlockGeometry.h"
+#include <stdexcept>
 
 #include "../Block/BlockBehavior.h"
 #include "../Block/BlockDatabase.h"
@@ -29,6 +31,8 @@ ChunkSection::ChunkSection(const glm::ivec3 &location, World &world,
 
 void ChunkSection::setBlock(int x, int y, int z, ChunkBlock block)
 {
+    if(!BlockGeometry::validMetadata(block))
+        throw std::invalid_argument("Architectural block metadata must be in [0,3].");
     if (outOfBounds(x) || outOfBounds(y) || outOfBounds(z)) {
         auto location = toWorldPosition(x, y, z);
         m_pWorld->setBlock(location.x, location.y, location.z, block);
@@ -64,6 +68,11 @@ void ChunkSection::setBlock(int x, int y, int z, ChunkBlock block)
 
     m_layers[y].update(currentBlock, block);
     currentBlock = block;
+    const auto &definition = BlockDatabase::get().getDefinition(static_cast<BlockId>(block.id));
+    const int emission = definition.behavior != nullptr
+        ? definition.behavior->emission(definition, block) : definition.light;
+    m_emittingCells.set(static_cast<std::size_t>(blockIndex), emission > 0);
+    if (m_worldIndexUpdatesEnabled) m_pWorld->notifyVisualEditUnlocked();
     invalidateMeshInput();
 
     const bool sectionIsActive = !m_randomTickBlocks.empty();

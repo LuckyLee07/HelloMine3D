@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include "../Maths/glm.h"
+#include "../World/Block/BlockShape.h"
 
 // Pure presentation geometry. Tile coordinates and alpha are copied inputs;
 // this builder owns neither world objects nor inventory state.
@@ -31,6 +32,20 @@ inline Mesh cube(glm::vec2 top, glm::vec2 side, glm::vec2 bottom)
         face({{{-.5f,.5f,-.5f}, {-.5f,.5f,.5f}, {.5f,.5f,.5f}, {.5f,.5f,-.5f}}}, top),
         face({{{-.5f,-.5f,.5f}, {-.5f,-.5f,-.5f}, {.5f,-.5f,-.5f}, {.5f,-.5f,.5f}}}, bottom)
     };
+}
+inline Mesh compound(const BlockShape &shape,glm::vec2 top,glm::vec2 side,glm::vec2 bottom,unsigned yaw=0)
+{
+    Mesh mesh;
+    if(!shape.isCompound()) return mesh;
+    for(const auto &surface:shape.variants[yaw & 3u].surfaces) {
+        const auto tile=surface.material==0?top:surface.material==2?bottom:side;
+        std::array<glm::vec3,4> points;
+        for(int k=0;k<4;++k) points[k]=glm::vec3(surface.positions[k*3],surface.positions[k*3+1],surface.positions[k*3+2])-glm::vec3(.5f);
+        Face output=face(points,tile);
+        for(int k=0;k<4;++k) output.uv[k]={surface.repeat[k*2],surface.repeat[k*2+1]};
+        mesh.push_back(output);
+    }
+    return mesh;
 }
 inline Mesh extrudedIcon(glm::vec2 tile, const Mask& mask)
 {

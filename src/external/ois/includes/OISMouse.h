@@ -137,6 +137,10 @@ namespace OIS
 		// Other backends retain their existing application-managed policy.
 		virtual void setCursorCaptured(bool) {}
 
+		// HelloMine3D extension: discard pending XY motion at a window boundary.
+		// Cocoa implements this without changing buttons, wheel or capture policy.
+		virtual void clearRelativeMotion() {}
+
 		/** @remarks Returns currently set callback.. or 0 */
 		MouseListener* getEventCallback() const { return mListener; }
 

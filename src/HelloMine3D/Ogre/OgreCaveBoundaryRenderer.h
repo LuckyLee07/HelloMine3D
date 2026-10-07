@@ -1,5 +1,7 @@
 #pragma once
 
+#include <OgreVector2.h>
+#include <OgreVector3.h>
 #include <cstddef>
 #include <memory>
 #include <vector>
@@ -54,6 +56,10 @@ class OgreCaveBoundaryRenderer
     // atlas/activation budget in the same render frame.
     void sync(const std::vector<WorldBoundaryMaskFace>& faces,
               bool uploadNewMasks = true);
+    // Copies the existing logical residency-centred visual range to this
+    // renderer's owned material clone; no World query or allocation.
+    void setViewRange(const Ogre::Vector2& range, const Ogre::Vector2& centre,
+                      float strength, const Ogre::Vector3& authoredFog);
     void clear();
     const OgreCaveBoundaryRendererStats& stats() const noexcept;
     const OgreCaveBoundaryRendererStats& getStats() const noexcept { return stats(); }

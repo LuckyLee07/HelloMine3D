@@ -25,7 +25,7 @@ def validate(image, entries, original):
         hashes.add(tile.tobytes())
         if mode == 'icon' and tile.tobytes() != original.crop((x, y, x + 16, y + 16)).tobytes():
             raise ValueError(f'changed icon: {name}')
-    if len(hashes) != 132:
+    if len(hashes) != 138:
         raise ValueError(f'distinct tiles: {len(hashes)}')
     for y in range(0, 256, 16):
         for x in range(0, 256, 16):
@@ -87,7 +87,7 @@ def main():
             pass
         else:
             raise AssertionError('Failed to reject duplicate semantic')
-    print('[WARM_ATLAS] PASS dimensions=256x256 semantics=132 empty=124 alpha=all block-faces=32 material-icons=49 icons=unchanged rebuild=byte-identical negative=5 sha256=' + hashlib.sha256(rebuilt).hexdigest())
+    print('[WARM_ATLAS] PASS dimensions=256x256 semantics=138 empty=118 alpha=all block-faces=44 material-icons=61 icons=unchanged rebuild=byte-identical negative=5 sha256=' + hashlib.sha256(rebuilt).hexdigest())
 
 
 if __name__ == '__main__':

@@ -1,0 +1,23 @@
+compositor HelloMine3D/LinearHdr
+{
+    technique
+    {
+        // HdrPipeline sets a budgeted explicit size before creating resources.
+        // Keeping both dimensions nonzero prevents Ogre's automatic resize
+        // allocation from running before the frame budget guard.
+        texture scene 1 1 PF_FLOAT16_RGBA
+        target scene
+        {
+            input previous
+        }
+        target_output
+        {
+            input none
+            pass render_quad
+            {
+                material HelloMine3D/HdrResolve
+                input 0 scene
+            }
+        }
+    }
+}

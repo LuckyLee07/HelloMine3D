@@ -1,5 +1,17 @@
 #version 150
 
+// The legacy branch keeps authored display colours untouched. HDR scene
+// shaders decode colour inputs before lighting/blending; alpha/data stay raw.
+uniform float linearHdrMode;
+vec3 sceneColour(vec3 authored)
+{
+    if (linearHdrMode < 0.5) return authored;
+    vec3 c = max(authored, vec3(0.0));
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)),
+               step(vec3(0.04045), c));
+}
+
+
 in vec2 terrainTileUv;
 in vec2 terrainRepeat;
 out vec4 fragmentColour;
@@ -82,5 +94,5 @@ void main()
     vec3 colour = mix(vec3(0.83, 0.91, 1.0), vec3(0.57, 0.53, 0.46), bevel * 0.65);
     colour = mix(colour, vec3(0.035, 0.028, 0.022), crack);
     float alpha = mix(highlightStrength + bevel * 0.18, 0.93, crack);
-    fragmentColour = vec4(colour, alpha * surface.a);
+    fragmentColour = vec4(sceneColour(colour), alpha * surface.a);
 }

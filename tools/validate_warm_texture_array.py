@@ -113,10 +113,10 @@ def validate(path, report_path):
     assert report['sha256'] == hashlib.sha256(data).hexdigest()
     entries = layout(ROOT / 'media/materials/Base.terrain-atlas')
     active = {y // 16 * 16 + x // 16 for x, y, _ in entries.values()}
-    assert len(active) == 132 and len(set(range(256)) - active) == 124
-    assert len(report['semantics']) == 132
+    assert len(active) == 138 and len(set(range(256)) - active) == 118
+    assert len(report['semantics']) == 138
     records = {record['semantic']: record for record in report['semantics']}
-    assert len(records) == 132 and set(records) == set(entries), \
+    assert len(records) == 138 and set(records) == set(entries), \
         'Array report must contain every semantic exactly once'
     assert report['adventure_source_sha256'] == hashlib.sha256(ADVENTURE_SOURCE.read_bytes()).hexdigest()
     assert report['adventure_override_sha256'] == {
