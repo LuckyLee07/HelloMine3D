@@ -1235,3 +1235,9 @@ v4 保留原 9 个反馈 cue，并追加旷野、森林、内陆水、海岸、�
 不揭示探索地图、不写 World/Actor/Player/存档。环境层首次可听和动物鸣叫可提交最低优先级字幕；
 环境重复与脚步关闭事件字幕，不能反复刷新或覆盖战斗警告。
 完整数据、生命周期、失败与验证边界见[音频反馈合同](../contracts/audio-feedback-contract-v1.md)。
+
+默认关闭的水面深度排序原型只在有界自有HDR capture内安装主队列监听，对已驻留Water
+使用同group priority99预绘深度、保留原colour pass0／priority100；无几何副本、流送或新RTT。
+实际native draw观察验证全depth先于全colour及GPU写mask，逐draw解除监听，销毁顺序在Scene／HDR前。
+当前正式材质未启用该机制，水后玻璃、legacy／旧VS和普通连续路线未因此通过，见
+[原型合同](../contracts/reference-water-depth-prototype-contract-v1.md)。

@@ -21,6 +21,7 @@ public:
     void setLifecycleReleaseObserver(std::function<void(const char*,const std::string&,bool)> observer, bool delayedDrainFault = false);
     void applySceneParameters() const;
     bool active() const noexcept { return m_active; }
+    Ogre::RenderTexture* sceneTarget() const noexcept { return m_sceneTarget; }
     bool fallback() const noexcept { return m_requested == RenderPipeline::LinearHdr && !m_active; }
     RenderPipeline actualMode() const noexcept { return m_active ? RenderPipeline::LinearHdr : RenderPipeline::Legacy; }
 private:

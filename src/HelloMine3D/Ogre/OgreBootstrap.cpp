@@ -11,6 +11,7 @@
 #include "ReferenceResidencyDiagnostics.h"
 #include "ReferenceSettingsRestartDiagnostics.h"
 #include "ReferenceWaterTransitionDiagnostics.h"
+#include "ReferenceWaterDepthPrepassDiagnostic.h"
 #include <GLSL/OgreGLSLShader.h>
 #include "HdrShaderContract.h"
 #include "../Actor/EnemyPresentationGallery.h"
@@ -620,6 +621,7 @@ namespace
             loadGameConfig();
             m_referenceRestartOutput=ReferenceSettingsRestartObservation::validateConfig(m_config);
             m_referenceWaterOutput=ReferenceWaterTransitionProbe::validateConfig(m_config);
+            m_referenceWaterDepthRequested=ReferenceWaterDepthPrepassDiagnostic::validateConfig(m_config.renderPipeline == RenderPipeline::LinearHdr);
             if (m_config.renderPipeline == RenderPipeline::LinearHdr)
                 validateHdrSceneShaderContract(runtimeResourcePackResolver());
             const auto lifecycleDirectory = RenderLifecycleProbe::validateEnvironment(
@@ -1467,6 +1469,7 @@ namespace
             if(m_lifecycleProbe) m_waterReflection->setLifecycleReleaseObserver(
                 [this](const char* owner,const std::string& facts,bool pass){m_lifecycleProbe->release(owner,facts,pass);});
             m_waterReflection->initialize(*m_sceneManager, *m_root->getRenderSystem());
+            if (m_referenceWaterDepthRequested) m_referenceWaterDepth=std::make_unique<ReferenceWaterDepthPrepassDiagnostic>(*m_root,*m_sceneManager,*m_camera,*m_hdrPipeline);
             if(!m_referenceEditOutput.empty()) {
                 ReferenceEdit::require(m_hdrPipeline->active() && m_referenceSurfaceEnabled,
                     "actual HDR/current surface profile required");
@@ -8162,6 +8165,7 @@ namespace
             if(m_lifecycleProbe && !m_lifecycleProbe->failed() && m_lifecycleProbe->stage()==11)
                 m_lifecycleProbe->begin(unsigned(m_frameCount),lifecycleSnapshot());
             if(m_referenceResidencyProbe)m_referenceResidencyProbe->detachDraws();
+            m_referenceWaterDepth.reset();
             m_waterReflection.reset();
             m_hdrPipeline.reset();
             if(m_referenceResidencyProbe){ReferenceResidency::require(m_root && m_sceneManager && !m_waterReflection && !m_hdrPipeline,"component ownership teardown order");m_referenceResidencyProbe->event("components-destroyed",lifecycleSnapshot());}
@@ -8229,6 +8233,8 @@ namespace
         std::array<std::vector<std::string>,5> m_lifecycleEmptyManagerNames;
         std::unique_ptr<HdrPipeline> m_hdrPipeline;
         std::unique_ptr<PlanarWaterReflection> m_waterReflection;
+        std::unique_ptr<ReferenceWaterDepthPrepassDiagnostic> m_referenceWaterDepth;
+        bool m_referenceWaterDepthRequested = false;
         std::unique_ptr<ReferenceWaterTransitionProbe> m_referenceWaterProbe;
         std::string m_referenceWaterOutput;
         std::uint64_t m_referenceWaterFrameRevision=0;

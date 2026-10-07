@@ -63,6 +63,8 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 当前r9 generate/graph/Debug/Release实际全0，Release `1f23ca5ed547ec2c0221b3dcdc4132dc0530cf0f71413e3a238e5deac1d3309b`、Debug `739495700441960dbf5be196fee71025265e80dede6ceb712ca2eec816c51be2`、2989src清单 `60d760b27ca79485228b826f4e820bdc978b9333c67a6478632c2a2541cea0c9`。scoped-r8→r9收据a3552ad2明确only3changed、World215/resources143/GPUinputs24 exact，按域复用旧工程，不把旧native叫r9整版本重跑；创建b170d3aa＋dirty81763f02身份不回写。新普通候选v10已创建并核27项，旧v9继续保护；准备器已追加v10路径/ID保护。水面lighting/depth/sky/shore/Fresnel/fog/normal/source/transmission与r9几何33／0、全depth33／0仍留三角色差与蓝侧带。opaque分类新增depth对照36／0：远岸绿带／红尖三角消失，支持局部depth/order贡献；原Alpha单pass91547/91556均自然0仍有三角／细线，完整D审查SHA另补，资源单独无法建立全局排序，不能宣布正常水修复。正式Water shader未改。公开CUA getApp仍无可用App，12普通路线全部NOT_RUN/input0，退出条件1–5不能整体关闭。宿主active/本次恢复第2实际turn，有独立实现和验收进展及剩余必要工作，不blocked、不complete；旧三turn和未知操作者paused不累计。后台截图、构场/teleport、工程保存不代替普通输入与保存重开。
 
+r10默认关闭global-depth原型双构建／两168工程包及Release control93127／hook93147、Debug93314均自然0，actual queued9→15全depth99先于colour100、配对／mask／query／HDR1成立但原图仍有三角，startup93357/93362自然1且`--validate`未验，正式候选仍v10／r9、资源未promote，旧原Alpha depth37／0仅归因、core-only scoped29ffa保留，helper／文档提交b5f284与实现2c73／creation b170＋dirty81763分开，12包2649原样／普通12 NOT_RUN，独立R170／0（7c1d0d8d…7316）只核有限运行，compiler小写warning:0与两配置各1 destination大写WARNING分开，nearest55／0（88e84795…dbb9）仅HDR编码输入归因，正式FS已有derivative几何gate而非新height修复，defaultoff93838自然0／旧oracle176／0与sampler stderr导致R30／1 FAIL分别保留。侧面RGB normal新增两例94567／94575自然0、D37／0（c8851818…8b77），岸带／主要斜三角仍留，明确NOT_PROMOTE。
+
 **2026-09-28 视觉精修 Goal 已启动，按方向分批推进。** 用户在文档同步后明确要求直接执行。
 [0925 规划](visual-experience-polish-plan-2026-09-25.md)保留 V01–V10 全部范围，已更新地下、玩家、
 声音与界面的实现基线及旧 Goal 阶段边界；[新提示词](visual-experience-polish-goal-prompt-2026-09-28.md)
