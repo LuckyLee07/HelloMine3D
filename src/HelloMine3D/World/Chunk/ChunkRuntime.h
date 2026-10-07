@@ -130,6 +130,7 @@ class ChunkRuntime final : public NonCopyable {
     void queueWaterDepthUpdatesLocked(int blockX, int blockY, int blockZ);
     void queueLightingUpdatesLocked(
         const std::vector<glm::ivec3> &changedPositions);
+    void queueLightBoundaryUpdatesLocked(int chunkX, int chunkZ, int height);
     void processChunkUpdates(std::size_t budget);
     std::size_t queuedChunkUpdateCountLocked() const noexcept;
     void preloadAroundLocked(

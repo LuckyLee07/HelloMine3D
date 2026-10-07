@@ -387,12 +387,109 @@ void caveRangeChecks(const Target& precise, const Target& hdr, const std::string
     require(state.good(),"Cannot save actual caller VAO/buffer state");
 }
 
+// Rectangle2D has top UV (0,0). Ogre's automatic matrix flips clip Y only
+// when the destination requiresTextureFlipping, including chained resolve RTTs.
+// Keep source UVs intact: a window-only shader cannot certify the chained route.
+void checkQuadOrientation(const std::string& vertexSource,
+                          const std::string& resolveSource,
+                          const std::string& postSource)
+{
+    const std::array<Pixel,4> scene{{{.8f,.1f,.2f,1}, {.7f,.5f,.1f,1},
+                                    {.1f,.8f,.3f,1}, {.2f,.3f,.9f,1}}};
+    GLint callerVao=0, callerBuffer=0, callerFramebuffer=0;
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&callerVao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING,&callerBuffer);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING,&callerFramebuffer);
+    GLuint vao=0, buffer=0, input=0, output=0, middle=0, fbo=0;
+    glGenVertexArrays(1,&vao); glBindVertexArray(vao);
+    glGenBuffers(1,&buffer); glBindBuffer(GL_ARRAY_BUFFER,buffer);
+    const std::array<float,20> quad{{-1,1,-1,0,0, -1,-1,-1,0,1,
+                                    1,1,-1,1,0,  1,-1,-1,1,1}};
+    glBufferData(GL_ARRAY_BUFFER,sizeof(quad),quad.data(),GL_STATIC_DRAW);
+    auto allocate=[](GLuint& texture,const void* pixels) {
+        glGenTextures(1,&texture); glBindTexture(GL_TEXTURE_2D,texture);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA16F,2,2,0,GL_RGBA,GL_FLOAT,pixels);
+    };
+    glActiveTexture(GL_TEXTURE0);
+    allocate(input,scene.data()); allocate(middle,nullptr); allocate(output,nullptr);
+    glGenFramebuffers(1,&fbo);
+    const GLuint resolve=program(vertexSource,resolveSource), post=program(vertexSource,postSource);
+    check("quad/production-resolve-and-post-target-matrix-active",
+          glGetUniformLocation(resolve,"worldViewProj")>=0 &&
+          glGetUniformLocation(post,"worldViewProj")>=0);
+    const auto transform=vertexSource.find("gl_Position = worldViewProj * vertex;");
+    require(transform!=std::string::npos,"Quad target matrix transform missing");
+    std::string oldVertex=vertexSource;
+    oldVertex.replace(transform,std::strlen("gl_Position = worldViewProj * vertex;"),"gl_Position = vertex;");
+    write(evidence/"faults/quad-bypasses-target-matrix.vert",oldVertex);
+    const GLuint oldResolve=program(oldVertex,resolveSource), oldPost=program(oldVertex,postSource);
+    auto draw=[&](GLuint object,GLuint source,GLuint destination,bool flipped,bool hdr) {
+        glBindFramebuffer(GL_FRAMEBUFFER,fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,destination,0);
+        require(glCheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE,"Incomplete quad target");
+        glViewport(0,0,2,2); glUseProgram(object); glBindTexture(GL_TEXTURE_2D,source);
+        sampler(object,"sceneTexture");
+        const GLint position=glGetAttribLocation(object,"vertex"), uv=glGetAttribLocation(object,"uv0");
+        require(position>=0 && uv>=0,"Quad production vertex/UV interface inactive");
+        glEnableVertexAttribArray(position); glEnableVertexAttribArray(uv);
+        glVertexAttribPointer(position,3,GL_FLOAT,GL_FALSE,5*sizeof(float),nullptr);
+        glVertexAttribPointer(uv,2,GL_FLOAT,GL_FALSE,5*sizeof(float),reinterpret_cast<void*>(3*sizeof(float)));
+        auto matrix=CaveIdentity; matrix[5]=flipped?-1.f:1.f;
+        const GLint matrixLocation=glGetUniformLocation(object,"worldViewProj");
+        if(matrixLocation>=0) glUniformMatrix4fv(matrixLocation,1,GL_FALSE,matrix.data());
+        const GLint size=glGetUniformLocation(object,"inverseTextureSize");
+        if(size>=0) glUniform4f(size,.5f,.5f,2.f,2.f);
+        if(hdr) {
+            uniform(object,"exposure",1.f); uniform(object,"spatialAaStrength",0.f);
+        } else {
+            uniform(object,"bloomThreshold",.76f); uniform(object,"bloomStrength",0.f);
+            uniform(object,"toneStrength",0.f); uniform(object,"ditherStrength",0.f);
+            uniform(object,"fixtureMode",0.f);
+        }
+        glDrawArrays(GL_TRIANGLE_STRIP,0,4);
+    };
+    auto error=[&](bool hdr) {
+        std::array<Pixel,4> pixels{}; glReadPixels(0,0,2,2,GL_RGBA,GL_FLOAT,pixels.data());
+        double maximum=0;
+        for(std::size_t i=0;i<pixels.size();++i) for(int c=0;c<4;++c) {
+            // A normal window's lower row is the scene's lower row; this is
+            // deliberately asymmetric in both axes to reject flips and rotations.
+            const auto& source=scene[(i+2)%4];
+            const double expected=hdr && c<3?resolveReference(source[c],1):source[c];
+            maximum=std::max(maximum,std::abs(pixels[i][c]-expected));
+        }
+        return maximum;
+    };
+    draw(post,input,output,false,false);
+    check("quad/legacy-post-window-orientation",error(false)<.004,error(false),0);
+    draw(resolve,input,output,false,true);
+    check("quad/hdr-without-post-window-orientation",error(true)<.004,error(true),0);
+    draw(resolve,input,middle,true,true); draw(post,middle,output,false,false);
+    check("quad/hdr-plus-post-chained-rtt-orientation",error(true)<.004,error(true),0);
+    draw(oldPost,input,output,false,false);
+    check("fault/old-quad-legacy-post-stays-upright",error(false)<.004,error(false),0);
+    draw(oldResolve,input,output,false,true);
+    check("fault/old-quad-hdr-without-post-stays-upright",error(true)<.004,error(true),0);
+    draw(oldResolve,input,middle,true,true); draw(oldPost,middle,output,false,false);
+    check("fault/old-quad-hdr-plus-post-inversion-rejected",error(true)>.1,error(true),0);
+    glUseProgram(0);
+    for(GLuint object:{resolve,post,oldResolve,oldPost}) glDeleteProgram(object);
+    glDeleteFramebuffers(1,&fbo); for(GLuint texture:{input,middle,output}) glDeleteTextures(1,&texture);
+    glBindVertexArray(static_cast<GLuint>(callerVao)); glBindBuffer(GL_ARRAY_BUFFER,static_cast<GLuint>(callerBuffer));
+    glDeleteBuffers(1,&buffer); glDeleteVertexArrays(1,&vao);
+    glBindFramebuffer(GL_FRAMEBUFFER,static_cast<GLuint>(callerFramebuffer));
+}
+
 void summary(const std::string& renderer, const std::string& version, const std::string& fatal = "") {
     const bool pass = failures == 0 && fatal.empty();
     std::string result = "status=" + std::string(pass ? "PASS" : "FAIL") +
         "\nchecks=" + std::to_string(checks) + "\nfailures=" + std::to_string(failures) +
         "\nrenderer=" + renderer + "\nversion=" + version +
-        "\nscope=offscreen CGL: extracted production colour functions, full resolve, particle, full cave mask/range VS/FS with supplied world/uniform readback, and caster fragments\n"
+        "\nscope=offscreen CGL: extracted production colour functions, full resolve, particle, full cave mask/range VS/FS with supplied world/uniform readback, and caster fragments, production quad with supplied Ogre window/RTT matrix orientation\n"
         "native_ogre_fbo=NOT_RUN\nui_composition=NOT_RUN\nnormal_gameplay=NOT_RUN\n";
     if (!fatal.empty()) result += "fatal=" + fatal + "\n";
     write(evidence / "summary.txt", result);
@@ -464,6 +561,8 @@ int main(int argc, char** argv) {
         const GLuint completeResolve = program(source("HelloMine3DPostProcess.vert"), resolveSource);
         check("resolve/complete-production-program-links", true); glDeleteProgram(completeResolve);
         const GLuint resolve = program(resolveVertex, resolveSource); glDisable(GL_DEPTH_TEST);
+        checkQuadOrientation(source("HelloMine3DPostProcess.vert"), resolveSource,
+                             source("HelloMine3DPostProcess.frag"));
         for (float exposure : {0.25f, 1.f, 2.f}) {
             float previous = -1;
             for (float intensity : {0.f, 0.00001f, 0.0031308f, 0.018f, 0.18f, 0.5f, 1.f, 2.f, 8.f, 16.f}) {

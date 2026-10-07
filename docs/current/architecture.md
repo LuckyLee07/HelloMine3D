@@ -797,6 +797,8 @@ V09a 网格从现有快照额外复制天光和方块光强度，逐顶点与原
 暗部曝光及玩家手持曝光按同一来源语义处理，光传播与生成／存档均不改。每顶点GPU／CPU来源
 增加8字节，实测规模与边界见[局部光源合同](../contracts/local-light-render-polish-contract-v1.md)。
 
+2026-10-08 HDR 暗面补充从20³临时原始直达天光／方块 shell 派生18³的一跳天空漫射快照：不阻光接收格只借六个不阻光邻居的原始天光减3，不递归、不加载或写回权威。仅零直射且有侧向天空的 Terrain／Flora 来源用 `-2-diffuse` 复用原 sky float，当前普通／阴影四个 VS 解码后再插值；正直射角的 diffuse 仍为 direct，greedy 比较此有效通道。正值、block、组合亮度、manual 标记与44B布局保持，Water 保留原 direct 来源。HDR 环境项使用 diffuse，太阳项仍用 direct，legacy 原路径保持；光照 dirty 半径2复用原队列与预算；暗区块加载／卸载亦失效相邻最多8个已加载区块的现有 section，Near 沿原队列／revision／预算，Far-only 只置 dirty 留待 Near。44B不变不表示任意旧自定义 VS 兼容。未加载邻区仍沿用既有 Air／sky15 回退，这是紧邻开天空格的近似，不是宽檐／封闭室内或 GI 解法，见[材质合同补充](../contracts/reference-surface-lighting-contract-v1.md)。
+
 方向阴影的太阳投影设置由 Ogre 灯持有，第一方纯数学 helper 负责正午稳定参考轴与纹素锚定；
 terrain/actor 接收端共享连续比较滤波语义。切档、切世界及退出随灯清理，不向 World 写回状态，
 不改第三方默认相机；当前参数与范围见[阴影合同](../contracts/directional-shadow-contract-v1.md)。
@@ -1089,6 +1091,8 @@ index.json重写与Root原图另计，本批九帧、实际2560×1440帧尺寸�
 像素，失败完整退回 legacy，并同步天空、洞界等克隆材质。场景 shader 显式转到线性颜色，固定
 曝光 resolve 完成显示转换；HUD 继续在主窗口末绘。legacy 的旧 Off／On 保持，HDR Off 仍需
 resolve。切换管线保存 settings v12 请求并要求重启，能力回退不改写请求。
+
+全屏 HDR resolve／LDR Post 共用的顶点程序保持原 UV，通过自动绑定的 `worldviewproj_matrix` 变换 Rectangle2D 的 identity quad。Ogre 按输出目标处理 RTT Y 方向，使 HDR resolve 写窗口与写 Post scene RTT 都服从目标方向，避免 HDR＋Post On 的既有倒置；HUD 仍末绘，无新增目标。对应资源合同拒绝缺矩阵绑定或绕过矩阵的陈旧组合，实际版本见[HDR 显示修复报告](../reports/hdr-display-fix-2026-10-08.md)。
 
 HDR 请求还会在强制回退和能力／格式探测之前，对实际 resolve material 的 VS／FS 与附加库进行
 临时原生完整链接；资产链接错误明确失败。临时 program 不绑定、不进入 Ogre 缓存，检查后删除，

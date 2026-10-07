@@ -382,6 +382,10 @@ vertex_program HelloMine3D/PostProcessVertex glsl
 {
     source HelloMine3DPostProcess.vert
     syntax glsl150
+    default_params
+    {
+        param_named_auto worldViewProj worldviewproj_matrix
+    }
 }
 
 fragment_program HelloMine3D/PostProcessFragment glsl

@@ -847,16 +847,52 @@ void ChunkRuntime::queueSectionUpdateLocked(const glm::ivec3 &key)
     }
 }
 
+void ChunkRuntime::queueLightBoundaryUpdatesLocked(int chunkX, int chunkZ, int height)
+{
+    // The fixed light halo reaches only immediate horizontal neighbours.
+    // Rebuild existing sections even when no block-light emitter changed.
+    const std::size_t heightSections = static_cast<std::size_t>(
+        std::max(0,(height + 2 + CHUNK_SIZE - 1) / CHUNK_SIZE));
+    SpatialInterestSnapshot interestSnapshot;
+    {
+        std::lock_guard<std::mutex> demandLock(m_demandMutex);
+        interestSnapshot=m_spatialInterestSnapshot;
+    }
+    for (int dz=-1;dz<=1;++dz) for (int dx=-1;dx<=1;++dx) {
+        if (dx==0 && dz==0) continue;
+        Chunk *neighbour=m_chunkManager.findChunk(chunkX+dx,chunkZ+dz);
+        if (neighbour==nullptr || !neighbour->hasLoaded()) continue;
+        const auto interest=SpatialInterestModel::interestAt(
+            interestSnapshot,{chunkX+dx,chunkZ+dz});
+        const std::size_t count=std::min(neighbour->getSectionCount(),heightSections);
+        for (std::size_t y=0;y<count;++y) {
+            if (interest.requiresNearRepresentation)
+                queueSectionUpdateLocked({chunkX+dx,static_cast<int>(y),chunkZ+dz});
+            else if (auto *section=neighbour->findSection(static_cast<int>(y)))
+                section->invalidateMeshInput();
+        }
+    }
+}
+
 void ChunkRuntime::queueLightingUpdatesLocked(
     const std::vector<glm::ivec3> &changedPositions)
 {
     std::unordered_set<glm::ivec3, IVec3Hash> sectionUpdates;
     for (const glm::ivec3 &position : changedPositions) {
-        for (const ChunkUpdateKey &update :
-             ChunkUpdatePlanner::planForBlockEdit(
-                 position.x, position.y, position.z)) {
-            sectionUpdates.emplace(update.x, update.y, update.z);
-        }
+        // Face samples already read a one-cell halo. Derived sky reads one
+        // additional axial neighbour, so lighting invalidates this radius-two
+        // dependency without changing the ordinary block-edit planner.
+        const glm::ivec3 first{
+            WorldCoordinates::floorDiv(position.x-2,CHUNK_SIZE),
+            std::max(0,WorldCoordinates::floorDiv(position.y-2,CHUNK_SIZE)),
+            WorldCoordinates::floorDiv(position.z-2,CHUNK_SIZE)};
+        const glm::ivec3 last{
+            WorldCoordinates::floorDiv(position.x+2,CHUNK_SIZE),
+            WorldCoordinates::floorDiv(position.y+2,CHUNK_SIZE),
+            WorldCoordinates::floorDiv(position.z+2,CHUNK_SIZE)};
+        for (int y=first.y;y<=last.y;++y)
+            for (int z=first.z;z<=last.z;++z)
+                for (int x=first.x;x<=last.x;++x) sectionUpdates.emplace(x,y,z);
     }
     for (const glm::ivec3 &section : sectionUpdates) {
         queueSectionUpdateLocked(section);

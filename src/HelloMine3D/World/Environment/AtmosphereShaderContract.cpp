@@ -360,6 +360,8 @@ void validatePostProcessingShaderContract(
          "param_named toneStrength float",
          "param_named ditherStrength float",
          "param_named fixtureMode float"});
+    requireProgramTokens(resolver, "vertex_program", "HelloMine3D/PostProcessVertex",
+        {"param_named_auto worldViewProj worldviewproj_matrix"});
     requireTokens(
         resolver, "media/ogre/HelloMine3D.material",
         {"material HelloMine3D/PostProcess",
@@ -371,7 +373,7 @@ void validatePostProcessingShaderContract(
     requireTokens(
         resolver, "media/ogre/HelloMine3DPostProcess.vert",
         {"in vec4 vertex;", "in vec2 uv0;", "out vec2 postUv;",
-         "gl_Position = vertex;"});
+         "uniform mat4 worldViewProj;", "gl_Position = worldViewProj * vertex;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DPostProcess.frag",
         {"uniform sampler2D sceneTexture;",

@@ -41,6 +41,8 @@ class SectionMeshInput {
     /// Valid for coordinates in [-1, CHUNK_SIZE].
     ChunkBlock getBlock(int x, int y, int z) const;
     LightLevel getSunlight(int x, int y, int z) const;
+    /// Derived one-hop sky for HDR ambient; direct/stored light stays unchanged.
+    LightLevel getDiffuseSky(int x, int y, int z) const;
     LightLevel getBlockLight(int x, int y, int z) const;
     LightLevel getCombinedLight(int x, int y, int z) const;
     TerrainBiome getBiome(int x, int z) const;
@@ -68,6 +70,7 @@ class SectionMeshInput {
 
     std::array<ChunkBlock, Volume> m_blocks{};
     std::array<LightLevel, Volume> m_sunlight{};
+    std::array<LightLevel, Volume> m_diffuseSky{};
     std::array<LightLevel, Volume> m_blockLight{};
     std::array<std::uint8_t, Volume> m_waterDepth{};
     std::array<TerrainBiome, Size * Size> m_biomes{};

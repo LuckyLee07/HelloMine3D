@@ -16,6 +16,7 @@ in vec2 terrainTileUv;
 in vec2 terrainRepeat;
 in float terrainLight;
 in vec2 terrainLightSources;
+in float terrainDiffuseSky;
 in float terrainDistance;
 in vec3 terrainWorldPosition;
 flat in vec3 terrainNaturalTreeRoot;
@@ -102,7 +103,7 @@ vec3 surfaceSpecular(vec3 albedo, float roughness, float metalness,
 }
 
 vec3 referenceSurfaceLighting(vec3 albedo, vec3 n, vec3 data,
-                              float shadowVisibility)
+                              float shadowVisibility, vec3 geometricFace)
 {
     float roughness=clamp(data.r,.2,1.0), metalness=clamp(data.g,0.0,1.0);
     vec3 delta=cameraPosition-terrainWorldPosition;
@@ -111,13 +112,39 @@ vec3 referenceSurfaceLighting(vec3 albedo, vec3 n, vec3 data,
         ?clamp(terrainLightSources,0.0,1.0):vec2(clamp(terrainLight,0.0,1.0),0.0);
     float maximum=max(sources.x,sources.y);
     float ao=mix(.24,1.0,clamp(terrainLight/max(maximum,.0001),0.0,1.0));
+    if (terrainLightSources.x>=0.0 && playerExposure<0.0)
+    {
+        // World mesh light contains legacy cardinal shading and the .15
+        // brightness floor. Remove those before directional surface lighting.
+        // Non-axis resource flora use the CPU's uniform .8 cardinal factor.
+        float cardinal=.8;
+        if (abs(geometricFace.y)>.999) cardinal=geometricFace.y>0.0?1.0:.4;
+        else if (abs(geometricFace.z)>.999) cardinal=.6;
+        float sourceBrightness=.15+.85*maximum;
+        // Separate source averages cannot exactly recover mixed-source AO.
+        // Keep its estimate in the CPU contract's three-step [.64,1] range.
+        ao=clamp(terrainLight/max(cardinal*sourceBrightness,.0001),.64,1.0);
+    }
+    // Sky fill follows propagated availability and daylight: sheltered walls
+    // retain material colour, while enclosed caves get no daylight boost.
+    vec3 skyColour=sceneColour(vec3(.80,.88,1.0));
+    // The one-hop sky channel is ambient only: it never authorizes sunlight.
+    float diffuseSky=terrainDiffuseSky>=0.0?clamp(terrainDiffuseSky,0.0,1.0):sources.x;
+    vec3 skyRadiance=skyColour*(.65*diffuseSky*environmentLight);
     // Propagated block light owns local diffuse energy. Nearby indexed sources
     // add bounded specular direction only; they never replace propagation.
-    vec3 indirect=sceneColour(vec3(.80,.88,1.0))*(.035+.36*sources.x*environmentLight)
+    vec3 indirect=skyColour*.035+skyRadiance
                  +sceneColour(vec3(1.0,.87,.64))*(.68*sources.y);
     if (playerExposure>=0.0) indirect*=clamp(playerExposure,.12,1.0);
     vec3 diffuse=albedo*(1.0-metalness);
     vec3 lit=diffuse*indirect*ao;
+    // A bounded sky approximation supplies the missing metal environment
+    // reflection without a probe/texture. It vanishes when no sky reaches
+    // this vertex; roughness broadens/dims it, with Schlick grazing response.
+    float nv=max(dot(n,view),0.0);
+    vec3 skyFresnel=mix(albedo,max(vec3(1.0-roughness),albedo),pow(1.0-nv,5.0));
+    float skyExposure=playerExposure>=0.0?clamp(playerExposure,.12,1.0):1.0;
+    lit+=skyRadiance*skyFresnel*metalness*(1.0-.5*roughness)*ao*skyExposure;
     vec3 sunlight=sceneColour(clamp(sunColour,0.0,1.0))*max(sunIntensity,0.0)*1.35;
     float nl=max(dot(n,sunDirection),0.0);
     lit+=(diffuse*(nl/3.14159265)+surfaceSpecular(albedo,roughness,metalness,n,view,
@@ -425,7 +452,7 @@ void main()
     vec3 surfaceNormal=mappedSurfaceNormal(normalData,face,worldDx,worldDy,repeatDx,repeatDy);
     vec3 surfaceAlbedo=tileIndex.y==9.0?rawLinearAlbedo:balancedColour;
     litColour=referenceSurfaceLighting(surfaceAlbedo,surfaceNormal,materialData,
-        1.0);
+        1.0,face);
 #endif
     float fogVisibility = clamp(
         exp(-terrainDistance * terrainDistance * fogDensity * fogDensity),

@@ -912,8 +912,9 @@ namespace
             "material HelloMine3D/PostProcess\n"
             "input 0 scene\n");
         writeFile(root / "media/ogre/HelloMine3D.program",
-            "HelloMine3D/PostProcessVertex\n"
+            "vertex_program HelloMine3D/PostProcessVertex glsl {\n"
             "source HelloMine3DPostProcess.vert\n"
+            "default_params { param_named_auto worldViewProj worldviewproj_matrix }\n}\n"
             "HelloMine3D/PostProcessFragment\n"
             "source HelloMine3DPostProcess.frag\n"
             "param_named sceneTexture int 0\n"
@@ -934,7 +935,8 @@ namespace
             "in vec4 vertex;\n"
             "in vec2 uv0;\n"
             "out vec2 postUv;\n"
-            "gl_Position = vertex;\n");
+            "uniform mat4 worldViewProj;\n"
+            "gl_Position = worldViewProj * vertex;\n");
         writeFile(root / "media/ogre/HelloMine3DPostProcess.frag",
             "uniform sampler2D sceneTexture;\n"
             "uniform vec4 inverseTextureSize;\n"
@@ -985,6 +987,30 @@ namespace
                           validatePostProcessingShaderContract(resolver);
                       },
                       "missing interface declaration"));
+        }
+        for (const bool missingBinding : {false, true})
+        {
+            const fs::path root = freshRoot("post-stale-target-orientation");
+            writePostProcessingFixture(root);
+            const std::string path = missingBinding
+                ? "media/ogre/HelloMine3D.program"
+                : "media/ogre/HelloMine3DPostProcess.vert";
+            std::ifstream input(root / path);
+            std::string source((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+            const std::string token = missingBinding
+                ? "param_named_auto worldViewProj worldviewproj_matrix"
+                : "gl_Position = worldViewProj * vertex;";
+            const auto offset = source.find(token);
+            source.replace(offset, token.size(), missingBinding ? "" : "gl_Position = vertex;");
+            // A binding in an unrelated vertex program must not certify this quad.
+            if (missingBinding) source += "vertex_program OtherVertex glsl { " + token + " }\n";
+            const fs::path pack = createPack(root, "stale-post", "Stale Post", 1, {{path, source}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {pack.string()});
+            check(missingBinding ? "Post/reject-missing-quad-target-matrix-binding"
+                                 : "Post/reject-target-orientation-bypass",
+                  throwsContaining([&] { validatePostProcessingShaderContract(resolver); }, token));
         }
     }
 

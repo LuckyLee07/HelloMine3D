@@ -31,3 +31,13 @@ World单锁resident-only snapshot最多3×3chunks×3vertical sections=27sections
 旧传播block light拥有室内漫射，nearby sources仅提供有限方向镜面，乘真实传播local availability，避免八份重复漫射。source中心/线性色/半径/能量有界。普通/shadow/reflection private pass使用同帧snapshot，camera独立。
 
 必要证据：生产GPU+独立参考及负例、sRGB/normal/roughness、同源坏包、四yaw/镜像/退化/远原点、灯index编辑/卸载及稳定性。正常编辑、室内外连续观察与保存重开仍由Goal最终验收。
+
+## 2026-10-08 零直射暗面补充
+
+HDR 多通道材质将旧组合亮度中的方位明暗与 AO 估计分开：已知世界网格来源时扣除原 cardinal 系数与 brightness floor，AO 估计限制在既有三步范围 `[.64,1]`；缺失来源或手持曝光继续原路径。直射太阳仍使用原始天光及实际阴影，不把侧向天空近似当作太阳穿透。
+
+网格快照另派生一跳漫射天空可用量。对不阻光接收格，`diffuse = max(direct, 不阻光六邻居的 max(direct - 3, 0)) / 15`；阻光接收格不借光。邻居只读原始 direct，不递归传播。20³临时原始方块／天光 shell 支持全部18³网格光照样本，随后只保留派生快照；沿用现有锁内捕获与锁外 mesh build，不加载邻区、不写天光权威、不新增每帧传播任务。未加载区仍沿用既有 Air／sky15 的查询回退，不能将近似称为实际天空可见性。
+
+仅零 direct 且有侧向天空的 Terrain／Flora 角点将 `FaceLightSources.x` 编为 `-2-diffuse`；当前配套普通／阴影四个 VS 先解码为 direct0 与 `terrainDiffuseSky` 再插值。正 direct 角的有效 diffuse 仍为 direct，greedy 比较实际解码后的有效通道。正值天空来源、block light、组合亮度及 manual `(-1,-1)` 保持，现有44B顶点布局不变；Water 保留原 direct 来源。HDR 材质环境项与有限金属天空反射使用 diffuse，太阳项继续 direct，legacy 继续原明暗。光照编辑的 mesh dirty 依赖扩大到半径2，仍使用原队列去重、revision 与构建预算；暗区块加载／卸载时也有界失效相邻最多8个已加载区块的现有 section；Near 使用原队列、revision 与预算，Far-only 只置 dirty，留待进入 Near 构建。44B布局不变不表示任意旧自定义 VS 均兼容；新来源编码只保证当前四个配套 shader，旧只读组合亮度的程序保持原输入。
+
+这是紧邻开天空格的有界近似，不能声称解决宽檐、多格封闭空间或完整全局照明；昼夜仍受环境曝光约束，火把方块光保持独立。最终检查与实景范围见[修复报告](../reports/hdr-display-fix-2026-10-08.md)，历史证据不改称当前版本重跑。

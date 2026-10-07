@@ -26,6 +26,7 @@ struct VertexLightCorner {
     // Unshaded source strengths, averaged over the same non-opaque samples.
     // -1 preserves legacy/manual meshes without separate source information.
     float skySource = -1.f;
+    float diffuseSkySource = -1.f;
     float blockSource = -1.f;
 };
 

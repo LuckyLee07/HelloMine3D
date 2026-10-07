@@ -56,6 +56,13 @@ float combineTerrainLight(float cardinalLight, LightLevel sunlight)
                       0.f, 1.f);
 }
 
+// Negative values are decoded in the vertex shader before interpolation.
+// Only zero direct sky needs a marker; existing positive and manual tags stay.
+float encodedSky(float direct, float diffuse)
+{
+    return direct == 0.f && diffuse > 0.f ? -2.f - std::clamp(diffuse,0.f,1.f) : direct;
+}
+
 bool isTrueEnvironmentValue(const char *value)
 {
     return value != nullptr &&
@@ -222,7 +229,8 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
         return left.smoothLight == right.smoothLight &&
                left.finalLight == right.finalLight &&
                left.ambientOcclusion == right.ambientOcclusion &&
-               left.skySource == right.skySource && left.blockSource == right.blockSource;
+               left.skySource == right.skySource &&
+               left.diffuseSkySource == right.diffuseSkySource && left.blockSource == right.blockSource;
     };
     const auto isConstantLighting = [&sameCorner](const FaceCell &cell) {
         return std::all_of(
@@ -300,7 +308,7 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
             std::array<float, 4> outerFinal{};
             std::array<float, 4> outerSmooth{};
             std::array<float, 4> outerAo{};
-            std::array<float, 4> outerSky{}, outerBlock{};
+            std::array<float, 4> outerSky{}, outerDiffuseSky{}, outerBlock{};
             const std::array<glm::vec2, 4> outerColour = {
                 mask[startV * CHUNK_SIZE + startU].colour[0],
                 mask[startV * CHUNK_SIZE + startU + width - 1].colour[1],
@@ -310,6 +318,7 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
             for (std::size_t corner = 0; corner < 4; ++corner) {
                 outerFinal[corner] = rectangle.corners[corner].finalLight;
                 outerSky[corner] = rectangle.corners[corner].skySource;
+                outerDiffuseSky[corner] = rectangle.corners[corner].diffuseSkySource;
                 outerBlock[corner] = rectangle.corners[corner].blockSource;
                 outerSmooth[corner] = rectangle.corners[corner].smoothLight;
                 outerAo[corner] = static_cast<float>(
@@ -347,6 +356,7 @@ void ChunkMeshBuilder::buildGreedyFaces(CubeFace face)
                             VertexLighting::interpolateQuad(outerWarmth, rectangle.flipDiagonal, x, y),
                             VertexLighting::interpolateQuad(outerForest, rectangle.flipDiagonal, x, y));
                         if (std::abs(actual.skySource - VertexLighting::interpolateQuad(outerSky, rectangle.flipDiagonal, x, y)) > epsilon ||
+                            std::abs(actual.diffuseSkySource - VertexLighting::interpolateQuad(outerDiffuseSky, rectangle.flipDiagonal, x, y)) > epsilon ||
                             std::abs(actual.blockSource - VertexLighting::interpolateQuad(outerBlock, rectangle.flipDiagonal, x, y)) > epsilon ||
                             std::abs(actual.finalLight - expectedFinal) >
                                 epsilon ||
@@ -681,7 +691,7 @@ VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
     constexpr int tangentVSign[4] = {-1, -1, 1, 1};
     const glm::ivec3 centre = blockPosition + normal;
 
-    std::array<std::array<LightLevel, 3>, 3> neighbourhoodLight{}, neighbourhoodSky{}, neighbourhoodBlock{};
+    std::array<std::array<LightLevel, 3>, 3> neighbourhoodLight{}, neighbourhoodSky{}, neighbourhoodDiffuseSky{}, neighbourhoodBlock{};
     std::array<std::array<bool, 3>, 3> neighbourhoodOcclusion{};
     for (int u = -1; u <= 1; ++u) {
         for (int v = -1; v <= 1; ++v) {
@@ -689,7 +699,7 @@ VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
                 centre + tangentU * u + tangentV * v;
             sampleVertexLighting(
                 sample, neighbourhoodLight[u + 1][v + 1],
-                neighbourhoodSky[u + 1][v + 1], neighbourhoodBlock[u + 1][v + 1],
+                neighbourhoodSky[u + 1][v + 1], neighbourhoodDiffuseSky[u + 1][v + 1], neighbourhoodBlock[u + 1][v + 1],
                 neighbourhoodOcclusion[u + 1][v + 1]);
         }
     }
@@ -715,6 +725,14 @@ VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
         samples.sideV = neighbourhoodSky[1][v];
         samples.diagonal = neighbourhoodSky[u][v];
         lighting.corners[corner].skySource = VertexLighting::sourceStrength(samples);
+        samples.centre = neighbourhoodDiffuseSky[1][1];
+        samples.sideU = neighbourhoodDiffuseSky[u][1];
+        samples.sideV = neighbourhoodDiffuseSky[1][v];
+        samples.diagonal = neighbourhoodDiffuseSky[u][v];
+        // Positive source tags decode diffuse=direct in the vertex shader.
+        // Compare that effective channel during greedy reconstruction too.
+        lighting.corners[corner].diffuseSkySource = lighting.corners[corner].skySource > 0.f
+            ? lighting.corners[corner].skySource : VertexLighting::sourceStrength(samples);
         samples.centre = neighbourhoodBlock[1][1];
         samples.sideU = neighbourhoodBlock[u][1];
         samples.sideV = neighbourhoodBlock[1][v];
@@ -728,7 +746,7 @@ VertexLightingQuad ChunkMeshBuilder::calculateVertexLighting(
 
 void ChunkMeshBuilder::sampleVertexLighting(
     const glm::ivec3 &position, LightLevel &light, LightLevel &sky,
-    LightLevel &block, bool &occludes) const
+    LightLevel &diffuseSky, LightLevel &block, bool &occludes) const
 {
     const int x = position.x + 1;
     const int y = position.y + 1;
@@ -740,13 +758,14 @@ void ChunkMeshBuilder::sampleVertexLighting(
     CachedVertexSample &sample = m_vertexSamples[index];
     if (!sample.valid) {
         sample.sky = m_pInput->getSunlight(position.x, position.y, position.z);
+        sample.diffuseSky = m_pInput->getDiffuseSky(position.x, position.y, position.z);
         sample.block = m_pInput->getBlockLight(position.x, position.y, position.z);
         sample.light = std::max(sample.sky, sample.block);
         sample.occludes = isAmbientOccluder(position);
         sample.valid = true;
     }
     light = sample.light;
-    sky = sample.sky; block = sample.block;
+    sky = sample.sky; diffuseSky = sample.diffuseSky; block = sample.block;
     occludes = sample.occludes;
 }
 
@@ -788,7 +807,8 @@ void ChunkMeshBuilder::addVertexLitFace(
     for (std::size_t i = 0; i < order.size(); ++i) {
         const auto &corner = lighting.corners[order[i]];
         light[i] = corner.finalLight;
-        sources[i] = {corner.skySource, corner.blockSource};
+        sources[i] = {&mesh == &m_pMeshes->waterMesh ? corner.skySource :
+            encodedSky(corner.skySource, corner.diffuseSkySource), corner.blockSource};
     }
 
     // Water UVs are velocity components, not atlas coordinates. Some vectors
@@ -889,7 +909,11 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
     const glm::vec2 source(
         m_pInput->getSunlight(blockPosition.x, blockPosition.y, blockPosition.z) / 15.f,
         m_pInput->getBlockLight(blockPosition.x, blockPosition.y, blockPosition.z) / 15.f);
-    const FaceLightSources sources{source, source, source, source};
+    const float diffuseSky = m_pInput->getDiffuseSky(
+        blockPosition.x, blockPosition.y, blockPosition.z) / 15.f;
+    const glm::vec2 encodedSource(m_pActiveMesh == &m_pMeshes->waterMesh ? source.x :
+        encodedSky(source.x,diffuseSky), source.y);
+    const FaceLightSources sources{encodedSource, encodedSource, encodedSource, encodedSource};
     const float rootTag = static_cast<float>(m_pInput->getNaturalTreeRootTag(
         blockPosition.x, blockPosition.y, blockPosition.z));
     const bool fern = ForestFernGeometry::applies(block,shape);
@@ -943,12 +967,13 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
             const auto &quad = directionalLighting[directionIndex];
             const int u = axis == 0 ? 2 : 0;
             const int v = axis == 1 ? 2 : 1;
-            std::array<float, 4> smooth{}, shaded{}, ao{}, sky{}, local{};
+            std::array<float, 4> smooth{}, shaded{}, ao{}, sky{}, diffuse{}, local{};
             for (int k = 0; k < 4; ++k) {
                 smooth[k] = quad.corners[k].smoothLight;
                 shaded[k] = quad.corners[k].finalLight;
                 ao[k] = quad.corners[k].ambientOcclusion;
                 sky[k] = quad.corners[k].skySource;
+                diffuse[k] = quad.corners[k].diffuseSkySource;
                 local[k] = quad.corners[k].blockSource;
             }
             const glm::vec3 centre = (pointAt(0)+pointAt(1)+pointAt(2)+pointAt(3))*.25f;
@@ -984,14 +1009,18 @@ void ChunkMeshBuilder::addResourceShapeToMesh(
                     corner.finalLight = interpolate(shaded);
                     corner.ambientOcclusion = static_cast<std::uint8_t>(std::lround(interpolate(ao)));
                     corner.skySource = interpolate(sky);
+                    corner.diffuseSkySource = interpolate(diffuse);
                     corner.blockSource = interpolate(local);
                 } else {
                     corner.smoothLight = lightLevelToBrightness(cellLight);
                     corner.finalLight = combineTerrainLight(cardinal, cellLight);
                     corner.skySource = source.x; corner.blockSource = source.y;
+                    corner.diffuseSkySource = diffuseSky;
                 }
+                if (corner.skySource > 0.f) corner.diffuseSkySource = corner.skySource;
                 vertexLight[k] = corner.finalLight;
-                vertexSources[k] = {corner.skySource, corner.blockSource};
+                vertexSources[k] = {m_pActiveMesh == &m_pMeshes->waterMesh ? corner.skySource :
+                    encodedSky(corner.skySource,corner.diffuseSkySource), corner.blockSource};
             }
             const auto tile = face.material == 0 ? render.texTopCoord :
                 face.material == 2 ? render.texBottomCoord : render.texSideCoord;

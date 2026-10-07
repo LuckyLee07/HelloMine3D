@@ -67,15 +67,25 @@ V normal(V sample,V face,V dx,V dy,std::array<double,2> a,std::array<double,2> b
     return unit(basisU*(sample.x*2-1)+unit(basisV)*(sample.y*2-1)+face*(sample.z*2-1));
 }
 struct Light{V position;double radius=12;V colour{1,.73,.42};double energy=3;};
-struct State{V position{},camera{0,0,3},sun{0,0,1},sunColour{1,.92,.72};double terrainLight=1,sky=1,block=0,daylight=1,sunIntensity=1,playerExposure=-1,shadow=1;int lightCount=0;std::array<Light,8> lights{};};
+struct State{V position{},camera{0,0,3},sun{0,0,1},sunColour{1,.92,.72},face{0,0,1};double terrainLight=1,sky=1,diffuseSky=-1,block=0,daylight=1,sunIntensity=1,playerExposure=-1,shadow=1;int lightCount=0;std::array<Light,8> lights{};};
 V lighting(V colour,V n,V data,const State& s){
     const double rough=clamp(data.x,.2,1),metal=clamp(data.y);
     const V dv=s.camera-s.position,view=dot(dv,dv)>1.e-8?unit(dv):n;
-    const double sky=clamp(s.sky),block=clamp(s.block),maximum=std::max(sky,block);
-    const double ao=.24+.76*clamp(s.terrainLight/std::max(maximum,.0001));
-    V indirect=decode({.80,.88,1})*(.035+.36*sky*s.daylight)+decode({1,.87,.64})*(.68*block);
+    const double sky=clamp(s.sky>=0?s.sky:s.terrainLight),block=s.sky>=0?clamp(s.block):0,maximum=std::max(sky,block);
+    double ao=.24+.76*clamp(s.terrainLight/std::max(maximum,.0001));
+    if(s.sky>=0 && s.playerExposure<0){
+        const double cardinal=std::abs(s.face.y)>.999?(s.face.y>0?1.:.4):std::abs(s.face.z)>.999?.6:.8;
+        ao=clamp(s.terrainLight/(cardinal*(.15+.85*maximum)),.64,1);
+    }
+    const V skyColour=decode({.80,.88,1}),skyRadiance=skyColour*(.65*(s.diffuseSky>=0?clamp(s.diffuseSky):sky)*s.daylight);
+    V indirect=skyColour*.035+skyRadiance+decode({1,.87,.64})*(.68*block);
     if(s.playerExposure>=0)indirect=indirect*clamp(s.playerExposure,.12,1);
     const V diffuse=colour*(1-metal);V result=diffuse*indirect*ao;
+    const double nv=std::max(0.,dot(n,view));
+    const V grazing{std::max(1-rough,colour.x),std::max(1-rough,colour.y),std::max(1-rough,colour.z)};
+    const V skyFresnel=mix(colour,grazing,std::pow(1-nv,5));
+    const double skyExposure=s.playerExposure>=0?clamp(s.playerExposure,.12,1):1;
+    result=result+skyRadiance*skyFresnel*(metal*(1-.5*rough)*ao*skyExposure);
     const V sun=decode({clamp(s.sunColour.x),clamp(s.sunColour.y),clamp(s.sunColour.z)})*(std::max(s.sunIntensity,0.)*1.35);
     result=result+(diffuse*(std::max(0.,dot(n,s.sun))/3.14159265)+brdf(colour,rough,metal,n,view,s.sun))*sun*(sky*s.shadow*ao);
     for(int i=0;i<std::min(8,s.lightCount);++i){const auto& l=s.lights[std::size_t(i)];V d=l.position-s.position;double d2=dot(d,d);
@@ -122,7 +132,7 @@ void vec(GLuint p,const char* name,V v){glUniform3f(glGetUniformLocation(p,name)
 void uv(GLuint p,const char* name,std::array<double,2> v){glUniform2f(glGetUniformLocation(p,name),float(v[0]),float(v[1]));}
 const float Identity[16]={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
 std::string extracted(const std::string& source){return std::string(R"GLSL(#version 150
-in vec3 terrainWorldPosition;in float terrainLight;in vec2 terrainLightSources;out vec4 fragmentColour;
+in vec3 terrainWorldPosition;in float terrainLight;in vec2 terrainLightSources;in float terrainDiffuseSky;out vec4 fragmentColour;
 uniform float linearHdrMode,environmentLight,playerExposure,sunIntensity;
 uniform vec3 cameraPosition,sunDirection,sunColour;
 uniform vec4 localLightPositionRadius[8],localLightColourEnergy[8];uniform int localLightCount;
@@ -134,7 +144,7 @@ uniform vec2 fixtureUvDx,fixtureUvDy,fixtureUv;
 void main(){vec3 result=vec3(0.0);float alpha=1.0;
 if(fixtureMode==0)result=surfaceSpecular(fixtureAlbedo,fixtureRough,fixtureMetal,fixtureNormal,fixtureView,fixtureLight);
 else if(fixtureMode==1)result=mappedSurfaceNormal(fixtureData,fixtureFace,fixtureDx,fixtureDy,fixtureUvDx,fixtureUvDy);
-else if(fixtureMode==2)result=referenceSurfaceLighting(fixtureAlbedo,fixtureNormal,fixtureData,fixtureShadow);
+else if(fixtureMode==2)result=referenceSurfaceLighting(fixtureAlbedo,fixtureNormal,fixtureData,fixtureShadow,fixtureFace);
 else {vec4 texel;
 if(fixtureChannel==0)texel=textureLod(terrainArray,vec3(fixtureUv,fixtureLayer),fixtureMip);
 else if(fixtureChannel==1)texel=textureLod(terrainNormalArray,vec3(fixtureUv,fixtureLayer),fixtureMip);
@@ -142,10 +152,10 @@ else texel=textureLod(terrainSurfaceArray,vec3(fixtureUv,fixtureLayer),fixtureMi
 result=texel.rgb;alpha=texel.a;}
 fragmentColour=vec4(result,alpha);})GLSL";}
 const std::string FixtureVertex=R"GLSL(#version 150
-out vec3 terrainWorldPosition;out float terrainLight;out vec2 terrainLightSources;
-uniform vec3 fixturePosition;uniform float fixtureLightLevel;uniform vec2 fixtureSources;
+out vec3 terrainWorldPosition;out float terrainLight;out vec2 terrainLightSources;out float terrainDiffuseSky;
+uniform float fixtureDiffuseSky;uniform vec3 fixturePosition;uniform float fixtureLightLevel;uniform vec2 fixtureSources;
 void main(){vec2 p=gl_VertexID==0?vec2(-1,-1):gl_VertexID==1?vec2(3,-1):vec2(-1,3);
-gl_Position=vec4(p,0,1);terrainWorldPosition=fixturePosition;terrainLight=fixtureLightLevel;terrainLightSources=fixtureSources;})GLSL";
+gl_Position=vec4(p,0,1);terrainWorldPosition=fixturePosition;terrainLight=fixtureLightLevel;terrainLightSources=fixtureSources;terrainDiffuseSky=fixtureDiffuseSky;})GLSL";
 struct GPU {
     GLuint fbo=0,output=0,shadowMap=0,vao=0,vbo=0;std::array<GLuint,3> textures{};
     GPU(const std::array<Array,3>& arrays){
@@ -160,7 +170,7 @@ struct GPU {
             glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MAX_LEVEL,6);glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MIN_FILTER,GL_NEAREST_MIPMAP_NEAREST);
             glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MAG_FILTER,GL_NEAREST);glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_S,GL_REPEAT);glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_T,GL_REPEAT);}
         glGenVertexArrays(1,&vao);glBindVertexArray(vao);glGenBuffers(1,&vbo);glBindBuffer(GL_ARRAY_BUFFER,vbo);
-        const float mesh[]={-1,-1,0,.49f,.49f, 3,-1,0,.53f,.49f, -1,3,0,.49f,.53f};glBufferData(GL_ARRAY_BUFFER,sizeof(mesh),mesh,GL_STATIC_DRAW);
+        const float mesh[]={-1,-1,0,.49f,.49f,0,0,0, 3,-1,0,.53f,.49f,0,0,0, -1,3,0,.49f,.53f,0,0,0};glBufferData(GL_ARRAY_BUFFER,sizeof(mesh),mesh,GL_STATIC_DRAW);
     }
     ~GPU(){glDeleteBuffers(1,&vbo);glDeleteVertexArrays(1,&vao);glDeleteTextures(3,textures.data());glDeleteTextures(1,&output);glDeleteTextures(1,&shadowMap);glDeleteFramebuffers(1,&fbo);}
     void begin(GLuint p){glBindFramebuffer(GL_FRAMEBUFFER,fbo);glViewport(0,0,32,32);glDisable(GL_FRAMEBUFFER_SRGB);glDisable(GL_BLEND);glDisable(GL_DEPTH_TEST);glDisable(GL_CULL_FACE);
@@ -168,8 +178,8 @@ struct GPU {
         glActiveTexture(GL_TEXTURE3);glBindTexture(GL_TEXTURE_2D,shadowMap);integer(p,"directionalShadowMap",3);
         integer(p,"terrainArray",0);integer(p,"terrainNormalArray",1);integer(p,"terrainSurfaceArray",2);scalar(p,"linearHdrMode",1);}
     Pixel finish(){glDrawArrays(GL_TRIANGLES,0,3);Pixel p{};glReadPixels(16,16,1,1,GL_RGBA,GL_FLOAT,p.data());return p;}
-    void state(GLuint p,const State& s){vec(p,"fixturePosition",s.position);scalar(p,"fixtureLightLevel",s.terrainLight);uv(p,"fixtureSources",{s.sky,s.block});
-        vec(p,"cameraPosition",s.camera);vec(p,"sunDirection",s.sun);vec(p,"sunColour",s.sunColour);scalar(p,"sunIntensity",s.sunIntensity);scalar(p,"environmentLight",s.daylight);scalar(p,"playerExposure",s.playerExposure);scalar(p,"fixtureShadow",s.shadow);
+    void state(GLuint p,const State& s){vec(p,"fixturePosition",s.position);scalar(p,"fixtureLightLevel",s.terrainLight);uv(p,"fixtureSources",{s.sky,s.block});scalar(p,"fixtureDiffuseSky",s.diffuseSky>=0?s.diffuseSky:s.sky);
+        vec(p,"fixtureFace",s.face);vec(p,"cameraPosition",s.camera);vec(p,"sunDirection",s.sun);vec(p,"sunColour",s.sunColour);scalar(p,"sunIntensity",s.sunIntensity);scalar(p,"environmentLight",s.daylight);scalar(p,"playerExposure",s.playerExposure);scalar(p,"fixtureShadow",s.shadow);
         integer(p,"localLightCount",s.lightCount);std::array<float,32> positions{},colours{};
         for(unsigned i=0;i<8;++i){const auto& l=s.lights[i];positions[i*4]=float(l.position.x);positions[i*4+1]=float(l.position.y);positions[i*4+2]=float(l.position.z);positions[i*4+3]=float(l.radius);
             colours[i*4]=float(l.colour.x);colours[i*4+1]=float(l.colour.y);colours[i*4+2]=float(l.colour.z);colours[i*4+3]=float(l.energy);}
@@ -178,15 +188,26 @@ struct GPU {
     Pixel mapped(GLuint p,V data,V face,V dx,V dy,std::array<double,2> a,std::array<double,2> b){begin(p);integer(p,"fixtureMode",1);vec(p,"fixtureData",data);vec(p,"fixtureFace",face);vec(p,"fixtureDx",dx);vec(p,"fixtureDy",dy);uv(p,"fixtureUvDx",a);uv(p,"fixtureUvDy",b);return finish();}
     Pixel lit(GLuint p,V colour,V n,V data,const State& s){begin(p);state(p,s);integer(p,"fixtureMode",2);vec(p,"fixtureAlbedo",colour);vec(p,"fixtureNormal",n);vec(p,"fixtureData",data);return finish();}
     Pixel texel(GLuint p,unsigned channel,unsigned layer,unsigned mip,unsigned x,unsigned y){begin(p);integer(p,"fixtureMode",3);integer(p,"fixtureChannel",int(channel));scalar(p,"fixtureLayer",layer);scalar(p,"fixtureMip",mip);unsigned edge=64u>>mip;uv(p,"fixtureUv",{(x+.5)/edge,(y+.5)/edge});return finish();}
-    Pixel whole(GLuint p,unsigned layer,unsigned mip,int q,V origin,State s,bool shadowed=false){begin(p);
+    Pixel whole(GLuint p,unsigned layer,unsigned mip,int q,V origin,State s,bool shadowed=false,bool mixedSources=false){begin(p);
         for(unsigned c=0;c<3;++c){glActiveTexture(GL_TEXTURE0+c);glBindTexture(GL_TEXTURE_2D_ARRAY,textures[c]);glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_BASE_LEVEL,GLint(mip));glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MAX_LEVEL,GLint(mip));}
         for(GLuint a=0;a<8;++a)glDisableVertexAttribArray(a);
         glBindBuffer(GL_ARRAY_BUFFER,vbo);auto position=glGetAttribLocation(p,"vertex"),repeat=glGetAttribLocation(p,"uv1");
-        require(position>=0&&repeat>=0,"Whole production vertex interface missing");glEnableVertexAttribArray(GLuint(position));glVertexAttribPointer(GLuint(position),3,GL_FLOAT,GL_FALSE,5*sizeof(float),nullptr);
-        glEnableVertexAttribArray(GLuint(repeat));glVertexAttribPointer(GLuint(repeat),2,GL_FLOAT,GL_FALSE,5*sizeof(float),reinterpret_cast<const void*>(3*sizeof(float)));
+        require(position>=0&&repeat>=0,"Whole production vertex interface missing");glEnableVertexAttribArray(GLuint(position));glVertexAttribPointer(GLuint(position),3,GL_FLOAT,GL_FALSE,8*sizeof(float),nullptr);
+        glEnableVertexAttribArray(GLuint(repeat));glVertexAttribPointer(GLuint(repeat),2,GL_FLOAT,GL_FALSE,8*sizeof(float),reinterpret_cast<const void*>(3*sizeof(float)));
         auto tile=glGetAttribLocation(p,"uv0"),light=glGetAttribLocation(p,"uv2"),root=glGetAttribLocation(p,"uv3");
         if(tile>=0)glVertexAttrib2f(GLuint(tile),float(layer%16+.25)/16,float(layer/16+.5)/16);
-        if(light>=0)glVertexAttrib3f(GLuint(light),float(s.terrainLight),float(s.sky),float(s.block+1));if(root>=0)glVertexAttrib1f(GLuint(root),0);
+        if(light>=0) {
+            const float encoded=s.sky==0&&s.diffuseSky>0?float(-2-s.diffuseSky):float(s.sky);
+            if(mixedSources) {
+                const float mesh[]={-1,-1,0,.49f,.49f,float(s.terrainLight),-2.8f,float(s.block+1),
+                    3,-1,0,.53f,.49f,float(s.terrainLight),1.f,float(s.block+1),
+                    -1,3,0,.49f,.53f,float(s.terrainLight),-2.8f,float(s.block+1)};
+                glBufferData(GL_ARRAY_BUFFER,sizeof(mesh),mesh,GL_STATIC_DRAW);
+                glEnableVertexAttribArray(GLuint(light));
+                glVertexAttribPointer(GLuint(light),3,GL_FLOAT,GL_FALSE,8*sizeof(float),reinterpret_cast<const void*>(5*sizeof(float)));
+            } else glVertexAttrib3f(GLuint(light),float(s.terrainLight),encoded,float(s.block+1));
+        }
+        if(root>=0)glVertexAttrib1f(GLuint(root),0);
         float world[16];std::copy(std::begin(Identity),std::end(Identity),world);V x=yaw({1,0,0},q),z=yaw({0,0,1},q);
         world[0]=float(x.x);world[2]=float(x.z);world[8]=float(z.x);world[10]=float(z.z);world[12]=float(origin.x);world[13]=float(origin.y);world[14]=float(origin.z);
         glUniformMatrix4fv(glGetUniformLocation(p,"world"),1,GL_FALSE,world);glUniformMatrix4fv(glGetUniformLocation(p,"worldViewProj"),1,GL_FALSE,Identity);glUniformMatrix4fv(glGetUniformLocation(p,"worldView"),1,GL_FALSE,Identity);
@@ -202,6 +223,62 @@ struct GPU {
 };
 V rgb(Pixel p){return{p[0],p[1],p[2]};}
 double error(Pixel p,V v){return std::max({std::abs(p[0]-v.x),std::abs(p[1]-v.y),std::abs(p[2]-v.z)});}
+double displayLuma(Pixel p){
+    const auto channel=[](double x){x=std::max(0.,x);const double mapped=clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14));
+        return mapped<=.0031308?mapped*12.92:1.055*std::pow(mapped,1/2.4)-.055;};
+    return .2126*channel(p[0])+.7152*channel(p[1])+.0722*channel(p[2]);
+}
+void diffuseSkyReadability(GPU& gpu,GLuint p,const std::string& name){
+    const V albedo{.3,.3,.3},material{.67,0,0};State s;
+    s.sky=0;s.diffuseSky=.8;s.terrainLight=.6*.15;s.sunIntensity=1;
+    const auto underEave=gpu.lit(p,albedo,s.face,material,s);
+    close(name+"-one-hop-sky-ambient",underEave,lighting(albedo,s.face,material,s));
+    s.sun=s.sun*-1;s.sunIntensity=100;
+    close(name+"-one-hop-sky-never-authorizes-direct-sun",gpu.lit(p,albedo,s.face,material,s),rgb(underEave));
+    s.daylight=0;const auto night=gpu.lit(p,albedo,s.face,material,s);
+    s.diffuseSky=0;close(name+"-one-hop-night-keeps-cave-floor",night,lighting(albedo,s.face,material,s));
+    check(name+"-one-hop-day-brighter-than-night",displayLuma(underEave)>displayLuma(night)*2,displayLuma(underEave),displayLuma(night)*2);
+}
+void darkReadability(GPU& gpu,GLuint p,const std::string& name){
+    // Physical CPU-style inputs: equal sky availability/contact AO on all four
+    // walls. Rotating the sun behind each wall must not retain cardinal dimming.
+    const V albedo{.3,.3,.3},material{.67,0,0};State s;s.sky=1./3;s.sunIntensity=0;
+    const double brightness=.15+.85*s.sky;Pixel first{};
+    for(int q=0;q<4;++q){s.face=yaw({0,0,1},q);s.camera=s.face*3;s.sun=s.face*-1;
+        s.terrainLight=(q%2?.8:.6)*brightness*.64;
+        const auto actual=gpu.lit(p,albedo,s.face,material,s);
+        close(name+"-backlit-physical-yaw"+std::to_string(q),actual,lighting(albedo,s.face,material,s));
+        if(q==0)first=actual;else close(name+"-backlit-yaw-invariant"+std::to_string(q),actual,rgb(first));
+    }
+    check(name+"-sheltered-grey-readable",displayLuma(first)>.10&&displayLuma(first)<.35,displayLuma(first),.10);
+    s.face={0,0,1};s.camera={0,0,3};s.sun={0,0,-1};s.terrainLight=.6*brightness;
+    const auto plain=gpu.lit(p,albedo,s.face,material,s);
+    check(name+"-contact-still-darkens",displayLuma(first)<displayLuma(plain)*.85,displayLuma(first),displayLuma(plain)*.85);
+    s.sunIntensity=1;const auto backlit=gpu.lit(p,albedo,s.face,material,s);s.sun={0,0,1};
+    const auto sunlit=gpu.lit(p,albedo,s.face,material,s);
+    check(name+"-sun-facing-still-brighter",displayLuma(sunlit)>displayLuma(backlit)+.08,displayLuma(sunlit),displayLuma(backlit)+.08);
+    s.sunIntensity=0;s.daylight=.08;const auto night=gpu.lit(p,albedo,s.face,material,s);
+    check(name+"-night-stays-darker",displayLuma(night)<displayLuma(backlit)*.5,displayLuma(night),displayLuma(backlit)*.5);
+    s.sky=0;s.terrainLight=.6*.15;s.daylight=1;const auto caveDay=gpu.lit(p,albedo,s.face,material,s);
+    s.daylight=0;const auto caveNight=gpu.lit(p,albedo,s.face,material,s);
+    close(name+"-closed-cave-independent-of-day",caveDay,rgb(caveNight));
+    check(name+"-closed-cave-stays-dark",displayLuma(caveDay)<.065,displayLuma(caveDay),.065);
+    s.block=.8;s.terrainLight=.6*(.15+.85*s.block);const auto torchNight=gpu.lit(p,albedo,s.face,material,s);
+    s.daylight=1;const auto torchDay=gpu.lit(p,albedo,s.face,material,s);
+    close(name+"-closed-torch-independent-of-day",torchDay,rgb(torchNight));
+    check(name+"-propagated-torch-keeps-room-readable",displayLuma(torchDay)>.35,displayLuma(torchDay),.35);
+    s=State{};s.sunIntensity=0;s.sun={0,0,-1};s.terrainLight=.6;s.sky=1;
+    const auto metalSky=gpu.lit(p,{.12,.12,.12},s.face,{.39,.92,0},s);
+    s.sky=0;s.terrainLight=.6*.15;const auto metalCave=gpu.lit(p,{.12,.12,.12},s.face,{.39,.92,0},s);
+    check(name+"-backlit-metal-sky-readable",displayLuma(metalSky)>.12&&displayLuma(metalSky)<.45,displayLuma(metalSky),.12);
+    check(name+"-metal-environment-needs-sky",displayLuma(metalCave)<displayLuma(metalSky)*.15,displayLuma(metalCave),displayLuma(metalSky)*.15);
+    s=State{};s.sunIntensity=0;s.sky=-1;s.block=-1;s.terrainLight=.3;
+    const auto manual=gpu.lit(p,albedo,s.face,material,s);close(name+"-manual-source-fallback",manual,lighting(albedo,s.face,material,s));
+    s.face={1,0,0};close(name+"-manual-does-not-remove-cardinal",gpu.lit(p,albedo,{0,0,1},material,s),rgb(manual));
+    s=State{};s.sunIntensity=0;s.playerExposure=.5;s.terrainLight=.3;
+    const auto held=gpu.lit(p,albedo,s.face,material,s);close(name+"-held-exposure-fallback",held,lighting(albedo,s.face,material,s));
+    s.face={1,0,0};close(name+"-held-does-not-remove-cardinal",gpu.lit(p,albedo,{0,0,1},material,s),rgb(held));
+}
 void suite(GPU& gpu,GLuint p,const std::string& name,const std::array<Array,3>& arrays){
     unsigned sequence=0;
     for(double rough:{.2,.35,.6,.9,1.})for(double metal:{0.,.5,1.})for(V view:std::array<V,3>{{{0,0,1},unit({1,0,1}),unit({2,1,.2})}})for(V light:std::array<V,3>{{{0,0,1},unit({-1,1,2}),unit({1,0,-.5})}}){
@@ -248,12 +325,36 @@ int main(int argc,char** argv){CGLContextObj context=nullptr;CGLPixelFormatObj f
             GPU gpu(arrays);std::array<GLuint,2> extractedPrograms{},wholePrograms{};
             for(unsigned variant=0;variant<2;++variant){const std::string name=variant?"ShadowSurface":"TerrainSurface";
                 wholePrograms[variant]=link(vertices[variant],defines(fragments[variant]));check(name+"-whole-production-compile-link",wholePrograms[variant]!=0);
-                extractedPrograms[variant]=link(FixtureVertex,extracted(fragments[variant]));suite(gpu,extractedPrograms[variant],name,arrays);
+                extractedPrograms[variant]=link(FixtureVertex,extracted(fragments[variant]));suite(gpu,extractedPrograms[variant],name,arrays);darkReadability(gpu,extractedPrograms[variant],name);diffuseSkyReadability(gpu,extractedPrograms[variant],name);
                 for(int q=0;q<4;++q)for(unsigned mip:{0u,3u,6u})for(V origin:std::array<V,2>{{{}, {1000000,1000000,-1000000}}}){
-                    const unsigned layer=145;State s;s.position=origin+yaw({.03125,.03125,0},q);s.camera=s.position+yaw({0,0,3},q);s.sun=yaw({0,0,1},q);
+                    const unsigned layer=145;State s;s.position=origin+yaw({.03125,.03125,0},q);s.camera=s.position+yaw({0,0,3},q);s.sun=yaw({0,0,1},q);s.face=yaw({0,0,1},q);
                     const unsigned edge=64u>>mip,x=edge/2,y=edge/2;V albedo=decode(rgb(arrays[0].pixel(mip,layer,x,y))),data=rgb(arrays[2].pixel(mip,layer,x,y));
                     V n=normal(rgb(arrays[1].pixel(mip,layer,x,y)),yaw({0,0,1},q),yaw({1,0,0},q),{0,1,0},{1,0},{0,1});
                     close(name+"-whole-real-mips-yaw"+std::to_string(q)+"-mip"+std::to_string(mip)+"-origin"+std::to_string(int(origin.x)),gpu.whole(wholePrograms[variant],layer,mip,q,origin,s),lighting(albedo,n,data,s),.004);
+                }
+            }
+            // Decode the real four vertex programs before varying interpolation.
+            const std::string sourceFragment=R"GLSL(#version 150
+in vec2 terrainLightSources;in float terrainDiffuseSky;in float terrainLight;
+out vec4 fragmentColour;void main(){fragmentColour=vec4(terrainLightSources.x,terrainDiffuseSky,terrainLight,1);})GLSL";
+            for(const std::string stem:{"Terrain","TerrainShadow","Flora","FloraShadow"}) {
+                const auto productionVertex=read(root/("media/ogre/HelloMine3D"+stem+".vert"));
+                write(evidence/(stem+"-diffuse.vert"),productionVertex);
+                GLuint decodeProgram=link(productionVertex,sourceFragment);State s;s.sky=0;s.diffuseSky=.8;s.terrainLight=.09;
+                close(stem+"-encoded-zero-direct-keeps-diffuse",gpu.whole(decodeProgram,148,6,0,{},s),{0,.8,.09});
+                const double w=.2578125;
+                close(stem+"-mixed-tags-decode-before-interpolation",gpu.whole(decodeProgram,148,6,0,{},s,false,true),{w,.8+.2*w,.09});
+                s.sky=-1;s.diffuseSky=-1;s.block=-1;
+                close(stem+"-manual-tag-retains-fallback",gpu.whole(decodeProgram,148,6,0,{},s),{-1,-1,.09});
+                glDeleteProgram(decodeProgram);
+            }
+            for(unsigned variant=0;variant<2;++variant) {
+                State s;s.position={.03125,.03125,0};s.camera=s.position+V{0,0,3};
+                s.sky=0;s.diffuseSky=.8;s.terrainLight=.09;
+                for(unsigned layer:{145u,148u}) {
+                    const V albedo=decode(rgb(arrays[0].pixel(6,layer,0,0))),data=rgb(arrays[2].pixel(6,layer,0,0));
+                    close("whole-one-hop-sky-variant"+std::to_string(variant)+"-layer"+std::to_string(layer),
+                        gpu.whole(wholePrograms[variant],layer,6,0,{},s),lighting(albedo,{0,0,1},data,s),.004);
                 }
             }
             for(unsigned layer:{148u,149u}){

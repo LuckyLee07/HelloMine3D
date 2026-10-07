@@ -26,3 +26,9 @@
 四次实际证书的临时 program 均已删除、current program 0→0、GL error 0→0；三个有效案例的菜单 terrain 为0，坏链接在 terrain 构建前拒绝。四次输入0，未创建 World/chunk。独立审计 `build/reference-visual-implementation/hdr-link-current-r8-calibration-r1/current-native-audit-r1.json` SHA `dd488bf99d4ed6d13394a1bf3b6a5b2ee8d357de53a7ab8fc9bc2fe520254b9a`，164项身份／日志／资源观察通过；三个有效案例与一个真实拒绝负控分开记录。原 r7 与 r8 使用逐字节相同的坏 fragment。
 
 每个案例仅运行验证后168文件源包的独立克隆，实际 lsof 证明加载当前 copied executable，15秒自有 child watchdog；原源包、当前 HDR 源、10个既有发布包2197文件均保持。案例与旧失败从不覆盖；进程清理只作用于自有 Popen。以上是隐藏工程启动证据，没有普通输入、World保存重开、窗口resize、完整长期生命周期或性能隔离声明；普通12条路线继续单独验收。
+
+## 2026-10-08 显示方向补充
+
+HDR resolve 与可选 LDR Post 共用 `HelloMine3D/PostProcessVertex`。全屏 Rectangle2D 的 UV 保持原样，顶点位置使用 `worldViewProj * vertex`；该具名 vertex program 自动绑定 `worldviewproj_matrix`。Ogre 对 identity quad 仍按当前输出目标的 `requiresTextureFlipping` 修正投影 Y，因此 resolve 写最终窗口或写下一级 Post 的 scene RTT 时均采用目标自身的方向，不按 HDR／Post 开关硬编码翻转 UV。HUD 仍在主窗口末绘，不增加 pass、RTT 或颜色转换。
+
+当前 Post 资源合同分别核对具名顶点的自动矩阵绑定及实际 shader 变换；同名绑定出现在其他程序中不能代替它。完整旧 AA-less resolve fragment 的兼容语义保留，不能用该兼容声明放行绕过目标矩阵的陈旧共享 quad。完整旧 resolve fragment 兼容也不代表任意旧场景 VS 兼容；新天空来源编码由当前 Terrain／Flora 四个配套 VS 解码。显示方向修复与零直射暗面的有界天空补光分别处理，后者见[材质光照补充](reference-surface-lighting-contract-v1.md)。实际范围、版本和失败记录见[修复报告](../reports/hdr-display-fix-2026-10-08.md)。

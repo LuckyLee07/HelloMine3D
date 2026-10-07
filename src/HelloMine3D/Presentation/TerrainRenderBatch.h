@@ -78,7 +78,9 @@ inline void validateTerrainRenderPart(const TerrainRenderBatchPart& part)
             !std::isfinite(light[i]) || light[i] < 0.f || light[i] > 1.f ||
             !std::isfinite(sources[i].x) || !std::isfinite(sources[i].y) || !NaturalTreeRootTag::valid(rootTags[i]) ||
             !((sources[i].x == -1.f && sources[i].y == -1.f) ||
-              (sources[i].x >= 0.f && sources[i].x <= 1.f && sources[i].y >= 0.f && sources[i].y <= 1.f)))
+              (((sources[i].x >= 0.f && sources[i].x <= 1.f) ||
+                (sources[i].x >= -3.f && sources[i].x <= -2.f)) &&
+               sources[i].y >= 0.f && sources[i].y <= 1.f)))
             throw std::runtime_error("terrain vertex contains an invalid attribute");
     }
 }

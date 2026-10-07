@@ -798,6 +798,7 @@ void World::reconcileBlockLightAfterChunkLoad(int chunkX, int chunkZ)
     const int baseX = chunkX * CHUNK_SIZE;
     const int baseZ = chunkZ * CHUNK_SIZE;
     const int height = static_cast<int>(chunk->getSectionCount()) * CHUNK_SIZE;
+    m_chunkRuntime.queueLightBoundaryUpdatesLocked(chunkX, chunkZ, height);
     // Each loaded chunk has already rebuilt its internal emitted light. Only
     // a lit boundary cell can add light across the new interface. Reading
     // resident neighbours once avoids hashing every dark boundary coordinate
@@ -846,6 +847,7 @@ void World::reconcileBlockLightAfterChunkUnload(int chunkX, int chunkZ,
                                                 int height)
 {
     notifyVisualEditUnlocked();
+    m_chunkRuntime.queueLightBoundaryUpdatesLocked(chunkX, chunkZ, height);
     const int baseX = chunkX * CHUNK_SIZE;
     const int baseZ = chunkZ * CHUNK_SIZE;
     // These four outside faces have no overlapping coordinates. Preserve all

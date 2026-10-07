@@ -5285,6 +5285,171 @@ void caseSectionMeshInput()
 // ---------------------------------------------------------------------------
 #include "LocalLightRenderSmokeCases.h"
 
+void caseHdrDiffuseSky()
+{
+    // A source marker must remain in the existing 44-byte format, and retain
+    // exact legacy light. Invalid negative tags still fail ordinary packing.
+    const std::array<float,12> face{0,1,0, 0,1,1, 1,1,1, 1,1,0};
+    const std::array<float,8> uv{0,0, 0,1, 1,1, 1,0};
+    const std::array<float,4> lights{.09f,.12f,.15f,.06f};
+    const FaceLightSources sources{glm::vec2(-2.8f,0),glm::vec2(1,0),
+        glm::vec2(-3,1),glm::vec2(-2,0)};
+    ChunkMesh encoded;encoded.addFace(face,uv,{0,0,0},{1,1,1},lights,false,uv,&sources);
+    const auto packed=packTerrainRenderBatch({{{0,0,0},&encoded}},{0,0,0});
+    bool sameLight=sizeof(TerrainRenderVertex)==44;
+    for(std::size_t i=0;i<lights.size();++i)
+        sameLight &= packed.vertices[i].light==lights[i] &&
+            packed.vertices[i].skySource==sources[i].x &&
+            packed.vertices[i].blockSource==sources[i].y+1;
+    check("HDR_SKY/encoded-marker-preserves-packed-size-and-exact-legacy-light",sameLight);
+    const auto invalid=[&](glm::vec2 source) {
+        auto copy=encoded;
+        const_cast<std::vector<glm::vec2>&>(copy.getLightSources())[0]=source;
+        try { (void)packTerrainRenderBatch({{{0,0,0},&copy}},{0,0,0});return false; }
+        catch(const std::exception&) { return true; }
+    };
+    check("HDR_SKY/negative-range-is-exact-and-local-source-still-bounded",
+        invalid({-3.01f,0}) && invalid({-1.99f,0}) && invalid({-1,0}) && invalid({-2.8f,1.01f}));
+
+    setEnv("HELLOMINE3D_SEED",std::to_string(kValidationSeed));
+    setEnv("HELLOMINE3D_PLAYER_POSITION","16 202 8");
+    setEnv("HELLOMINE3D_PLAYER_ROTATION","0 0 0");
+    Config config=makeConfig();Camera camera(config);Player player;
+    World world(camera,config,player,freshSaveDirectory("hdr_diffuse_sky"),false,1);
+    auto &chunks=world.getChunkManager();
+    for(int x:{-1,0,1}) chunks.loadChunk(x,0);
+    for(int origin:{-16,0}) {
+        for(int x=origin+12;x<=origin+18;++x)
+            for(int z=6;z<=10;++z) for(int y=200;y<=205;++y)
+                world.setBlock(x,y,z,BlockId::Air);
+        // Two cells of roof, with a wall on the inner cell and a one-cell eave.
+        for(int z=6;z<=10;++z) {
+            for(int y=201;y<=203;++y) world.setBlock(origin+14,y,z,BlockId::Stone);
+            world.setBlock(origin+14,204,z,BlockId::Stone);
+            world.setBlock(origin+15,204,z,BlockId::Stone);
+        }
+    }
+    // Clearing pre-existing Air does not allocate a high section. Keep this
+    // anchor outside the eave samples so both seam snapshots carry real data.
+    world.setBlock(18,200,10,BlockId::Stone);
+    auto *west=chunks.findChunk(0,0)->findSection(12);
+    auto *east=chunks.findChunk(1,0)->findSection(12);
+    auto *negative=chunks.findChunk(-1,0)->findSection(12);
+    check("HDR_SKY/three-resident-section-fixture",west && east && negative);
+    if(!west || !east || !negative) return;
+    SectionMeshInput before,seam,negativeBefore;
+    west->captureMeshInput(before);east->captureMeshInput(seam);negative->captureMeshInput(negativeBefore);
+    check("HDR_SKY/one-cell-eave-gets-bounded-side-sky-with-zero-direct",
+        before.getSunlight(15,10,8)==0 && before.getDiffuseSky(15,10,8)==12 &&
+        before.getSunlight(16,10,8)==15 && before.getDiffuseSky(16,10,8)==15);
+    check("HDR_SKY/extra-shell-matches-at-positive-and-negative-chunk-seams",
+        before.getDiffuseSky(15,10,8)==seam.getDiffuseSky(-1,10,8) &&
+        negativeBefore.getDiffuseSky(15,10,8)==before.getDiffuseSky(-1,10,8) &&
+        before.getDiffuseSky(-1,10,8)==12);
+    world.setBlock(15,210,8,BlockId::Stone);
+    auto *above=chunks.findChunk(0,0)->findSection(13);
+    SectionMeshInput lowerSeam,upperSeam;
+    west->captureMeshInput(lowerSeam);
+    if(above) above->captureMeshInput(upperSeam);
+    check("HDR_SKY/extra-shell-matches-at-vertical-section-seam",
+        above && lowerSeam.getSunlight(15,15,8)==0 &&
+        lowerSeam.getDiffuseSky(15,15,8)==12 &&
+        lowerSeam.getDiffuseSky(15,15,8)==upperSeam.getDiffuseSky(15,-1,8));
+    check("HDR_SKY/blocked-receiver-never-borrows-sky",
+        before.getSunlight(14,10,8)==0 && before.getDiffuseSky(14,10,8)==0);
+    const auto build=[](const SectionMeshInput &input) {
+        ChunkMeshCollection mesh;ChunkMeshBuilder(input,mesh).buildMesh();return mesh;
+    };
+    const auto built=build(before);
+    bool marker=false,physicalLegacy=false;
+    for(std::size_t i=0;i<built.solidMesh.getLightSources().size();++i) {
+        const auto v=built.solidMesh.getLightSources()[i];
+        marker |= v.x>=-3 && v.x<=-2;
+        physicalLegacy |= v.x<=-2 && std::abs(built.solidMesh.getLight()[i]-.12f)<1.e-6f;
+    }
+    check("HDR_SKY/real-face-producer-encodes-ambient-with-legacy-cardinal-floor",marker && physicalLegacy);
+    (void)packTerrainRenderBatch({{{0,12,0},&built.solidMesh}},{0,12,0});
+
+    world.setBlock(15,202,8,BlockId::TallGrass);
+    SectionMeshInput plantInput;west->captureMeshInput(plantInput);
+    const auto plant=build(plantInput);
+    check("HDR_SKY/real-flora-producer-encodes-centre-diffuse-sky",
+        !plant.floraMesh.getLightSources().empty() &&
+        std::all_of(plant.floraMesh.getLightSources().begin(),plant.floraMesh.getLightSources().end(),
+            [](glm::vec2 source) { return std::abs(source.x+2.8f)<1.e-6f && source.y==0; }));
+    world.setBlock(15,202,8,BlockId::Water);
+    SectionMeshInput waterInput;west->captureMeshInput(waterInput);
+    const auto water=build(waterInput);
+    check("HDR_SKY/water-keeps-original-direct-source-without-negative-marker",
+        !water.waterMesh.getLightSources().empty() &&
+        std::all_of(water.waterMesh.getLightSources().begin(),water.waterMesh.getLightSources().end(),
+            [](glm::vec2 source) { return source.x>=0 && source.x<=1; }));
+    world.setBlock(15,202,8,BlockId::Air);
+
+    // Blocking the only direct donor changes no direct light in the target.
+    // Its copied snapshot must remain stable and the new snapshot must close.
+    world.setBlock(16,202,8,BlockId::Stone);
+    SectionMeshInput blocked;west->captureMeshInput(blocked);
+    check("HDR_SKY/opaque-donor-blocks-one-hop-without-changing-direct-or-snapshot",
+        blocked.getSunlight(15,10,8)==before.getSunlight(15,10,8) &&
+        blocked.getDiffuseSky(15,10,8)==0 && before.getDiffuseSky(15,10,8)==12);
+    world.setBlock(16,202,8,BlockId::Air);
+    for(int z=6;z<=10;++z) world.setBlock(16,204,z,BlockId::Stone);
+    SectionMeshInput wider;west->captureMeshInput(wider);
+    check("HDR_SKY/one-hop-does-not-recurse-through-two-cell-roof",
+        wider.getDiffuseSky(15,10,8)==0 && wider.getDiffuseSky(16,10,8)==12 &&
+        wider.getSunlight(15,10,8)==0);
+
+    // No sky is admitted into a sealed one-cell room.
+    for(int x=5;x<=7;++x) for(int z=7;z<=9;++z) for(int y=201;y<=203;++y)
+        world.setBlock(x,y,z,(x==6 && y==202 && z==8)?BlockId::Air:BlockId::Stone);
+    SectionMeshInput cave;west->captureMeshInput(cave);
+    check("HDR_SKY/sealed-cave-stays-zero-without-local-source",
+        cave.getSunlight(6,10,8)==0 && cave.getDiffuseSky(6,10,8)==0 && cave.getBlockLight(6,10,8)==0);
+
+    // This edit has zero direct sky before and after, but can alter an ambient
+    // path in the second halo cell. It must still invalidate that section.
+    east->makeMesh();const auto revision=east->getBlockRevision();
+    const auto directBefore=world.getSunlight(14,202,8);
+    world.setBlock(14,202,8,BlockId::Air);
+    check("HDR_SKY/zero-direct-path-edit-invalidates-radius-two-section",
+        directBefore==0 && world.getSunlight(14,202,8)==0 &&
+        east->isMeshDirty() && east->getBlockRevision()>revision);
+
+    // The missing-chunk Air/15 fallback changes a copied sky halo even when
+    // there is no block-light emitter to produce changedPositions.
+    west->makeMesh();const auto beforeUnload=west->getBlockRevision();
+    const bool unloaded=chunks.unloadChunk(1,0);
+    check("HDR_SKY/unload-invalidates-neighbour-with-no-emitter",
+        unloaded && west->isMeshDirty() && west->getBlockRevision()>beforeUnload);
+    west->makeMesh();const auto beforeLoad=west->getBlockRevision();
+    chunks.loadChunk(1,0);
+    check("HDR_SKY/load-invalidates-neighbour-with-no-emitter",
+        chunks.findChunk(1,0) && west->isMeshDirty() && west->getBlockRevision()>beforeLoad);
+
+    // Drain earlier edit keys before opening the bounded Preload demand.
+    // Advancing frames after Preload would expire its 30-epoch lifetime.
+    for(int i=0;i<64 && world.collectDebugStats().queuedChunkUpdates>0;++i)
+        world.update(camera);
+    world.preloadAround({1608.f,202.f,8.f});
+    chunks.unloadChunk(101,0);
+    // Use an existing low section within the donor's actual height domain.
+    auto *farChunk=chunks.findChunk(100,0);
+    auto *far=farChunk?farChunk->findSection(0):nullptr;
+    if(far) far->makeMesh();
+    const auto farRevision=far?far->getBlockRevision():0;
+    const auto queued=world.collectDebugStats().queuedChunkUpdates;
+    chunks.loadChunk(101,0);
+    check("HDR_SKY/far-only-boundary-invalidates-without-new-build-queue",
+        far && queued==0 && far->isMeshDirty() && far->getBlockRevision()>farRevision &&
+        world.collectDebugStats().queuedChunkUpdates==queued &&
+        world.collectDebugStats().spatialInterest.residentDataCells >
+            world.collectDebugStats().spatialInterest.nearRepresentationCells,
+        "queued="+std::to_string(queued)+"/"+std::to_string(world.collectDebugStats().queuedChunkUpdates)+
+        " revision="+std::to_string(farRevision)+"/"+std::to_string(far?far->getBlockRevision():0));
+}
+
+
 void caseTerrainRenderBatch()
 {
     const glm::ivec3 first{-2, 12, 3}, second{-2, 15, 3};
@@ -21776,6 +21941,10 @@ int main()
         else if (focus != nullptr && std::string(focus) == "LOCAL_LIGHT_RENDER") {
             caseLocalLightRendering();
         }
+        else if (focus != nullptr && std::string(focus) == "HDR_DIFFUSE_SKY") {
+            caseHdrDiffuseSky();
+            caseLocalLightRendering();
+        }
         else if (focus != nullptr && std::string(focus) == "NATURAL_TREE_OWNER") {
             caseNaturalTreeOwnership();
         }
@@ -22019,6 +22188,7 @@ int main()
         caseNaturalTreeRootTag();
         caseGreedyMeshing();
         caseLocalLightRendering();
+        caseHdrDiffuseSky();
         caseTerrainRenderBatch();
         caseTerrainAppearance();
         caseVertexLighting();

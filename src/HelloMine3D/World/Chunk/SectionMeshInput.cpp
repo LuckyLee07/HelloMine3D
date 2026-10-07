@@ -89,6 +89,40 @@ void SectionMeshInput::capture(
         }
     }
 
+    // Capture a fixed extra light-only shell. Every output halo cell sees the
+    // same six raw world neighbours regardless of the owning section. World
+    // accessors read existing data (including their historical missing-chunk
+    // defaults), never load chunks. No derived value becomes another donor.
+    constexpr int SkySize = CHUNK_SIZE + 4;
+    constexpr int SkyVolume = SkySize * SkySize * SkySize;
+    std::array<LightLevel, SkyVolume> directSky{};
+    std::array<bool, SkyVolume> blocked{};
+    const auto skyIndex = [](int x, int y, int z) {
+        return (x + 2) + (z + 2) * SkySize + (y + 2) * SkySize * SkySize;
+    };
+    for (int y = -2; y <= CHUNK_SIZE + 1; ++y)
+        for (int z = -2; z <= CHUNK_SIZE + 1; ++z)
+            for (int x = -2; x <= CHUNK_SIZE + 1; ++x) {
+                const bool copied = x >= -1 && x <= CHUNK_SIZE &&
+                    y >= -1 && y <= CHUNK_SIZE && z >= -1 && z <= CHUNK_SIZE;
+                const int i = skyIndex(x,y,z);
+                directSky[i] = copied ? getSunlight(x,y,z) : section.getSunlight(x,y,z);
+                blocked[i] = (copied ? getBlock(x,y,z) : section.getBlock(x,y,z)).getData().blocksLight;
+            }
+    constexpr int offsets[6][3] = {{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+    for (int y = -1; y <= CHUNK_SIZE; ++y)
+        for (int z = -1; z <= CHUNK_SIZE; ++z)
+            for (int x = -1; x <= CHUNK_SIZE; ++x) {
+                const int i = skyIndex(x,y,z);
+                LightLevel diffuse = directSky[i];
+                if (!blocked[i]) for (const auto &offset : offsets) {
+                    const int donor = skyIndex(x+offset[0],y+offset[1],z+offset[2]);
+                    if (!blocked[donor]) diffuse = std::max(diffuse,
+                        static_cast<LightLevel>(std::max(0, int(directSky[donor])-3)));
+                }
+                m_diffuseSky[index(x,y,z)] = diffuse;
+            }
+
     if (containsTreeCandidate) {
         const std::int64_t minimumX =
             static_cast<std::int64_t>(m_location.x) * CHUNK_SIZE;
@@ -177,6 +211,13 @@ LightLevel SectionMeshInput::getSunlight(int x, int y, int z) const
     }
 
     return m_sunlight[index(x, y, z)];
+}
+
+LightLevel SectionMeshInput::getDiffuseSky(int x, int y, int z) const
+{
+    if (x < -1 || x > CHUNK_SIZE || y < -1 || y > CHUNK_SIZE ||
+        z < -1 || z > CHUNK_SIZE) return MIN_LIGHT_LEVEL;
+    return m_diffuseSky[index(x,y,z)];
 }
 
 LightLevel SectionMeshInput::getBlockLight(int x, int y, int z) const
