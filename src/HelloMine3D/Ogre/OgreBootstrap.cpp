@@ -7895,6 +7895,8 @@ namespace
             refreshNativeCursorClip();
             // A resized captured cursor can report a window-management delta.
             // Treat it like an ownership boundary before accepting world input.
+            // Native events may already be buffered before the next OIS capture.
+            if (m_mouse != nullptr) m_mouse->clearRelativeMotion();
             clearTransientInput();
             m_focusGate.suppressUntilRelease();
         }

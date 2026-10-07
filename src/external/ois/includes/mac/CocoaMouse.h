@@ -50,6 +50,7 @@ namespace OIS
 		virtual void capture();
 		// HelloMine3D extension: opt-in relative input; menus use the OS cursor.
 		virtual void setCursorCaptured(bool captured);
+		virtual void clearRelativeMotion();
 
 		/** @copydoc Object::queryInterface */
 		virtual Interface* queryInterface(Interface::IType type) { return 0; }
@@ -76,6 +77,7 @@ namespace OIS
 - (void)capture;
 - (void)releaseCursor:(NSNotification*)notification;
 - (void)setCursorCaptured:(BOOL)captured;
+- (void)clearRelativeMotion;
 - (void)updateAbsolutePosition:(NSEvent*)event;
 
 @end

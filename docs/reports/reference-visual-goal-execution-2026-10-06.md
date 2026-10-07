@@ -1,6 +1,18 @@
 # HelloMine3D 参考画质完整交付执行记录
 
-2026-10-06启动，持续执行至2026-10-07。宿主最新 Goal **active**，未设置 token 预算。本轮开始为 blocked，随后宿主已恢复；重核确认旧窗口占用解除；公开输入仍缺持续按住接口，完整普通路线未完成。r15／r16实际缩放均观察到视角变化，效果未通过。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+2026-10-06启动，持续执行至2026-10-07。宿主最新 Goal **active**，未设置 token 预算。本轮开始为 blocked，随后宿主已恢复；重核确认旧窗口占用解除；公开输入仍缺持续按住接口，完整普通路线未完成。r15／r16实际缩放的失败保留；最新r17清理两层位移缓冲后，一次普通缩放及保存姿态保持。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+
+## 最新原生位移缓冲修复（2026-10-07）
+
+上一恢复轮完成空帧保护修复及真实r15／r16失败观察，为实际进展。本轮工作区起点41d07084、干净；只读进程及公开应用清单确认没有旧游戏窗口占用。缩放边界现在通过 OIS 的小型 clearRelativeMotion 扩展同时清理 Cocoa 私有暂存和公开 XY 相对值，保持滚轮、按钮、绝对位置及捕获策略；应用随后仍清自己暂存并丢弃首次真实样本。其它平台默认不增加行为，不改存档、动作按住时长或第三方其它功能。
+
+现有非可见 Cocoa mouse 回归新增五项：公开XY清理、原生暂存清理、滚轮保留、按住按钮不误释放、新运动仍能进入（含非零样本前置）。全部通过；这些是进程内 responder 输入，未投递OS队列，不冒充普通玩法。输入检查脚本沿用 verify_xcode.sh 的硬件架构选择，解决原硬编码x86_64与当前arm64档案不匹配。macOS arm64 Debug／Release客户端增量构建及两配置 verify_cocoa_input.sh 均exit0，各配置鼠标34／0，其它适用输入检查也通过；实际分项及日志见 [validation.json](../../build/reference-visual-goal/resize-input-r17/validation.json)。构建警告原件保留，不声称warning为0；GameplayInput及World定向测试源码本轮未改，复用r16 P11A131／0该域，不称当前世界全量重新运行。没有全矩阵、GPU或新独立审计。
+
+新普通菜单临时候选为 `/private/tmp/hellomine3d-resize-input-r17-1wd_dpmr/HelloMine3D Resize Input r17.app`，bundle `local.hellomine3d.reference-resize-r17`，Release SHA `79e75b8a333fe58cd22a12907247f30542f94b997315f6b5cf0f1e736801db20`，托管167项、发布v12样板／配置副本；wrapper清诊断环境。创建身份保持41d07084＋当时源码／测试／合同／脚本diff，不回写后续文档与提交。[candidate.json](../../build/reference-visual-goal/resize-input-r17/candidate.json)保持创建时NOT_RUN快照，实际结果单独记账。
+
+公开getApp6.19秒打开普通菜单，owned PID11102映像及cwd匹配副本；正常继续样板、AX Raise及暂停／返回后，执行一次公开放大／恢复。实际两尺寸原图均保持正面机位及HUD；正常保存退出后位置仍 `208.5 68 -169.5`、旋转仍 `-8 0 0`，工具App quit及只读ps确认自有进程结束。此范围为 PASS_OBSERVED_ONCE，见 [actual-resize.json](../../build/reference-visual-goal/resize-input-r17/actual-resize.json)，不承诺所有原生时序已证明。截图仅为本会话公开CUA输出，没有编造PNG索引；旧包及r15／r16失败保持。
+
+宿主active，未complete。本次为恢复后的第二轮持续输入阻塞重核；现有公开API仍无按住／松开／时长能力，普通连续行走、挖掘、其余套件完整建造与连续画质保持BLOCKED／NOT_RUN。缩放有限观察域已补齐，不再为它重复同类检查；继续其它可执行交付工作，五项退出条件不变。
 
 ## 本轮阻塞重核及空帧保护（2026-10-07）
 
