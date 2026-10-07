@@ -5,6 +5,8 @@
 
 最后更新：2026-10-07。
 
+2026-10-07发热修复工程已完成：应用级前台60／菜单暂停HUD30／失焦20／inactive最小化10 FPS，hidden诊断60；双配置构建、pure pacing及AL-A3通过，隐藏短对照209.875→58.000 FPS、末5次CPU均值61.02%→23.88%。前台OS操作与长期降温仍`NOT_RUN`、按用户授权后置，不声称彻底消除发热；详见[帧率节奏交付记录](../reports/frame-pacing-thermal-fix-2026-10-07.md)。
+
 当前已知显示缺陷：HDR＋Post On下HUD正立但3D画面上下倒置，属既有产品FAIL待修、非本次合并引入；证据及后续状态见[参考画质合并记录](../reports/reference-visual-master-merge-2026-10-07.md)，普通CUA专项仍按用户授权后置，不因此阻断合并。
 
 ## 项目目标

@@ -683,6 +683,9 @@ Observer 的嵌套发布会被拒绝；显式允许的领域反应最多同时�
 
 ## 10. Main Tick and Frame Chain
 
+客户端用 `Presentation/FramePacing.h` 提供独立帧率上限：正常游玩60、菜单／暂停／HUD指针30、失焦后台20、最小化或inactive窗口10 FPS；显式隐藏诊断采用60 FPS，避免被固定失焦误判为后台。VSync保持原设置。
+Ogre在帧工作和退出判断后按steady clock计算剩余预算，以最多8ms的休眠片段处理窗口消息，关闭或恢复焦点时重新判断，不自旋、不补赶旧帧。降频不改变World后台模拟、暂停门或传入20Hz调度器的真实elapsed。性能记录的frameMs为真实帧开始间隔（包含等待），update／render仍只记录各自工作阶段。
+
 OIS 鼠标按下事件通过 `GameplayMouseFrameInput` 的五键定长缓冲保留一帧，采样时与当前按住态合并，
 随后清空。Ogre 壳在事件和采样两处核查 UI／焦点所有权；释放门将短点击也视为按钮活动，防止
 回焦穿透。该状态不持久化，不延长按住动作，也不改变 Sandbox 原有动作仲裁与冷却。

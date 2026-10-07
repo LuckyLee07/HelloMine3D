@@ -26,6 +26,7 @@
 #include "ShoreEditCapture.h"
 #include "ShadowPatchCapture.h"
 #include "../Presentation/LocalizedPresentation.h"
+#include "../Presentation/FramePacing.h"
 #include "StartupErrorReporter.h"
 #include "StartupResourcePreflight.h"
 
@@ -66,6 +67,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -3067,6 +3069,10 @@ namespace
                 "Frame Delta (ms)",
                 static_cast<double>(event.timeSinceLastFrame) * 1000.0);
             m_frameStart = std::chrono::steady_clock::now();
+            m_frameIntervalMs = m_previousFrameStart == std::chrono::steady_clock::time_point{}
+                ? 0.0 : std::chrono::duration<double, std::milli>(
+                    m_frameStart - m_previousFrameStart).count();
+            m_previousFrameStart = m_frameStart;
             if (m_renderPhaseDiagnostics)
             {
                 m_sceneRenderEnd = {};
@@ -3462,7 +3468,9 @@ namespace
                         frameEnd - m_swapEnd).count();
                 timings.renderPhaseValid = true;
             }
-            timings.frameMs = frameMs;
+            // Frame period includes the previous frame's pacing wait. Keep
+            // update/render work timings separate from deliberate idle time.
+            timings.frameMs = m_frameIntervalMs > 0.0 ? m_frameIntervalMs : frameMs;
 
             RuntimePerformanceCapture::recordFrame(timings,
                                                     m_frameWorldStats);
@@ -3516,7 +3524,7 @@ namespace
             const bool frameLimitReached =
                 m_exitAfterFrames > 0 &&
                 m_frameCount >= m_exitAfterFrames;
-            return !(m_materialIdentityCapture && m_materialIdentityPhase >= 9) &&
+            const bool keepRendering = !(m_materialIdentityCapture && m_materialIdentityPhase >= 9) &&
                    !(m_cameraDiagnostics && m_cameraDiagnosticPhase >= 6) &&
                    !(m_floraWindCapture && m_floraWindCapture->isComplete()) &&
                    !(m_pauseNotificationCapture && m_pauseNotificationCapture->isComplete()) &&
@@ -3526,8 +3534,42 @@ namespace
                    !(m_referenceResidencyProbe && m_referenceResidencyProbe->complete()) &&
                    !captureComplete && !frameLimitReached &&
                    !RuntimePerformanceCapture::shouldCloseWindow();
+            return keepRendering && paceNextFrame();
         }
 
+        FramePacing::Mode runtimeFramePacingMode() const
+        {
+            const bool worldSimulation = m_applicationFlow.acceptsWorldSimulation() &&
+                !(m_userInterface && m_userInterface->wantsHudPointer());
+            return FramePacing::modeFor({m_hiddenWindow,
+                m_window && m_window->isActive(), runtimeWindowFocused(), worldSimulation});
+        }
+
+        bool paceNextFrame()
+        {
+            using Clock = std::chrono::steady_clock;
+            // Do not spin when a minimized window skips its VSync buffer swap.
+            // Pump messages between bounded sleeps so close and focus recovery
+            // do not wait for the entire background frame interval.
+            for (;;)
+            {
+                if (m_shutdownRequested || !m_window || m_window->isClosed()) return false;
+                const auto mode = runtimeFramePacingMode();
+                if (!m_framePacingModeKnown || mode != m_framePacingMode)
+                {
+                    m_framePacingModeKnown = true;
+                    m_framePacingMode = mode;
+                    std::cout << "[FRAME_PACING] mode=" << FramePacing::modeName(mode)
+                              << " fps=" << FramePacing::fpsFor(mode)
+                              << " hidden_diagnostic=" << (m_hiddenWindow ? 1 : 0) << '\n';
+                }
+                const auto remaining = FramePacing::remainingBudget(m_frameStart, Clock::now(), mode);
+                if (remaining <= Clock::duration::zero()) return true;
+                const auto slice = std::chrono::duration_cast<Clock::duration>(std::chrono::milliseconds(8));
+                std::this_thread::sleep_for(std::min(remaining, slice));
+                Ogre::WindowEventUtilities::messagePump();
+            }
+        }
 
         std::string referenceResidencyCells() const {
             using namespace ReferenceResidency;std::vector<std::string> cells;
@@ -8859,6 +8901,10 @@ namespace
         int m_frameCount = 0;
         WorldDebugStats m_frameWorldStats;
         std::chrono::steady_clock::time_point m_frameStart;
+        std::chrono::steady_clock::time_point m_previousFrameStart{};
+        double m_frameIntervalMs = 0.0;
+        FramePacing::Mode m_framePacingMode = FramePacing::Mode::Playing;
+        bool m_framePacingModeKnown = false;
         std::chrono::steady_clock::time_point m_updateEnd;
         std::chrono::steady_clock::time_point m_sceneRenderEnd;
         std::chrono::steady_clock::time_point m_swapEnd;
