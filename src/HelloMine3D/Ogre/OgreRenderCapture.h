@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -20,6 +21,12 @@ struct OgreRenderCaptureValidation
 class OgreRenderCapture
 {
   public:
+    struct ShadowPatchCheckpoint {
+        std::uint64_t serial = 0, nativeFrame = 0;
+        int targetMs = 0;
+        double elapsedMs = 0;
+        std::string path;
+    };
     explicit OgreRenderCapture(Ogre::RenderWindow &window);
     ~OgreRenderCapture();
 
@@ -27,6 +34,10 @@ class OgreRenderCapture
     OgreRenderCapture &operator=(const OgreRenderCapture &) = delete;
 
     void update(float deltaSeconds);
+    // Only the explicit two-frame shadow diagnostic uses a pre-draw clock.
+    // Ordinary capture keeps its original frameEnded clock and behavior.
+    bool prepareShadowPatchCheckpoint(float deltaSeconds, std::uint64_t nativeFrame);
+    const ShadowPatchCheckpoint& shadowPatchCheckpoint() const;
     bool isEnabled() const;
     bool isComplete() const;
     bool shouldCloseWindow() const;

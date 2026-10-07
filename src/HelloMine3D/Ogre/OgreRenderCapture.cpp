@@ -4,10 +4,12 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cmath>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -17,6 +19,7 @@ namespace
     {
         bool enabled = false;
         bool exitWhenComplete = false;
+        bool shadowPatch = false;
         double maxDeltaMs = 250.0;
         std::string outputDirectory;
         std::string prefix = "capture";
@@ -90,6 +93,7 @@ namespace
     CaptureOptions readOptions()
     {
         CaptureOptions options;
+        options.shadowPatch = std::getenv("HELLOMINE3D_SHADOW_PATCH_CAPTURE_DIR") != nullptr;
         options.enabled = isTrueValue(
             getAlias("HELLO_RENDER_CAPTURE", "HELLO_VISUAL_CAPTURE"));
         options.exitWhenComplete =
@@ -142,6 +146,13 @@ namespace
             validation.message = "capture format must be png or bmp";
             return validation;
         }
+        if (options.shadowPatch && (!options.exitWhenComplete ||
+            options.format != "png" || options.prefix != "capture" ||
+            options.captureMs != std::vector<int>{5000, 9000}))
+        {
+            validation.message = "shadow patch requires exactly two PNG checkpoints 5000,9000 and exit";
+            return validation;
+        }
         validation.valid = true;
         validation.message = "ok";
         return validation;
@@ -187,6 +198,11 @@ class OgreRenderCapture::Impl
 
     void update(float deltaSeconds)
     {
+        if (options.shadowPatch) {
+            if (!prepared) throw std::runtime_error("Shadow patch capture update has no prepared native frame.");
+            deltaSeconds = preparedDelta;
+            prepared = false;
+        }
         if (!options.enabled || nextIndex >= options.captureMs.size())
         {
             return;
@@ -215,7 +231,12 @@ class OgreRenderCapture::Impl
             const std::filesystem::path path =
                 std::filesystem::path(options.outputDirectory) /
                 filename.str();
+            if (options.shadowPatch && std::filesystem::exists(path))
+                throw std::runtime_error("Shadow patch original PNG already exists.");
             window->writeContentsToFile(path.string());
+            if (options.shadowPatch) {
+                checkpoint = {nextIndex + 1, preparedFrame, targetMs, elapsedMs, path.string()};
+            }
             std::cout << "[OgreRenderCapture] captured path="
                       << path.string() << " target_ms=" << targetMs
                       << " actual_ms=" << elapsedMs << '\n';
@@ -223,11 +244,29 @@ class OgreRenderCapture::Impl
         }
     }
 
+    bool prepareShadowPatch(float deltaSeconds, std::uint64_t frame)
+    {
+        if (!options.shadowPatch || !options.enabled || prepared || !std::isfinite(deltaSeconds))
+            throw std::runtime_error("Shadow patch checkpoint preparation is disabled or repeated.");
+        prepared = true; preparedDelta = deltaSeconds; preparedFrame = frame;
+        const double delta = double(deltaSeconds) * 1000.0;
+        if (!timingStarted || nextIndex >= options.captureMs.size() ||
+            delta <= 0 || delta > options.maxDeltaMs) return false;
+        const double accepted = elapsedMs + delta + 0.5;
+        if (nextIndex + 1 < options.captureMs.size() && accepted >= options.captureMs[nextIndex + 1])
+            throw std::runtime_error("Shadow patch frame crosses more than one original checkpoint.");
+        return accepted >= options.captureMs[nextIndex];
+    }
+
     Ogre::RenderWindow *window = nullptr;
     CaptureOptions options;
     bool timingStarted = false;
     double elapsedMs = 0.0;
     std::size_t nextIndex = 0;
+    bool prepared = false;
+    float preparedDelta = 0;
+    std::uint64_t preparedFrame = 0;
+    ShadowPatchCheckpoint checkpoint;
 };
 
 OgreRenderCapture::OgreRenderCapture(Ogre::RenderWindow &window)
@@ -240,6 +279,16 @@ OgreRenderCapture::~OgreRenderCapture() = default;
 void OgreRenderCapture::update(float deltaSeconds)
 {
     m_impl->update(deltaSeconds);
+}
+
+bool OgreRenderCapture::prepareShadowPatchCheckpoint(float deltaSeconds, std::uint64_t nativeFrame)
+{
+    return m_impl->prepareShadowPatch(deltaSeconds, nativeFrame);
+}
+
+const OgreRenderCapture::ShadowPatchCheckpoint& OgreRenderCapture::shadowPatchCheckpoint() const
+{
+    return m_impl->checkpoint;
 }
 
 bool OgreRenderCapture::isEnabled() const

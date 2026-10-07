@@ -12,6 +12,7 @@ out float terrainLight;
 out vec2 terrainLightSources;
 out float terrainDistance;
 out vec3 terrainWorldPosition;
+out vec3 terrainDerivativePosition;
 flat out vec3 terrainNaturalTreeRoot;
 out vec4 terrainShadowPosition;
 
@@ -30,6 +31,9 @@ void main()
     terrainLightSources = uv2.z >= 1.0 ? vec2(uv2.y, uv2.z - 1.0) : vec2(-1.0);
     terrainDistance = length((worldView * vertex).xyz);
     terrainWorldPosition = (world * vertex).xyz;
+    // Keep interpolation small before receiver-plane differentiation; world
+    // translation contributes no tangent and can lose bits on nearby walls.
+    terrainDerivativePosition = (world * vec4(vertex.xyz, 0.0)).xyz;
     // One root tag is copied to every face of a planned natural tree. Tags
     // use section-local X/Z plus six, packed into two five-bit fields.
     float rootCode = max(0.0, uv3 - 1.0);

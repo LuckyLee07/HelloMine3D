@@ -81,6 +81,24 @@ GPU工具保留原60项，补terrain／actor、两档、陡坡、窄／倾斜屏
 48项断言，共108项；新增测试必须拒绝冻结旧shader。完整actor与terrain实际GLSL、双配置
 资源及客户端另验证；固定机位结果不关闭普通移动、动物／建筑及暂停恢复的剩余动态范围。
 
+## 2026-10-07 V05c 土壁插值精度修订
+
+V11c在当前湿地／草甸土壁复现细点：V05b虽排除了阴影投影平移，但对插值后的大世界坐标
+求导仍会损失有效位。Terrain／Flora vertex新增`terrainDerivativePosition`，由对象world矩阵
+只变换方向（w=0）；Flora沿用已有animatedVertex。共享接收fragment仅两处屏幕导数改用该值，
+绝对世界位置仍供材料分区、树根和雾等原逻辑使用。Actor保持已有路径。
+
+资源接口要求Terrain／Flora输出和共享fragment输入声明成套存在；三单阶段陈旧覆盖分别拒绝。
+不增加uniform、纹理读取、顶点流或持久状态；新增一个vec3插值输出，bias、8cm接触门槛、
+九次PCF、权重、强度、距离、太阳相机及Off回退保持。严格配对性能继续延期。
+
+显式`HELLOMINE3D_SHADOW_PATCH_CAPTURE_DIR`仅允许全新隐藏seed42／terrain31湿地固定机位，
+5000／9000ms两次原主相机绘制观察，含PNG的累计预算64MiB、期限30秒；默认不构造观察器，
+不查询World、不回放、不改变正常批处理。原VBO几何投影只证明候选面覆盖固定像素，
+内部VAO取数、逐片元归属和World原子快照不在声明内。诊断PNG在swap前读原back buffer，
+普通定时捕获时序保持；两名义时点不能冒称普通动态或严格同tick前后配对。
+当前工程与四固定场景证据见[执行记录V05c](../reports/visual-experience-polish-execution-2026-09-28.md)。
+
 ## 能力选择与回退
 
 Medium/High 要求 vertex/fragment program、GLSL 150 和 float texture。支持时日志冻结请求档、

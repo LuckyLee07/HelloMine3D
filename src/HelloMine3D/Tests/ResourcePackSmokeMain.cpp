@@ -481,15 +481,18 @@ namespace
             "fragment_program_ref HelloMine3D/DirectionalShadowCasterFragment\n");
         writeFile(root / "media/ogre/HelloMine3DTerrainShadow.vert",
             "out vec4 terrainShadowPosition;\n"
+            "out vec3 terrainDerivativePosition;\n"
             "uniform mat4 shadowWorldViewProj;\n"
             "in float uv3;\nflat out vec3 terrainNaturalTreeRoot;\n");
         writeFile(root / "media/ogre/HelloMine3DFloraShadow.vert",
-            "in float uv3;\nflat out vec3 terrainNaturalTreeRoot;\n");
+            "in float uv3;\nflat out vec3 terrainNaturalTreeRoot;\n"
+            "out vec3 terrainDerivativePosition;\n");
         writeFile(root / "media/ogre/HelloMine3DTerrainShadow.frag",
             std::string("uniform vec2 viewRange;\n") +
             "uniform vec2 viewRangeCentre;\n"
             "uniform float viewRangeStrength;\n"
             "in vec4 terrainShadowPosition;\n"
+            "in vec3 terrainDerivativePosition;\n"
             "flat in vec3 terrainNaturalTreeRoot;\n"
             "uniform float playerExposure;\n"
             "uniform vec3 sunColour;\n"
@@ -537,6 +540,31 @@ namespace
 
     void caseDirectionalShadowShaderContract()
     {
+        for (const char* name : {"HelloMine3DTerrainShadow.vert", "HelloMine3DFloraShadow.vert",
+                                 "HelloMine3DTerrainShadow.frag"})
+        {
+            const fs::path root = freshRoot("v05c-stale-derivative-stage");
+            writeDirectionalShadowFixture(root);
+            const std::string logical = std::string("media/ogre/") + name;
+            std::ifstream input(root / logical);
+            std::string source((std::istreambuf_iterator<char>(input)), {});
+            input.close();
+            const std::string declaration = std::string(name).find(".vert") != std::string::npos
+                ? "out vec3 terrainDerivativePosition;" : "in vec3 terrainDerivativePosition;";
+            const auto offset = source.find(declaration);
+            if (offset == std::string::npos)
+            {
+                check("V05C/derivative-stage-fixture-valid", false);
+                continue;
+            }
+            source.erase(offset, declaration.size());
+            const fs::path pack = createPack(root, "stale-shadow-stage",
+                "Stale shadow derivative stage", 1, {{logical, source}});
+            ResourcePackResolver resolver;
+            resolver.freeze(root.string(), requirements(), {pack.string()});
+            check(std::string("V05C/reject-single-stale-derivative-stage-") + name,
+                throwsContaining([&] { validateDirectionalShadowShaderContract(resolver); }, declaration));
+        }
         for (const char* name : {"HelloMine3DTerrainShadow.frag", "HelloMine3DActorShadow.frag"})
         {
             for (const char* missingDeclaration : {"uniform vec2 viewRange;",

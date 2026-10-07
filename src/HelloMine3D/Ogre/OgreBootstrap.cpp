@@ -14,6 +14,7 @@
 #include "FloraWindCapture.h"
 #include "PauseNotificationCapture.h"
 #include "ShoreEditCapture.h"
+#include "ShadowPatchCapture.h"
 #include "../Presentation/LocalizedPresentation.h"
 #include "StartupErrorReporter.h"
 #include "StartupResourcePreflight.h"
@@ -651,6 +652,20 @@ namespace
                     parent != std::filesystem::weakly_canonical(std::filesystem::path(catalogueOverride).parent_path()))
                     throw std::runtime_error("Fern diagnostic directories must share the new session directory.");
             }
+            const char* shadowDirectory = std::getenv("HELLOMINE3D_SHADOW_PATCH_CAPTURE_DIR");
+            if (shadowDirectory)
+            {
+                if (!shadowDirectory[0] || !saveOverride || !saveOverride[0] || !catalogueOverride || !catalogueOverride[0])
+                    throw std::runtime_error("Shadow patch requires explicit fresh sibling paths.");
+                const auto save = std::filesystem::weakly_canonical(saveOverride);
+                const auto catalogue = std::filesystem::weakly_canonical(catalogueOverride);
+                const auto output = std::filesystem::weakly_canonical(shadowDirectory);
+                if (save == catalogue || save == output || catalogue == output ||
+                    save.parent_path() != output.parent_path() || catalogue.parent_path() != output.parent_path() ||
+                    std::filesystem::exists(save) || std::filesystem::exists(catalogue) || std::filesystem::exists(output))
+                    throw std::runtime_error("Shadow patch paths must be distinct nonexistent siblings.");
+                m_shadowPatchOutput = shadowDirectory;
+            }
             const char* shoreDirectory = std::getenv("HELLOMINE3D_SHORE_EDIT_CAPTURE_DIR");
             if (shoreDirectory && shoreDirectory[0])
             {
@@ -1125,6 +1140,35 @@ namespace
                 m_actorVisualDistance = std::stof(value);
                 std::cout << "[ACTOR_VISUAL_CAPTURE] distance=" << value << '\n';
             }
+            if (!m_shadowPatchOutput.empty())
+            {
+                auto exact = [](const char* key,const char* value) {
+                    const char* actual=std::getenv(key);return actual&&std::string(actual)==value;
+                };
+                if (!isTrueValue(std::getenv("HELLOMINE3D_WINDOW_HIDDEN")) || !isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) ||
+                    initialSaveDirectory.empty() || RuntimePerformanceCapture::isEnabled() || m_visualCameraSweep.enabled ||
+                    !m_playerMotionCapture.empty() || !m_actorVisualCapture.empty() ||
+                    m_config.renderDistance != 8 || m_config.fov != 90 || m_config.windowX != 1280 || m_config.windowY != 720 ||
+                    m_config.cameraPerspective != CameraPerspective::FirstPerson || m_config.visualDetail != VisualDetail::Standard ||
+                    m_config.directionalShadowQuality != DirectionalShadowQuality::Medium || m_config.postProcessingQuality != PostProcessingQuality::Off ||
+                    !exact("HELLOMINE3D_SEED","42") || !exact("HELLOMINE3D_WORLD_TIME","6000") ||
+                    !exact("HELLOMINE3D_PLAYER_POSITION","1620.5 67 -955.5") || !exact("HELLOMINE3D_PLAYER_ROTATION","25 35 0"))
+                    throw std::runtime_error("Shadow patch requires its original hidden seed42 wetland Medium/FOV90/RD8 view.");
+                for (const char* key : {"HELLOMINE3D_RC_PERF_PROFILE", "HELLOMINE3D_E2_BATCH_MANIFEST", "HELLOMINE3D_VISUAL_CAMERA_PATH",
+                    "HELLOMINE3D_CAMERA_DIAGNOSTICS_DIR", "HELLOMINE3D_MATERIAL_IDENTITY_CAPTURE_DIR", "HELLOMINE3D_FERN_WIND_CAPTURE_DIR",
+                    "HELLOMINE3D_SHORE_EDIT_CAPTURE_DIR", "HELLOMINE3D_SHORE_NATIVE_DRAW", "HELLOMINE3D_WATER_SEAM_CAPTURE_DIR",
+                    "HELLOMINE3D_PAUSE_NOTIFICATIONS_DIR", "HELLOMINE3D_RESOURCE_PACKS", "HELLOMINE3D_TERRAIN_FALLBACK", "HELLOMINE3D_V10C_FALLBACK",
+                    "HELLOMINE3D_V10D_SHADOW_FIXTURE", "HELLOMINE3D_V10D_SHADOW_FALLBACK", "HELLOMINE3D_V10D_SHADOW_DIAGNOSTICS",
+                    "HELLOMINE3D_V10E_POST_FIXTURE", "HELLOMINE3D_V10E_POST_FALLBACK", "HELLOMINE3D_FORCE_LEGACY_TERRAIN",
+                    "HELLOMINE3D_BLOCK_FEEDBACK_CAPTURE", "HELLOMINE3D_COMBAT_FIXTURE", "HELLOMINE3D_CONTAINER_FIXTURE",
+                    "HELLOMINE3D_CRAFTING_FIXTURE", "HELLOMINE3D_CROP_FIXTURE", "HELLOMINE3D_MACHINE_FIXTURE", "HELLOMINE3D_ORE_FIXTURE",
+                    "HELLOMINE3D_SPAWN_VALIDATION_ACTORS", "HELLOMINE3D_TRANSPARENT_FIXTURE", "HELLOMINE3D_VERTEX_LIGHTING_FIXTURE",
+                    "HELLOMINE3D_VERTICAL_SLICE_FIXTURE", "HELLOMINE3D_HUD_FIXTURE", "HELLOMINE3D_HUD_PAGE_FIXTURE",
+                    "HELLOMINE3D_DISABLE_VERTEX_AO", "HELLOMINE3D_CONTROLLED_CRASH", "HELLOMINE3D_E2_BATCH_EVENTS", "HELLOMINE3D_E2_RENDER_PHASES"})
+                    if (std::getenv(key)) throw std::runtime_error("Shadow patch cannot combine another diagnostic or resource override.");
+                const auto valid=OgreRenderCapture::validateConfiguration();
+                if (!valid.valid || !valid.enabled) throw std::runtime_error("Shadow patch original two-frame capture configuration is invalid.");
+            }
             const char* identityOutput = std::getenv(
                 "HELLOMINE3D_MATERIAL_IDENTITY_CAPTURE_DIR");
             if (identityOutput != nullptr && identityOutput[0] != '\0')
@@ -1479,6 +1523,13 @@ namespace
                       << terrain.floraIndexCount << '\n';
             m_renderCapture =
                 std::make_unique<OgreRenderCapture>(*m_window);
+            if (!m_shadowPatchOutput.empty())
+            {
+                if (m_window->getWidth()!=2560 || m_window->getHeight()!=1440 ||
+                    m_camera->getViewport()->getActualWidth()!=2560 || m_camera->getViewport()->getActualHeight()!=1440)
+                    throw std::runtime_error("Shadow patch requires the original2560x1440 native framebuffer.");
+                m_shadowPatchCapture = std::make_unique<ShadowPatchCapture>(m_shadowPatchOutput,*m_sceneManager,*m_camera);
+            }
             m_runtimeStarted = true;
 
             const char* exitFrames =
@@ -2464,6 +2515,7 @@ namespace
                 m_userInterface->setWorldContext(nullptr, nullptr);
             }
             if (m_shoreEditCapture) m_shoreEditCapture->cancelNativeFrame();
+            m_shadowPatchCapture.reset();
             if (m_blockFeedback != nullptr)
             {
                 m_blockFeedback->clear();
@@ -2822,6 +2874,44 @@ namespace
             observeFloraWindCapture();
             observeShoreNativeDraw();
             observeWaterSeamFrame();
+            if (m_shadowPatchCapture)
+            {
+                m_shadowPatchCapture->checkDeadline();
+                m_shadowPatchFramePending = m_renderCapture->prepareShadowPatchCheckpoint(event.timeSinceLastFrame,m_frameCount);
+                if (m_shadowPatchFramePending)
+                {
+                    if (m_frameWorldStats.terrainSeed != 42 || m_frameWorldStats.terrainGenerationVersion != 31)
+                        throw std::runtime_error("Shadow patch actual world identity differs.");
+                    ChunkSectionRenderable* selected=nullptr;
+                    glm::ivec3 selectedOrigin{0}; std::string selectedKey; bool selectedBatch=false;
+                    Ogre::Real nearest=std::numeric_limits<Ogre::Real>::infinity();
+                    const Ogre::Ray ray=m_camera->getCameraToViewportRay(350.f/2560.f,1080.f/1440.f);
+                    auto inspect=[&](auto& owners,const glm::ivec3& origin,bool batch) {
+                        const auto key=sectionKey(origin);
+                        const auto found=owners.find(key);
+                        if(found==owners.end())return;
+                        if(found->second.location!=origin||found->second.renderables.size()>(batch?2u:4u))
+                            throw std::runtime_error("Shadow patch bounded owner identity/count differs.");
+                        for(auto& object:found->second.renderables) {
+                            if(object->getMaterial()->getName()!="HelloMine3D/Terrain")continue;
+                            const auto hit=ray.intersects(object->getWorldBoundingBox(true));
+                            if(!hit.first||!std::isfinite(hit.second)||hit.second<0)continue;
+                            if(hit.second<nearest) {nearest=hit.second;selected=object.get();selectedOrigin=origin;selectedKey=key;selectedBatch=batch;}
+                            else if(hit.second==nearest&&selected!=object.get())
+                                throw std::runtime_error("Shadow patch fixed pixel has ambiguous nearest owners.");
+                        }
+                    };
+                    // Resolve only original renderer owners in the fixed nearby
+                    // 3x3 columns and Y=0..127. Bounding boxes choose a candidate;
+                    // the native post-draw VBO must still cover this same pixel.
+                    for(int x=100;x<=102;++x)for(int z=-61;z<=-59;++z) {
+                        for(int y=0;y<8;++y)inspect(m_sectionVisuals,{x,y,z},false);
+                        for(int y:{0,4})inspect(m_terrainBatchVisuals,{x,y,z},true);
+                    }
+                    if(!selected)throw std::runtime_error("Shadow patch fixed pixel has no resident nearby solid owner.");
+                    m_shadowPatchCapture->begin(*selected,m_frameCount,selectedOrigin,selectedKey,selectedBatch);
+                }
+            }
             if (m_userInterface != nullptr)
             {
                 const MiningProgressSnapshot progress =
@@ -2900,6 +2990,15 @@ namespace
             }
             finishShoreEditFrame();
             finishWaterSeamFrame();
+            if (m_shadowPatchCapture)
+            {
+                // Cocoa windowed FB_AUTO is the current back buffer. Capture
+                // this explicit diagnostic before swap, after the original draw.
+                m_shadowPatchCapture->updateOriginalCapture(*m_renderCapture);
+                if(m_shadowPatchFramePending)
+                    m_shadowPatchCapture->commit(m_renderCapture->shadowPatchCheckpoint(),m_frameWorldStats.worldTime);
+                m_shadowPatchFramePending=false;
+            }
             ++m_frameCount;
             return true;
         }
@@ -2913,7 +3012,7 @@ namespace
                 // before frameEnded.
                 m_swapEnd = std::chrono::steady_clock::now();
             }
-            if (m_renderCapture != nullptr)
+            if (m_renderCapture != nullptr && !m_shadowPatchCapture)
             {
                 m_renderCapture->update(event.timeSinceLastFrame);
             }
@@ -5310,6 +5409,7 @@ namespace
             {
                 if (m_floraWindCapture) m_floraWindCapture->detachRenderable(*renderable);
                 if (m_shoreEditCapture) m_shoreEditCapture->detachRenderable(*renderable);
+                if (m_shadowPatchCapture) m_shadowPatchCapture->detachRenderable(*renderable);
                 if (renderable->isAttached())
                 {
                     renderable->detachFromParent();
@@ -7313,6 +7413,7 @@ namespace
             m_cameraDiagnostics.reset();
             m_floraWindCapture.reset();
             m_shoreEditCapture.reset();
+            m_shadowPatchCapture.reset();
             if (m_userInterface) m_userInterface->setPauseNotificationCapture(nullptr);
             m_pauseNotificationCapture.reset();
             m_userInterface.reset();
@@ -7459,6 +7560,9 @@ namespace
         std::string m_musicDefinitionError;
         GameApplicationFlow m_applicationFlow;
         std::unique_ptr<WorldManagementService> m_worldManagement;
+        std::string m_shadowPatchOutput;
+        std::unique_ptr<ShadowPatchCapture> m_shadowPatchCapture;
+        bool m_shadowPatchFramePending = false;
         std::unique_ptr<OgreBlockFeedback> m_blockFeedback;
         bool m_blockFeedbackCapture = false;
         glm::ivec3 m_blockFeedbackCaptureTarget{0};

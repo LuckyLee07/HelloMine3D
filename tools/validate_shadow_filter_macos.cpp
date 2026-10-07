@@ -34,14 +34,17 @@ GLuint program(const std::filesystem::path& path, const std::string& prefix, boo
         require(at!=std::string::npos,"Missing filter for plane negative fixture");
         function.insert(at,"receiverDepthGradient = vec2(0.0);\n    ");
     }
+    const std::string derivativeDeclaration=prefix=="terrain"?"vec3 terrainDerivativePosition;\n":"";
+    const std::string derivativeAssignment=prefix=="terrain"?"terrainDerivativePosition=vec3(shift*128.0,0);":"";
     const std::string fragment="#version 150\nuniform vec4 probeShadowPosition;\nvec4 "+prefix+"ShadowPosition;\n"
         "uniform vec2 probeDepthSlope; uniform float probePixelSpan, probeShear, probeCompression;\n"
         "vec3 "+prefix+"WorldPosition; uniform mat4 directionalShadowViewProj;\n"
         "uniform float "+prefix+"Distance;\nuniform sampler2D directionalShadowMap;\n"
         "uniform float directionalShadowEnabled, directionalShadowStrength, directionalShadowBias;\n"
         "uniform float directionalShadowFadeStart, directionalShadowFadeEnd;\nout vec4 colour;\n"+
-        function+"\nvoid main(){vec2 shift=mat2(1,0,probeShear,probeCompression)*(gl_FragCoord.xy-vec2(0.5))*probePixelSpan;"+
+        derivativeDeclaration+function+"\nvoid main(){vec2 shift=mat2(1,0,probeShear,probeCompression)*(gl_FragCoord.xy-vec2(0.5))*probePixelSpan;"+
         prefix+"WorldPosition=vec3(1648,128,668)+vec3(shift*128.0,0);"+
+        derivativeAssignment+
         prefix+"ShadowPosition=probeShadowPosition+vec4(shift,2.0*dot(shift,probeDepthSlope),0);"+
         "colour=vec4(directionalShadowVisibility());}\n";
     GLuint p=glCreateProgram();

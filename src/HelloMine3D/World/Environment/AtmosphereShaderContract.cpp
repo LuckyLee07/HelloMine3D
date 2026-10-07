@@ -269,17 +269,20 @@ void validateDirectionalShadowShaderContract(
     requireTokens(
         resolver, "media/ogre/HelloMine3DTerrainShadow.vert",
         {"out vec4 terrainShadowPosition;",
+         "out vec3 terrainDerivativePosition;",
          "uniform mat4 shadowWorldViewProj;",
          "in float uv3;", "flat out vec3 terrainNaturalTreeRoot;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DFloraShadow.vert",
-        {"in float uv3;", "flat out vec3 terrainNaturalTreeRoot;"});
+        {"in float uv3;", "flat out vec3 terrainNaturalTreeRoot;",
+         "out vec3 terrainDerivativePosition;"});
     requireTokens(
         resolver, "media/ogre/HelloMine3DTerrainShadow.frag",
         {"uniform vec2 viewRange;",
          "uniform vec2 viewRangeCentre;",
          "uniform float viewRangeStrength;",
          "in vec4 terrainShadowPosition;",
+         "in vec3 terrainDerivativePosition;",
          "flat in vec3 terrainNaturalTreeRoot;",
          "uniform float playerExposure;",
          "uniform vec3 sunColour;",

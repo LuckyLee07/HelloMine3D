@@ -6,6 +6,7 @@ in float terrainLight;
 in vec2 terrainLightSources;
 in float terrainDistance;
 in vec3 terrainWorldPosition;
+in vec3 terrainDerivativePosition;
 flat in vec3 terrainNaturalTreeRoot;
 in vec4 terrainShadowPosition;
 
@@ -88,8 +89,8 @@ float directionalShadowVisibility()
     // Differentiate world tangents before projection. Subtracting nearby
     // translated shadow coordinates loses significant bits at grazing angles.
     // The directional camera is orthographic; w=0 excludes its translation.
-    vec3 dx = (directionalShadowViewProj * vec4(dFdx(terrainWorldPosition), 0.0)).xyz;
-    vec3 dy = (directionalShadowViewProj * vec4(dFdy(terrainWorldPosition), 0.0)).xyz;
+    vec3 dx = (directionalShadowViewProj * vec4(dFdx(terrainDerivativePosition), 0.0)).xyz;
+    vec3 dy = (directionalShadowViewProj * vec4(dFdy(terrainDerivativePosition), 0.0)).xyz;
     dx.z *= 0.5;
     dy.z *= 0.5;
     float determinant = dx.x * dy.y - dx.y * dy.x;

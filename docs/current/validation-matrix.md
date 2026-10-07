@@ -38,6 +38,7 @@ P95／P99 ≤1.10 和细微调参统一为 `DEFERRED_BY_USER`，不再阻塞本�
 
 | 改动 | 最低必要验证 |
 | ---- | ------------ |
+| V05c 土壁阴影插值精度 | Terrain／Flora的新增导数varying须完整生产GLSL atlas／array链接及Flora风摆一致检查；阴影原108项保留8cm遮挡与平面修正负例，资源双配置保留原201并追加三个单阶段陈旧覆盖负例，正常双配置客户端与资产检查。原湿地、草甸及旧雪地晨间机位用当前包复验；标准／兼容、Medium／High分别记实际身份、原图和退出，名义时点不称同tick配对。默认关闭的有界原绘制观察只用于诊断，最多两原PNG／64MiB／30秒；不回放、不修改World或正常批处理。既有未受影响World／Actor／UI检查复用，普通动态、失焦与持续输入仍按既定缺项验收。见[执行记录V05c](../reports/visual-experience-polish-execution-2026-09-28.md)。 |
 | V06j 水面共享边投影 | 当前生产Water vertex／fragment的macOS GPU检查：冻结真实V06i共享clip逐bit一致、不同localY／大坐标／档位对及旧840对，保留所有fragment检查；旧源同工具拒绝clip差。ResourcePackSmoke双配置串行、资产检查；复用C++源码一致的已验证客户端，在标准／兼容／关闭回退检查当前实际资源和实景。固定相机静态图不关闭连续无闪点或普通涉水；旧water-seam消费者依赖已移除uniform，留为诊断边界，不把旧序列称当前复跑。见[执行记录V06j](../reports/visual-experience-polish-execution-2026-09-28.md)。 |
 | macOS 通用定时捕获格式 | `python3 -B tools/validate_visual_capture_macos.py` 无客户端检查格式头／BMP行填充与大小、非法组合及继承诊断、原八目标上限和性能无readback。`capture_visual_macos.py --capture-format png`为默认；BMP仅generic hidden／direct定时诊断，命名observer保持PNG。当前native的BMP实跑核对实际时刻、原件、正常退出和源包身份；展示PNG须标为无损转换并比较完整RGBA、保留BMP。八帧unique不证明每GPU帧、完整动作或普通玩法。见[执行记录V07m](../reports/visual-experience-polish-execution-2026-09-28.md)。 |
 | 所有 C++ 改动 | 受影响目标能够编译；运行对应定向自动测试。 |
