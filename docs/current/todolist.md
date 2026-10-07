@@ -52,7 +52,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 本分支范围为独立线性 HDR、石台阶与石窗框的完整技术样件、可编辑保存的临水小屋。
 当前 `Engineering Done`：双配置构建、相关检查和最终包原图通过；普通输入因 Computer Use 服务不可用为 `BLOCKED`，结果分别记录，见[首版执行记录](../reports/reference-visual-prototype-execution-2026-10-06.md)
 及[合同](../contracts/reference-visual-prototype-contract-v1.md)。后续完整材质、倒影和套件按[方案](reference-visual-upgrade-plan-2026-10-06.md)推进，不把尚未实现部分写成完成。
-**2026-10-06 完整交付 Goal 已获用户明确启动，当前宿主 blocked（持续输入工具限制及窗口归属未定，未完成）。** 按[提示词](reference-visual-goal-prompt-2026-10-06.md)推进 A–E 全部范围，独立[执行记录](../reports/reference-visual-goal-execution-2026-10-06.md)维护完整材质、套件、真实倒影、植被／抗锯齿、第二样板及普通输入退出条件。
+**2026-10-06 完整交付 Goal 已获用户明确启动，当前宿主 blocked（持续输入工具限制仍在，旧窗口占用已解除，未完成）。** 按[提示词](reference-visual-goal-prompt-2026-10-06.md)推进 A–E 全部范围，独立[执行记录](../reports/reference-visual-goal-execution-2026-10-06.md)维护完整材质、套件、真实倒影、植被／抗锯齿、第二样板及普通输入退出条件。
 主体实现 `2f87fc67`、水岸几何 `a7f42d02`、水平反射/包保护 `ef6d4350`、生命周期 `32cf60a0`、真实edit工程 `671474ad` 和普通启动保护 `a08a9d20` 保持。本恢复轮修复Near GPU退役后Resident/Clean CPU无法重传的生产缺口：normal＋replay每帧≤8、find-only、incarnation ack防ABA，不改存档。World实际双full4491/0、双focus26/0、责任图100及summary校准，r6真实驻留330×2/42校准、真实old-target-retirement自然1均保留；r5混合FAIL及观察域修正不覆盖。r7实际三新PID/同save HDR→legacy→HDR及无PNG4743帧P95 9.58292/P99 11.3186/max18.898/0>33或50仅单次工程证据，不称性能隔离/严格配对/速度改善/长期。r8 source-scoped-reuse收据 `d1c2fbf2…` 已核World+Tests215同SHA及安装/退役/释放等精确函数；历史4491/330/设置和入口检查不改叫r8整个版本重跑，新Bootstrap/HDR初始化排除在旧native复用外。
 
 第2真实恢复turn补上地图12ID材质族颜色（生产函数1793/0、旧源码12负控拒绝）及实际HDR坏link被forcedfallback隐藏的缺陷。r7 PID76207自然0的FAIL保留；正式HdrPipeline在FBO/回退前对真实resolve pair及库做临时GL链接，三合法native0＋同坏pair自然1、独立164/0，临时对象删除/当前program不变/GL0。r8 generate/graph/Debug/Release全0，当前Release `50b0615880b5b16f8aba4958e2a53f48cf9ab725466ebd78c89f4366bdab3137`、Debug `cad8e62ee0f147f9f7f02b331c6f49dd62b5b5e46d57b5dc3db94e2e909f348e`，2989src清单 `551927627fc40e5c84b274140bab8d4ce3e4d68374b9aebee64cce1ff98c2f14`、资源manifest `f859433d9801ca4e41f34fc3c8ed91715d16f00ffb98e970f3b95870b956b91c`。
@@ -69,7 +69,7 @@ PLAYABILITY-RC 发行 ZIP SHA-256：
 
 **开发验证策略（用户2026-10-07补充）。** 每轮以受影响编译／必要定向检查／实际效果为限，停止额外bit-exact候选及完整矩阵／多轮独立复核；适用全套验收集中到稳定交付。单次当前岸线RGB分类34682自然0，Root实际原图宽蓝带主要对应水平水面、少量侧面对应保留Step凹口，不再按旧全Step实验认定整条竖直蓝墙；透明叠层唯一归属未知，普通连续操作仍需执行。原失败保留，详见唯一报告。
 
-**最新轻量修复（2026-10-07）。** 普通窗口缩放恢复后观察到视角跳变，windowResized 复用已有输入门清理暂存并丢弃下一份相对位移；四行改动不改变持久状态。macOS arm64 Debug／Release增量构建exit0、现有P11A129／0，未追加全矩阵／GPU／多轮复核。r15临时普通菜单候选已准备，实际缩放效果NOT_RUN。原v12窗口进程已更换且保存状态被改变，操作者未知，停止竞争输入；公开工具缺持续按住接口的限制已在连续三轮普通尝试中复现。宿主blocked、未complete；完整普通路线及原退出条件仍保留，准确身份与恢复入口见[执行报告最新段落](../reports/reference-visual-goal-execution-2026-10-06.md)。
+**最新阻塞重核与轻量修复（2026-10-07）。** 旧窗口占用已解除，当前公开工具仍缺持续按住接口，完整普通行走／挖掘路线继续BLOCKED。恢复r15并做一次普通缩放实际失败；定位并修正空位移帧提前消费首次look保护的语义缺口。macOS arm64 Debug／Release客户端增量构建exit0；P11A首次131／1的夹具隔离失败原件保留，隔离后定向重跑131／0。r16只做一次普通菜单进入、放大／恢复和保存退出，位置未变、旋转从(-8,0)变为约(9.15,23.70)，缩放效果仍FAILED_OBSERVED；自有进程已退出。未追加全矩阵／GPU／多轮复核，不称缩放已解决。宿主blocked、未complete；完整退出条件、版本与结果见[执行报告最新段落](../reports/reference-visual-goal-execution-2026-10-06.md)。
 
 **当前 v12 普通操作进展（2026-10-07）。** 复用离源码副本，公开 CUA 已实际完成木板×4及新浅石砖×1合成、2D／3D地图与放大、保存返回菜单并重开确认库存保持，最终保存退出且自有 PID36002 已结束。当时九次W短按、一次转头拖动和两次右键未生效；随后在窗口实际激活后补齐浅石砖普通放置（库存1→0）、保存退出及冷启动重开，实体及库存保持。新增两个普通进程42805／43311均已菜单保存退出并确认结束；一次S短按和一次挖掘drag仍未观察到对应完成，完整12套件、持续行走及建造路线仍未通过。仅新增一次现有 r14 相机移动观察（六原图、21.139秒、exit0），已查看未见大面积建筑消失或悬空黑块；稀疏诊断截图不替代普通行走或闪烁验收。本轮无源码／资源／包变更，不重建、不重打包、不追加全矩阵。Goal active，原退出条件未撤销；准确结果见[执行报告最新段落](../reports/reference-visual-goal-execution-2026-10-06.md)。
 

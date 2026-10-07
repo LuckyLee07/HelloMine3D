@@ -4740,7 +4740,8 @@ namespace
             const auto mouseButtons = m_mouseFrameInput.consume(
                 heldMouseButtons, worldInputActive, m_focusGate);
             if (worldInputActive &&
-                m_focusGate.acceptsLookSample())
+                m_focusGate.acceptsLookSample(
+                    m_pendingLookDelta.x != 0.f || m_pendingLookDelta.y != 0.f))
             {
                 const GameplayLookDelta look = calculateGameplayLookDelta(
                     m_pendingLookDelta.x, m_pendingLookDelta.y,

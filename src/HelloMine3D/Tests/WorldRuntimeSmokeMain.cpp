@@ -2515,19 +2515,32 @@ void caseP11ACoreInput()
     GameplayFocusGate focus;
     check("P11A/initial-focus-accepts-world-input",
           focus.isFocused() && focus.allowsWorldButtons(false) &&
-              focus.acceptsLookSample());
+              focus.acceptsLookSample(true));
     focus.setFocused(false);
     const bool backgroundButtons = focus.allowsWorldButtons(true);
-    const bool backgroundLook = focus.acceptsLookSample();
+    const bool backgroundLook = focus.acceptsLookSample(true);
     focus.setFocused(true);
     const bool heldFocusClick = focus.allowsWorldButtons(true);
-    const bool firstLook = focus.acceptsLookSample();
+    const bool firstLook = focus.acceptsLookSample(true);
     const bool released = focus.allowsWorldButtons(false);
-    const bool nextLook = focus.acceptsLookSample();
+    const bool nextLook = focus.acceptsLookSample(true);
     check("P11A/focus-gate-blocks-background-and-held-focus-click",
           !backgroundButtons && !backgroundLook && !heldFocusClick);
     check("P11A/focus-gate-discards-one-look-and-rearms-on-release",
           !firstLook && released && nextLook);
+
+    GameplayFocusGate resizedLook;
+    resizedLook.suppressUntilRelease();
+    bool emptySamplesIgnored = true;
+    for (int frame = 0; frame < 3; ++frame) {
+        emptySamplesIgnored = !resizedLook.acceptsLookSample(false) && emptySamplesIgnored;
+    }
+    const bool firstRealLook = resizedLook.acceptsLookSample(true);
+    const bool secondRealLook = resizedLook.acceptsLookSample(true);
+    check("P11A/empty-frames-preserve-first-real-look-discard",
+          emptySamplesIgnored && !firstRealLook);
+    check("P11A/look-resumes-after-first-real-sample",
+          secondRealLook && !resizedLook.acceptsLookSample(false));
 
     GameplayMouseFrameInput mouse;
     GameplayMouseFrameInput::Buttons held{};
