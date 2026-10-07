@@ -4,6 +4,7 @@
 #include <Ogre.h>
 #include <OgreGL3PlusDepthBuffer.h>
 #include <OgreGL3PlusHardwarePixelBuffer.h>
+#include <OgreGL3PlusTextureManager.h>
 #include <GLSL/OgreGLSLShader.h>
 #include <GL/gl3w.h>
 #include <algorithm>
@@ -22,6 +23,7 @@
 
 namespace {
 constexpr const char* ReflectionUnit = "planarReflection";
+constexpr const char* CompleteSamplerUnit = "HelloMine3D.PlanarWater.CompleteSamplerFallback";
 constexpr const char* WaterProgram = "HelloMine3D/WaterFragment";
 
 float decode(float c)
@@ -103,6 +105,13 @@ struct PlanarWaterReflection::Impl final : Ogre::RenderQueue::RenderableListener
     // distinct resize can retain another depth buffer until engine shutdown.
     std::unique_ptr<Ogre::DepthBuffer> depth;
     Ogre::Pass* boundWaterPass = nullptr;
+    // This blank TUS borrows the renderer's existing warning texture at draw
+    // time. It owns neither a TexturePtr nor the manager's native texture.
+    Ogre::Pass* fallbackWaterPass = nullptr;
+    Ogre::TextureUnitState* fallbackWaterUnit = nullptr;
+    std::uint64_t fallbackUnitsRemoved = 0;
+    unsigned fallbackReleaseFailures = 0;
+    bool fallbackUsedSinceReset = false;
     Ogre::RenderQueue::RenderableListener* previousListener = nullptr;
     std::map<std::pair<Ogre::ResourceHandle, const Ogre::Technique*>, PrivateMaterial> materials;
     std::vector<Ogre::RenderTarget*> observedShadowTargets;
@@ -151,6 +160,65 @@ struct PlanarWaterReflection::Impl final : Ogre::RenderQueue::RenderableListener
             if (unit) boundWaterPass->removeTextureUnitState(boundWaterPass->getTextureUnitStateIndex(unit));
         } catch (...) {}
         boundWaterPass = nullptr;
+    }
+    Ogre::TextureUnitState* ownedFallbackUnit(Ogre::Pass& pass) const
+    {
+        Ogre::TextureUnitState* found = nullptr;
+        for (unsigned short i = 0; i < pass.getNumTextureUnitStates(); ++i) {
+            auto* unit = pass.getTextureUnitState(i);
+            if (unit->getName() != CompleteSamplerUnit) continue;
+            if (found || fallbackWaterPass != &pass || fallbackWaterUnit != unit)
+                throw std::runtime_error("Reserved planar complete-sampler TUS collision.");
+            found = unit;
+        }
+        return found;
+    }
+    bool unbindFallbackWater() noexcept
+    {
+        if (!fallbackWaterPass) return true;
+        bool clear = false;
+        try {
+            // Remove only the exact owned object, even if an external owner
+            // has renamed it. Never remove a foreign TUS by reserved name.
+            for (unsigned short i = 0; i < fallbackWaterPass->getNumTextureUnitStates(); ++i)
+                if (fallbackWaterPass->getTextureUnitState(i) == fallbackWaterUnit) {
+                    fallbackWaterPass->removeTextureUnitState(i);
+                    ++fallbackUnitsRemoved; break;
+                }
+            clear = true;
+            for (unsigned short i = 0; i < fallbackWaterPass->getNumTextureUnitStates(); ++i)
+                clear = clear && fallbackWaterPass->getTextureUnitState(i) != fallbackWaterUnit;
+        } catch (...) {}
+        if (!clear) ++fallbackReleaseFailures;
+        fallbackWaterPass = nullptr; fallbackWaterUnit = nullptr;
+        return clear;
+    }
+    void bindFallbackWater(Ogre::Pass& pass, Ogre::GpuProgramParameters& parameters)
+    {
+        auto* unit = ownedFallbackUnit(pass); // Reject foreign/duplicate names.
+        if (fallbackWaterPass && fallbackWaterPass != &pass && !unbindFallbackWater())
+            throw std::runtime_error("Planar complete-sampler TUS release failed.");
+        auto* manager = dynamic_cast<Ogre::GL3PlusTextureManager*>(Ogre::TextureManager::getSingletonPtr());
+        if (!manager || !manager->getWarningTextureID())
+            throw std::runtime_error("Planar complete sampler requires the existing GL3Plus warning texture.");
+        if (!unit) {
+            unit = pass.createTextureUnitState();
+            fallbackWaterPass = &pass; fallbackWaterUnit = unit;
+            fallbackUsedSinceReset = true;
+        }
+        try {
+            if (!unit->isBlank() || !unit->getTextureName().empty() || !unit->_getTexturePtr().isNull())
+                throw std::runtime_error("Owned planar complete-sampler TUS was replaced.");
+            unit->setName(CompleteSamplerUnit);
+            unit->setTextureName(Ogre::String(), Ogre::TEX_TYPE_2D);
+            unit->setHardwareGammaEnabled(false);
+            unit->setTextureAddressingMode(Ogre::TextureUnitState::TAM_CLAMP);
+            unit->setTextureFiltering(Ogre::FO_LINEAR, Ogre::FO_LINEAR, Ogre::FO_NONE);
+            // RenderSystem::_setTextureUnitSettings enables this blank TUS;
+            // GL3Plus::_setTexture then binds its complete 8x8 RGB8 warning.
+            parameters.setNamedConstant("planarReflectionTexture",
+                static_cast<int>(pass.getTextureUnitStateIndex(unit)));
+        } catch (...) { unbindFallbackWater(); throw; }
     }
     void releaseTarget() noexcept
     {
@@ -371,6 +439,14 @@ void PlanarWaterReflection::resetWorld() noexcept
 {
     auto& s = *m_impl;
     s.selected = false; s.stats.active = false; s.submitted = false;
+    const bool fallbackClear = s.unbindFallbackWater();
+    if (s.fallbackUsedSinceReset) {
+        std::cout << "[PLANAR_SAMPLER_FALLBACK_RELEASE] owned_tus=" << (fallbackClear ? 0 : 1)
+                  << " pass_bound=" << (s.fallbackWaterPass != nullptr)
+                  << " removed=" << s.fallbackUnitsRemoved << " failures=" << s.fallbackReleaseFailures
+                  << " manager_texture_owned=0\n";
+        s.fallbackUsedSinceReset = false;
+    }
     s.releaseTarget(); s.clearMaterials(); s.stats.reason = "world-reset";
     if (s.camera) s.camera->setLodCamera(nullptr);
     s.input.bindViewParameters = {};
@@ -453,12 +529,24 @@ void PlanarWaterReflection::bindWaterPass(Ogre::Pass& pass)
     auto parameters = pass.getFragmentProgramParameters();
     if (!s.stats.active) {
         setIfPresent(*parameters, "planarReflectionEnabled", 0.f);
-        s.unbindWater(); return;
+        s.unbindWater();
+        // These optional uniforms may be absent in a complete old shader pack.
+        // Keep that path unchanged, without inventing a sampler interface.
+        const auto* sampler = parameters->_findNamedConstantDefinition("planarReflectionTexture", false);
+        if (sampler && sampler->constType == Ogre::GCT_SAMPLER2D && sampler->arraySize == 1 &&
+            parameters->_findNamedConstantDefinition("planarReflectionEnabled", false))
+            s.bindFallbackWater(pass, *parameters);
+        else if (!s.unbindFallbackWater())
+            throw std::runtime_error("Planar complete-sampler TUS release failed.");
+        return;
     }
     const char* required[] = { "planarReflectionTexture", "planarReflectionViewProj", "planarReflectionEnabled",
                               "planarReflectionPlaneY", "planarReflectionTexelSize" };
     for (const char* name : required) if (!parameters->_findNamedConstantDefinition(name, false))
         throw std::runtime_error(std::string("Water shader missing planar reflection interface: ") + name);
+    s.ownedFallbackUnit(pass); // A foreign reserved name must never be overwritten.
+    if (!s.unbindFallbackWater())
+        throw std::runtime_error("Planar complete-sampler TUS release failed.");
     if (s.boundWaterPass && s.boundWaterPass != &pass) s.unbindWater();
     s.boundWaterPass = &pass;
     auto* unit = pass.getTextureUnitState(ReflectionUnit);
@@ -618,6 +706,16 @@ std::string PlanarWaterReflection::transitionDiagnosticFacts(const Ogre::Pass& p
     float enabled=0;parameters->_readRawConstants(definition->physicalIndex,1,&enabled);
     if (!std::isfinite(enabled)) throw std::runtime_error("Water-transition nonfinite actual pass flag.");
     const auto* unit=pass.getTextureUnitState(ReflectionUnit);
+    const auto* fallback=pass.getTextureUnitState(CompleteSamplerUnit);
+    unsigned fallbackCount=0;
+    for(unsigned short i=0;i<pass.getNumTextureUnitStates();++i)
+        if(pass.getTextureUnitState(i)->getName()==CompleteSamplerUnit)++fallbackCount;
+    const bool fallbackOwned=fallback && s.fallbackWaterPass==&pass && s.fallbackWaterUnit==fallback;
+    auto* manager=dynamic_cast<Ogre::GL3PlusTextureManager*>(Ogre::TextureManager::getSingletonPtr());
+    const auto warningTexture=manager?manager->getWarningTextureID():0u;
+    const auto* samplerDefinition=parameters->_findNamedConstantDefinition("planarReflectionTexture",false);
+    int samplerIndex=-1;if(samplerDefinition)parameters->_readRawConstants(samplerDefinition->physicalIndex,1,&samplerIndex);
+    std::ostringstream fallbackPass;if(s.fallbackWaterPass)fallbackPass<<static_cast<const void*>(s.fallbackWaterPass);
     std::ostringstream o;o<<std::boolalpha<<std::setprecision(17)
         <<"{\"frame\":"<<s.stats.frameSerial<<",\"scene_revision\":"<<s.stats.sceneRevision
         <<",\"last_rendered_frame\":"<<s.stats.lastRenderedFrame<<",\"update_count\":"<<s.stats.updateCount
@@ -630,7 +728,18 @@ std::string PlanarWaterReflection::transitionDiagnosticFacts(const Ogre::Pass& p
         <<",\"tus_name\":"<<RenderLifecycle::quote(ReflectionUnit)<<",\"tus_present\":"<<(unit!=nullptr)
         <<",\"tus_index\":"<<(unit?int(pass.getTextureUnitStateIndex(unit)):-1)
         <<",\"tus_texture_name\":"<<RenderLifecycle::quote(unit?unit->getTextureName():std::string())
-        <<",\"tus_matches_target\":"<<(unit && !s.texture.isNull() && unit->_getTexturePtr().get()==s.texture.get());
+        <<",\"tus_matches_target\":"<<(unit && !s.texture.isNull() && unit->_getTexturePtr().get()==s.texture.get())
+        <<",\"fallback_tus_name\":"<<RenderLifecycle::quote(CompleteSamplerUnit)
+        <<",\"fallback_tus_present\":"<<(fallback!=nullptr)<<",\"fallback_tus_count\":"<<fallbackCount
+        <<",\"fallback_tus_owned\":"<<fallbackOwned
+        <<",\"fallback_tus_index\":"<<(fallback?int(pass.getTextureUnitStateIndex(fallback)):-1)
+        <<",\"fallback_texture_is_blank\":"<<(fallback && fallback->isBlank() && fallback->getTextureName().empty() && fallback->_getTexturePtr().isNull())
+        <<",\"fallback_warning_texture_id\":"<<warningTexture
+        <<",\"fallback_water_sampler_bound\":"<<fallbackOwned
+        <<",\"fallback_pass_instance\":"<<RenderLifecycle::quote(fallbackPass.str())
+        <<",\"fallback_sampler_index_actual\":"<<samplerIndex
+        <<",\"fallback_units_removed\":"<<s.fallbackUnitsRemoved
+        <<",\"fallback_release_failures\":"<<s.fallbackReleaseFailures;
     const char* entry=std::getenv("HELLOMINE3D_REFERENCE_WATER_PROBE");
     const char* scenario=std::getenv("HELLOMINE3D_REFERENCE_WATER_SCENARIO");
     if(entry && std::string(entry)=="1" && scenario && std::string(scenario)=="plane-switch-v1") {

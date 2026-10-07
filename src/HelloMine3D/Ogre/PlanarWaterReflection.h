@@ -64,6 +64,9 @@ public:
     // At most one update per frameSerial. Never an automatically updated RTT.
     void render(Ogre::Camera& mainCamera, Ogre::Viewport& mainViewport, const FrameInput&);
     // Bind after render; the disabled path preserves the approximate shader.
+    // When its optional scalar 2D sampler/flag exists, an owned blank TUS keeps
+    // that inactive sampler complete via Ogre's existing warning texture.
+    // It owns no texture/RTT and is removed before active binding or reset.
     void bindWaterPass(Ogre::Pass&);
     // Explicit developer readback only: hidden + render capture, never perf.
     // At most four per component lifetime. Writes native linear float pixels,

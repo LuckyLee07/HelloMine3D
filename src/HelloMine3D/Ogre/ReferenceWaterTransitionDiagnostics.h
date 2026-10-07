@@ -6,6 +6,7 @@
 #include "../Player/Player.h"
 #include <set>
 #include <Ogre.h>
+#include <OgreGL3PlusTextureManager.h>
 #if defined(_WIN32)
 extern char** _environ;
 #else
@@ -122,7 +123,11 @@ public:
     bool linkedStorage(unsigned width,unsigned height)const noexcept{return m_linkedWidth==int(width) && m_linkedHeight==int(height) && m_linkedFormat==GL_RGBA16F;}
     std::string drawFacts()const{return m_draw.empty()?"null":m_draw;}
     void observed(const std::string& facts){emit("observation",facts);}
-    void checkpoint(const std::string& facts,std::uint64_t updateCount) {using namespace ReferenceEdit;require(ready(),"Water transition no actual native Water draw");emit("checkpoint",facts);emit("end","{}");m_updateFloor=updateCount;++m_phase;m_phaseBegin=m_frame+1;m_phaseStarted=Clock::now();m_warm=0;m_begun=false;m_armed=false;m_draw.clear();if(complete())detach();}
+    void checkpoint(const std::string& facts,std::uint64_t updateCount) {using namespace ReferenceEdit;require(ready(),"Water transition no actual native Water draw");
+        // Caller emitted observation first. Preserve malformed native binding
+        // facts before rejecting the newly required complete inactive sampler.
+        if(!m_planeSwitch && (m_phase==1 || m_phase==2))require(m_linkedEnabled==0.f && m_completeFallback,"Water transition inactive complete sampler mismatch");
+        emit("checkpoint",facts);emit("end","{}");m_updateFloor=updateCount;++m_phase;m_phaseBegin=m_frame+1;m_phaseStarted=Clock::now();m_warm=0;m_begun=false;m_armed=false;m_draw.clear();if(complete())detach();}
     const glm::vec3& origin()const noexcept{return m_origin;}
     const glm::vec3& rotation()const noexcept{return m_rotation;}
     std::string prefix()const{return (m_output/label()).string();}
@@ -137,7 +142,7 @@ private:
     std::filesystem::path m_output;Ogre::SceneManager& m_scene;Ogre::Camera& m_camera;
     Clock::time_point m_started,m_phaseStarted;std::ofstream m_journal;Pending m_pending;
     unsigned m_phase=0,m_frame=0,m_phaseBegin=0,m_warm=0,m_inputs=0,m_sequence=0,m_teleports=0;float m_delta=0;
-    bool m_listener=false,m_fault=false,m_planeSwitch=false,m_selectedPlaneFault=false,m_anchor=false,m_begun=false,m_armed=false;std::uint64_t m_updateFloor=0;
+    bool m_completeFallback=false,m_listener=false,m_fault=false,m_planeSwitch=false,m_selectedPlaneFault=false,m_anchor=false,m_begun=false,m_armed=false;std::uint64_t m_updateFloor=0;
     glm::vec3 m_requested{0},m_origin{0},m_rotation{0};std::string m_draw,m_restoration;
     float m_linkedEnabled=0,m_linkedPlane=0;std::array<float,16> m_linkedMatrix{};unsigned m_linkedTexture=0;int m_linkedWidth=0,m_linkedHeight=0,m_linkedFormat=0;
     static double elapsed(Clock::time_point t){return std::chrono::duration<double,std::milli>(Clock::now()-t).count();}
@@ -152,6 +157,7 @@ private:
         out<<object(fields)<<'\n';require(bool(out),"Water transition summary write failed");}
     void cancel()noexcept{if(m_pending.query){GLint active=0;glGetQueryiv(GL_PRIMITIVES_GENERATED,GL_CURRENT_QUERY,&active);if(GLuint(active)==m_pending.query)glEndQuery(GL_PRIMITIVES_GENERATED);glDeleteQueries(1,&m_pending.query);}if(m_pending.object)m_pending.object->setNativeDrawObserver(nullptr);m_pending={};}
     std::string draw(ChunkSectionRenderable& water,const Ogre::Pass& pass,GLuint count){using namespace ReferenceEdit;
+        const auto errorBefore=glGetError();require(errorBefore==GL_NO_ERROR,"Water transition pre-observation GL error");
         GLint program=0,pipeline=0,active=0;glGetIntegerv(GL_CURRENT_PROGRAM,&program);glGetIntegerv(GL_PROGRAM_PIPELINE_BINDING,&pipeline);glGetIntegerv(GL_ACTIVE_TEXTURE,&active);
         require(program>0 && !pipeline && glIsProgram(GLuint(program)) && count>0,"Water transition actual native program/primitive missing");GLint linked=0;glGetProgramiv(GLuint(program),GL_LINK_STATUS,&linked);require(linked==GL_TRUE,"Water transition actual native link failed");
         const auto* vs=dynamic_cast<const Ogre::GLSLShader*>(pass.getVertexProgram().get());const auto* fs=dynamic_cast<const Ogre::GLSLShader*>(pass.getFragmentProgram().get());GLuint shaders[2]{};GLsizei n=0;glGetAttachedShaders(GLuint(program),2,&n,shaders);require(vs && fs && n==2 && ((shaders[0]==vs->getGLShaderHandle() && shaders[1]==fs->getGLShaderHandle()) || (shaders[1]==vs->getGLShaderHandle() && shaders[0]==fs->getGLShaderHandle())),"Water transition actual attached stage mismatch");
@@ -168,13 +174,64 @@ private:
             glGetUniformfv(GLuint(program),matrixLocation,m_linkedMatrix.data());
             for(const auto v:m_linkedMatrix)require(std::isfinite(v),"Water plane nonfinite actual driver matrix");
         }
-        const auto loc=glGetUniformLocation(GLuint(program),"planarReflectionTexture");require(loc>=0,"Water transition actual sampler missing");GLint unit=0;glGetUniformiv(GLuint(program),loc,&unit);require(unit>=0 && unit<32,"Water transition sampler unit bound");
-        struct ActiveGuard{GLint value;~ActiveGuard(){glActiveTexture(GLenum(value));}}guard{active};glActiveTexture(GL_TEXTURE0+GLenum(unit));GLint texture=0,w=0,h=0,format=0;glGetIntegerv(GL_TEXTURE_BINDING_2D,&texture);if(enabled>.5f){require(texture>0 && glIsTexture(GLuint(texture)),"Water transition enabled sampler invalid");glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_WIDTH,&w);glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_HEIGHT,&h);glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_INTERNAL_FORMAT,&format);}
-        glActiveTexture(GLenum(active));GLint restored=0;glGetIntegerv(GL_ACTIVE_TEXTURE,&restored);GLboolean depthWrite=GL_TRUE;glGetBooleanv(GL_DEPTH_WRITEMASK,&depthWrite);GLint src=0,dst=0;glGetIntegerv(GL_BLEND_SRC_RGB,&src);glGetIntegerv(GL_BLEND_DST_RGB,&dst);const bool blend=glIsEnabled(GL_BLEND)==GL_TRUE;const auto error=glGetError();require(error==GL_NO_ERROR && restored==active,"Water transition GL query state/error");
+        const GLchar* samplerName="planarReflectionTexture";
+        const auto loc=glGetUniformLocation(GLuint(program),samplerName);
+        require(loc>=0,"Water transition actual sampler missing");
+        GLuint samplerIndex=GL_INVALID_INDEX;glGetUniformIndices(GLuint(program),1,&samplerName,&samplerIndex);
+        const bool samplerTypeObserved=samplerIndex!=GL_INVALID_INDEX;
+        GLint samplerType=0,samplerSize=0;
+        if(samplerTypeObserved){
+            glGetActiveUniformsiv(GLuint(program),1,&samplerIndex,GL_UNIFORM_TYPE,&samplerType);
+            glGetActiveUniformsiv(GLuint(program),1,&samplerIndex,GL_UNIFORM_SIZE,&samplerSize);
+        }
+        GLint unit=0;glGetUniformiv(GLuint(program),loc,&unit);require(unit>=0 && unit<32,"Water transition sampler unit bound");
+        auto* textures=dynamic_cast<Ogre::GL3PlusTextureManager*>(Ogre::TextureManager::getSingletonPtr());
+        require(textures,"Water transition actual GL3Plus texture manager missing");
+        const GLuint fallbackTexture=textures->getWarningTextureID();
+        const bool fallbackTextureValid=fallbackTexture>0 && glIsTexture(fallbackTexture);
+        GLint originalBinding=0,samplerObject=0;glGetIntegerv(GL_TEXTURE_BINDING_2D,&originalBinding);
+        struct ActiveGuard{GLint value;~ActiveGuard(){glActiveTexture(GLenum(value));}}guard{active};
+        glActiveTexture(GL_TEXTURE0+GLenum(unit));
+        glGetIntegerv(GL_SAMPLER_BINDING,&samplerObject);
+        const bool samplerObjectValid=samplerObject==0 || glIsSampler(GLuint(samplerObject));
+        GLint texture=0,w=0,h=0,format=0,baseLevel=0,maxLevel=0,minFilter=0,magFilter=0,textureMinFilter=0,textureMagFilter=0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D,&texture);
+        const bool storageObserved=texture>0 && glIsTexture(GLuint(texture));
+        // Older versions queried storage only when enabled and otherwise emitted
+        // initialized zeros. Query every actual nonzero 2D binding, including the
+        // inactive complete placeholder; zero values with !storageObserved are
+        // explicitly unavailable, not a claim about actual image storage.
+        if(storageObserved){
+            glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_WIDTH,&w);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_HEIGHT,&h);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_INTERNAL_FORMAT,&format);
+            glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,&baseLevel);
+            glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,&maxLevel);
+            glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,&textureMinFilter);
+            glGetTexParameteriv(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,&textureMagFilter);
+            minFilter=textureMinFilter;magFilter=textureMagFilter;
+        }
+        const bool samplerParametersObserved=storageObserved && samplerObjectValid;
+        if(samplerParametersObserved && samplerObject!=0){
+            glGetSamplerParameteriv(GLuint(samplerObject),GL_TEXTURE_MIN_FILTER,&minFilter);
+            glGetSamplerParameteriv(GLuint(samplerObject),GL_TEXTURE_MAG_FILTER,&magFilter);
+        }
+        GLint sampledBindingAfter=0,samplerObjectAfter=0;glGetIntegerv(GL_TEXTURE_BINDING_2D,&sampledBindingAfter);
+        glGetIntegerv(GL_SAMPLER_BINDING,&samplerObjectAfter);
+        glActiveTexture(GLenum(active));
+        GLint restored=0,restoredBinding=0;glGetIntegerv(GL_ACTIVE_TEXTURE,&restored);glGetIntegerv(GL_TEXTURE_BINDING_2D,&restoredBinding);
+        GLboolean depthWrite=GL_TRUE;glGetBooleanv(GL_DEPTH_WRITEMASK,&depthWrite);
+        GLint src=0,dst=0;glGetIntegerv(GL_BLEND_SRC_RGB,&src);glGetIntegerv(GL_BLEND_DST_RGB,&dst);
+        const bool blend=glIsEnabled(GL_BLEND)==GL_TRUE;const auto error=glGetError();
+        require(error==GL_NO_ERROR && restored==active && restoredBinding==originalBinding && sampledBindingAfter==texture && samplerObjectAfter==samplerObject,"Water transition GL query state/error");
         m_linkedEnabled=enabled;m_linkedTexture=unsigned(texture);m_linkedWidth=w;m_linkedHeight=h;m_linkedFormat=format;
+        m_completeFallback=samplerTypeObserved && samplerType==GL_SAMPLER_2D && samplerSize==1 &&
+            storageObserved && samplerParametersObserved && fallbackTextureValid && GLuint(texture)==fallbackTexture &&
+            w==8 && h==8 && format==GL_RGB8 && baseLevel==0 && maxLevel==0 &&
+            minFilter==GL_LINEAR && magFilter==GL_LINEAR;
         require(blend && src==GL_SRC_ALPHA && dst==GL_ONE_MINUS_SRC_ALPHA && depthWrite==GL_FALSE,"Water transition production transparent draw state mismatch");
         Ogre::RenderOperation op;water.getRenderOperation(op);require(op.srcRenderable==&water && op.useIndexes && op.numberOfInstances==1 && op.operationType==Ogre::RenderOperation::OT_TRIANGLE_LIST && op.indexData && count==op.indexData->indexCount/3,"Water transition actual primitive/source mismatch");
-        Fields facts{{"observation_domain",quote("actual-driver-after-native-Water-draw")},{"frame",number(m_frame)},{"program",number(program)},{"program_linked","true"},{"attached_production_stages","true"},{"primitive_count",number(count)},{"object",quote(water.getName())},{"vertex_program",quote(pass.getVertexProgramName())},{"fragment_program",quote(pass.getFragmentProgramName())},{"uniforms",object(uniforms)},{"sampler",object({{"location",number(loc)},{"unit",number(unit)},{"sampling_enabled",boolean(enabled>.5f)},{"texture",number(texture)},{"width",number(w)},{"height",number(h)},{"format",number(format)}})},{"blend",object({{"enabled",boolean(blend)},{"src_rgb",number(src)},{"dst_rgb",number(dst)},{"depth_write",boolean(depthWrite==GL_TRUE)}})},{"gl_error",number(error)},{"state_restored","true"}};
+        Fields facts{{"observation_domain",quote("actual-driver-after-native-Water-draw")},{"frame",number(m_frame)},{"program",number(program)},{"program_linked","true"},{"attached_production_stages","true"},{"primitive_count",number(count)},{"object",quote(water.getName())},{"vertex_program",quote(pass.getVertexProgramName())},{"fragment_program",quote(pass.getFragmentProgramName())},{"uniforms",object(uniforms)},{"sampler",object({{"observation_version",quote("complete-2d-sampler-v1")},{"location",number(loc)},{"unit",number(unit)},{"sampling_enabled",boolean(enabled>.5f)},{"binding_observed","true"},{"storage_observed",boolean(storageObserved)},{"sampler_type_observed",boolean(samplerTypeObserved)},{"actual_sampler_type",number(samplerType)},{"actual_sampler_array_size",number(samplerSize)},{"expected_fallback_texture_id",number(fallbackTexture)},{"fallback_identity_domain",quote("actual-GL3PlusTextureManager.getWarningTextureID")},{"fallback_texture_valid",boolean(fallbackTextureValid)},{"sampler_object",number(samplerObject)},{"sampler_object_valid",boolean(samplerObjectValid)},{"sampler_parameters_observed",boolean(samplerParametersObserved)},{"texture",number(texture)},{"width",number(w)},{"height",number(h)},{"format",number(format)},{"base_level",number(baseLevel)},{"max_level",number(maxLevel)},{"texture_min_filter",number(textureMinFilter)},{"texture_mag_filter",number(textureMagFilter)},{"min_filter",number(minFilter)},{"mag_filter",number(magFilter)}})},{"blend",object({{"enabled",boolean(blend)},{"src_rgb",number(src)},{"dst_rgb",number(dst)},{"depth_write",boolean(depthWrite==GL_TRUE)}})},{"gl_error_before",number(errorBefore)},{"gl_error",number(error)},{"query_state",object({{"active_texture_before",number(active)},{"active_texture_after",number(restored)},{"original_2d_binding_before",number(originalBinding)},{"original_2d_binding_after",number(restoredBinding)},{"sampled_2d_binding_before",number(texture)},{"sampled_2d_binding_after",number(sampledBindingAfter)},{"sampler_object_binding_before",number(samplerObject)},{"sampler_object_binding_after",number(samplerObjectAfter)}})},{"state_restored","true"}};
         if(m_planeSwitch){std::vector<std::string> values;for(const auto v:m_linkedMatrix)values.push_back(number(v));facts.push_back({"planar_matrix_column_major16",array(values)});facts.push_back({"matrix_observation_domain",quote("actual-driver-linked-Water-uniform-column-major")});}
         return object(facts);
     }

@@ -1070,6 +1070,14 @@ HDR 请求还会在强制回退和能力／格式探测之前，对实际 resolv
 Ogre pass及linked GL完整矩阵和同帧RTT；真实保留旧面的负控先保存错态再拒绝。无scenario时保留原协议，
 普通无probe路径不创建观察器。见[选面合同](../contracts/reference-water-plane-selection-contract-v1.md)。
 
+停用反射时，具有可选 scalar2D／enabled 接口的 Water pass 新建至多一个独立 owned blank TUS，
+通过 GL3Plus 正常路径借用已有8×8 RGB8完整纹理；enabled仍0、原reflection TUS缺席、RTT停更。
+组件不拥有 Manager纹理，不新增RTT或World状态；恢复active前／reset时只移除exact-owned TUS。
+没有可选接口的完整旧shader保持原停用路径，保留名冲突明确失败。新观察记录实际sampler类型、
+storage、过滤及拥有者；GL4.1查询在目标active unit上用GetIntegerv并严格恢复状态。
+本轮四阶段两配置各212／0，普通输入和其它水位的本版完整循环仍未验，见
+[完整sampler合同](../contracts/reference-water-fallback-sampler-contract-v1.md)。
+
 ## 12. Frozen Version and Boundary Facts
 
 | Identity | A0 value / later override |
