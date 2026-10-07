@@ -87,9 +87,10 @@ vertex_program HelloMine3D/WaterVertex glsl
     syntax glsl150
     default_params
     {
-        param_named_auto worldViewProj worldviewproj_matrix
-        param_named_auto worldView worldview_matrix
+        param_named_auto view view_matrix
+        param_named_auto projection projection_matrix
         param_named_auto world world_matrix
+        param_named_auto cameraPosition camera_position
         param_named_auto globalTime time 1.0
         param_named waterDetailStrength float 1.0
     }

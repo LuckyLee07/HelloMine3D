@@ -38,6 +38,7 @@ P95／P99 ≤1.10 和细微调参统一为 `DEFERRED_BY_USER`，不再阻塞本�
 
 | 改动 | 最低必要验证 |
 | ---- | ------------ |
+| V06j 水面共享边投影 | 当前生产Water vertex／fragment的macOS GPU检查：冻结真实V06i共享clip逐bit一致、不同localY／大坐标／档位对及旧840对，保留所有fragment检查；旧源同工具拒绝clip差。ResourcePackSmoke双配置串行、资产检查；复用C++源码一致的已验证客户端，在标准／兼容／关闭回退检查当前实际资源和实景。固定相机静态图不关闭连续无闪点或普通涉水；旧water-seam消费者依赖已移除uniform，留为诊断边界，不把旧序列称当前复跑。见[执行记录V06j](../reports/visual-experience-polish-execution-2026-09-28.md)。 |
 | macOS 通用定时捕获格式 | `python3 -B tools/validate_visual_capture_macos.py` 无客户端检查格式头／BMP行填充与大小、非法组合及继承诊断、原八目标上限和性能无readback。`capture_visual_macos.py --capture-format png`为默认；BMP仅generic hidden／direct定时诊断，命名observer保持PNG。当前native的BMP实跑核对实际时刻、原件、正常退出和源包身份；展示PNG须标为无损转换并比较完整RGBA、保留BMP。八帧unique不证明每GPU帧、完整动作或普通玩法。见[执行记录V07m](../reports/visual-experience-polish-execution-2026-09-28.md)。 |
 | 所有 C++ 改动 | 受影响目标能够编译；运行对应定向自动测试。 |
 | 世界、区块、实体或持久化 | 定向自动测试 + `HelloMine3DWorldRuntimeSmoke`。 |

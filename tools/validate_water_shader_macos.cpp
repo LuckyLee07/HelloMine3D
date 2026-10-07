@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <filesystem>
 #include <iostream>
@@ -19,11 +20,21 @@
 
 namespace {
 using Matrix = std::array<float, 16>;
-using Sample = std::array<float, 6>; // world position, world normal
+using Sample = std::array<float, 11>; // world position, normal, clip position, distance
 
 Matrix translation(float x, float y, float z)
 {
     return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1};
+}
+
+Matrix multiply(const Matrix& a, const Matrix& b)
+{
+    Matrix result{};
+    for (int column = 0; column < 4; ++column)
+        for (int row = 0; row < 4; ++row)
+            for (int k = 0; k < 4; ++k)
+                result[column * 4 + row] += a[k * 4 + row] * b[column * 4 + k];
+    return result;
 }
 
 void require(bool condition, const std::string &message)
@@ -317,6 +328,18 @@ int main(int argc, char **argv)
             require(block.find("param_named_auto globalTime time 1.0") != std::string::npos &&
                     block.find("time_0_x") == std::string::npos, "Water animation time resets");
         }
+        // Accept a frozen legacy shader as a negative control. A new shader
+        // must also have the real Ogre auto-constant bindings, not just uniforms
+        // supplied by this diagnostic. Types are from local OgreGpuProgramParams.
+        if (source.find("uniform mat4 view;") != std::string::npos) {
+            const auto start = declarations.find("vertex_program HelloMine3D/WaterVertex glsl");
+            const auto block = declarations.substr(start, declarations.find("\n}", start) - start);
+            for (const char* binding : {"param_named_auto view view_matrix",
+                    "param_named_auto projection projection_matrix",
+                    "param_named_auto cameraPosition camera_position"})
+                require(block.find(binding) != std::string::npos,
+                    std::string("Missing camera-relative water binding: ") + binding);
+        }
 
         const CGLPixelFormatAttribute attributes[] = {
             kCGLPFAOpenGLProfile,
@@ -348,8 +371,8 @@ int main(int argc, char **argv)
 
         const GLuint program = glCreateProgram();
         glAttachShader(program, shader);
-        const char *varyings[] = {"waterWorldPosition", "waterWorldNormal"};
-        glTransformFeedbackVaryings(program, 2, varyings, GL_INTERLEAVED_ATTRIBS);
+        const char *varyings[] = {"waterWorldPosition", "waterWorldNormal", "gl_Position", "waterDistance"};
+        glTransformFeedbackVaryings(program, 4, varyings, GL_INTERLEAVED_ATTRIBS);
         glLinkProgram(program);
         glGetProgramiv(program, GL_LINK_STATUS, &ok);
         glGetProgramInfoLog(program, sizeof(log), nullptr, log);
@@ -388,11 +411,15 @@ int main(int argc, char **argv)
         require(velocity>=0,"Water velocity does not affect wave geometry");
         const GLint globalTime = glGetUniformLocation(program, "globalTime");
         require(globalTime >= 0, "Missing wave time input");
-        const auto sample = [&](const Matrix &world, float x, float y, float z) {
-            for (const char *name : {"world", "worldView", "worldViewProj"}) {
-                glUniformMatrix4fv(glGetUniformLocation(program, name), 1,
-                                   GL_FALSE, world.data());
-            }
+        const auto draw = [&](const Matrix &world, const Matrix& view, const Matrix& projection,
+                const std::array<float, 3>& camera, const Matrix& legacyWorldView,
+                const Matrix& legacyWorldViewProj, float x, float y, float z) {
+            const auto matrix = [&](const char* name, const Matrix& value) {
+                glUniformMatrix4fv(glGetUniformLocation(program, name), 1, GL_FALSE, value.data());
+            };
+            matrix("world", world); matrix("view", view); matrix("projection", projection);
+            matrix("worldView", legacyWorldView); matrix("worldViewProj", legacyWorldViewProj);
+            glUniform3f(glGetUniformLocation(program, "cameraPosition"), camera[0], camera[1], camera[2]);
             glVertexAttrib4f(vertex, x, y, z, 1.0f);
             glBeginTransformFeedback(GL_POINTS);
             glDrawArrays(GL_POINTS, 0, 1);
@@ -408,6 +435,103 @@ int main(int argc, char **argv)
             }
             return result;
         };
+        const Matrix identity = translation(0, 0, 0);
+        const auto sample = [&](const Matrix &world, float x, float y, float z) {
+            return draw(world, identity, identity, {0, 0, 0}, world, world, x, y, z);
+        };
+
+        // Frozen original V06i standard-r2 frame170 inputs, not a new native
+        // Ogre draw: world/worldView/worldViewProj/globalTime/camera are from
+        // frame-170.json, and the eight shared uv0 pairs from its two native
+        // VBOs (44B stride). Source hashes below allow an independent check.
+        // frame-170-native-op-0.vbo0.bin: 6d33971e2ee2700cb05faee0ddafe19e493084456c1badd2b83349982ece4f2a
+        // frame-170-native-op-1.vbo0.bin: 89bddd6975b19c06d29c53e98935549ea2ba4bb0843036cbb982bef744f294ee
+        const Matrix frozenWorld[2] = {translation(208,64,-224), translation(208,64,-240)};
+        const Matrix frozenWorldView[2] = {
+            {1,0,0,0, 0,.7660444379f,.6427876949f,0, 0,-.6427876949f,.7660444379f,0, -8,.08639526367f,-10.37075806f,1},
+            {1,0,0,0, 0,.7660444379f,.6427876949f,0, 0,-.6427876949f,.7660444379f,0, -8,10.3710022f,-22.62747192f,1}};
+        const Matrix frozenWorldViewProj[2] = {
+            {.5625f,0,0,0, 0,.7660444379f,-.6428005099f,-.6427876949f,
+             0,-.6427876949f,-.7660596967f,-.7660444379f, -4.5f,.08639526367f,10.17096233f,10.37075806f},
+            {.5625f,0,0,0, 0,.7660444379f,-.6428005099f,-.6427876949f,
+             0,-.6427876949f,-.7660596967f,-.7660444379f, -4.5f,10.3710022f,22.42791939f,22.62747192f}};
+        const Matrix frozenView = {1,0,0,0, 0,.7660444379f,.6427876949f,0,
+            0,-.6427876949f,.7660444379f,0, 0,0,0,1};
+        // Derive one common projection from op0's actual WVP/WV. The V06i
+        // observer did not read native projection separately; this reconstruction
+        // is explicitly fixture input, not a claim of current client binding.
+        Matrix frozenProjection{};
+        frozenProjection[0] = .5625f; frozenProjection[5] = 1;
+        frozenProjection[10] = frozenWorldViewProj[0][10] / frozenWorldView[0][10];
+        frozenProjection[11] = -1;
+        frozenProjection[14] = frozenWorldViewProj[0][14] -
+            frozenProjection[10] * frozenWorldView[0][14];
+        const std::array<float,3> frozenCamera = {216,70.59999847f,-216};
+        const std::array<std::array<float,2>,8> frozenVelocity = {{{0,.24943915009498596f},
+            {.04237174242734909f,.5068253874778748f}, {.043656233698129654f,.5220351815223694f},
+            {.04482452571392059f,.5358467102050781f}, {.04587234556674957f,.5482105016708374f},
+            {.04679712653160095f,.5590968728065491f}, {.04759809374809265f,.5684980750083923f},
+            {.048276450484991074f,.5764297246932983f}}};
+        glUniform1f(globalTime, 5.343996048f);
+        float frozenClipDelta = 0;
+        std::size_t frozenMismatches = 0, frozenPairs = 0;
+        for (float detailAmount : {0.f,1.f}) {
+            glUniform1f(detail, detailAmount);
+            for (int corner = 0; corner < 8; ++corner) {
+                glVertexAttrib2f(velocity, frozenVelocity[corner][0], frozenVelocity[corner][1]);
+                const auto a = draw(frozenWorld[0], frozenView, frozenProjection, frozenCamera,
+                    frozenWorldView[0], frozenWorldViewProj[0], float(corner+9),1,0);
+                const auto b = draw(frozenWorld[1], frozenView, frozenProjection, frozenCamera,
+                    frozenWorldView[1], frozenWorldViewProj[1], float(corner+9),1,16);
+                if (std::memcmp(a.data()+6, b.data()+6, sizeof(float)*4) != 0) ++frozenMismatches;
+                for (int k = 6; k < 10; ++k)
+                    frozenClipDelta = std::max(frozenClipDelta, std::abs(a[k]-b[k]));
+                require(std::abs(a[10]-b[10]) < .00001f,
+                    "Frozen V06i shared-point camera distance differs");
+                ++frozenPairs;
+            }
+        }
+        std::cout << "[WATER_SHADER] frozen_V06i_clip_pairs=" << frozenPairs
+            << " mismatches=" << frozenMismatches << " max_clip_delta=" << frozenClipDelta << '\n';
+        require(frozenMismatches == 0, "Frozen V06i shared-edge clip coordinates disagree");
+
+        // Different vertical section-local Y must not round the wave offset
+        // differently. Large camera/world coordinates must retain the small
+        // offset in clip space after subtracting the shared camera position.
+        std::size_t relativePairs = 0;
+        const Matrix projection = {.5625f,0,0,0, 0,1,0,0,
+            0,0,-1.00002f,-1, 0,0,-.200002f,0};
+        for (float farOrigin : {-1048576.f,-4096.f,0.f,4096.f,1048576.f}) {
+            const std::array<float,3> camera = {farOrigin+8,farOrigin+7,farOrigin+8};
+            const Matrix view = translation(-camera[0],-camera[1],-camera[2]);
+            const Matrix aWorld = translation(farOrigin,farOrigin,farOrigin);
+            const Matrix bWorld = translation(farOrigin,farOrigin-16,farOrigin-16);
+            glVertexAttrib2f(velocity, -.36f,.48f);
+            float minimumClipY = 1000, maximumClipY = -1000;
+            for (float detailAmount : {0.f,1.f}) {
+                glUniform1f(detail, detailAmount);
+                for (int tick = 0; tick < 64; ++tick) {
+                    glUniform1f(globalTime, float(tick)*.125f);
+                    const auto a = draw(aWorld, view, projection, camera, multiply(view,aWorld),
+                        multiply(projection,multiply(view,aWorld)), 12,1,0);
+                    const auto b = draw(bWorld, view, projection, camera, multiply(view,bWorld),
+                        multiply(projection,multiply(view,bWorld)), 12,17,16);
+                    require(std::memcmp(a.data()+6,b.data()+6,sizeof(float)*4) == 0,
+                        "Camera-relative shared corner loses clip invariance across local Y or large coordinates");
+                    require(std::abs(a[10]-b[10]) < .00001f,
+                        "Camera-relative shared-point distance differs");
+                    if (detailAmount > 0) {
+                        minimumClipY = std::min(minimumClipY,a[7]);
+                        maximumClipY = std::max(maximumClipY,a[7]);
+                    }
+                    ++relativePairs;
+                }
+            }
+            require(maximumClipY-minimumClipY > .01f,
+                "Large camera coordinates erase the animated water offset in clip space");
+        }
+        std::cout << "[WATER_SHADER] camera_relative_clip_pairs=" << relativePairs << " PASS\n";
+        glUniform1f(detail, 1.f);
 
         float maxPositionDelta = 0.0f, maxNormalDelta = 0.0f;
         std::size_t pairs = 0;

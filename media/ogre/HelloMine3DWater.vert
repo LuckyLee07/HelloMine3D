@@ -13,15 +13,15 @@ out float waterDistance;
 out vec2 waterSurfaceData;
 out vec2 waterSurfaceDrift;
 
-uniform mat4 worldViewProj;
-uniform mat4 worldView;
+uniform mat4 view;
+uniform mat4 projection;
 uniform mat4 world;
+uniform vec3 cameraPosition;
 uniform float globalTime;
 uniform float waterDetailStrength;
 
 void main()
 {
-    vec4 animatedVertex = vertex;
     // GPU vertices are section-local. Shared edges must sample the same
     // world-space wave or adjacent sections separate as they animate.
     vec4 baseWorldPosition = world * vertex;
@@ -33,9 +33,11 @@ void main()
                    baseWorldPosition.z * 0.21;
     float phaseB = globalTime * 0.53 + baseWorldPosition.z * 0.82 -
                    baseWorldPosition.x * 0.17;
-    animatedVertex.y += sin(phaseA) * 0.035 * waveScale * waterDetailStrength;
-    animatedVertex.y += cos(phaseB) * 0.025 * waveScale * waterDetailStrength;
-    animatedVertex.y -= 0.10;
+    // Keep displacement separate from section-local Y. The same surface can
+    // be represented by local Y=1 or Y=17, whose rounded sums otherwise differ.
+    float waveOffset = sin(phaseA) * 0.035 * waveScale * waterDetailStrength;
+    waveOffset += cos(phaseB) * 0.025 * waveScale * waterDetailStrength;
+    waveOffset -= 0.10;
 
     float slopeX = cos(phaseA) * 0.035 * 0.66 +
                    sin(phaseB) * 0.025 * 0.17;
@@ -43,14 +45,20 @@ void main()
                    sin(phaseB) * 0.025 * 0.82;
     vec3 localNormal = normalize(vec3(-slopeX * waveScale * waterDetailStrength, 1.0,
                                      -slopeZ * waveScale * waterDetailStrength));
-    vec4 worldPosition = world * animatedVertex;
+    vec3 worldOffset = mat3(world) * vec3(0.0, waveOffset, 0.0);
+    vec3 worldPosition = baseWorldPosition.xyz + worldOffset;
+    // All sections project a shared corner through the same camera-relative
+    // arithmetic. Avoid section-specific precombined matrices and avoid large
+    // world-space products followed by cancellation of the camera translation.
+    vec3 cameraRelativePosition = (baseWorldPosition.xyz - cameraPosition) + worldOffset;
+    vec3 viewPosition = mat3(view) * cameraRelativePosition;
 
-    gl_Position = worldViewProj * animatedVertex;
-    waterWorldPosition = worldPosition.xyz;
+    gl_Position = projection * vec4(viewPosition, 1.0);
+    waterWorldPosition = worldPosition;
     waterWorldNormal = normalize(mat3(world) * localNormal);
     waterLight = uv2.x;
     waterLightSources = uv2.z >= 1.0 ? vec2(uv2.y, uv2.z - 1.0) : vec2(-1.0);
-    waterDistance = length((worldView * animatedVertex).xyz);
+    waterDistance = length(viewPosition);
     waterSurfaceData = uv1;
     waterSurfaceDrift = uv0;
 }
