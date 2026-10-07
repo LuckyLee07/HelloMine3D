@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -48,7 +50,9 @@ void main() {
     // derivatives. This is a real horizontal plane. At the original readback
     // pixel (1,1) in a 4x4 target, p=(-.25,-.25): its world centre and all
     // existing radiance/guard/depth expectations remain fixturePosition.
-    vec2 offset=(p+vec2(.25))*.004;
+    // Keep a nondegenerate X/Z plane with exactly representable binary
+    // vertex offsets for the strict nonzero-centre calibration.
+    vec2 offset=(p+vec2(.25))*(1.0/256.0);
     waterWorldPosition=fixturePosition+vec3(offset.x,0,offset.y);
     waterWorldNormal=fixtureNormal; waterLight=1.0;
     waterLightSources=vec2(1.0,0.0); waterDistance=0.0;
@@ -218,6 +222,9 @@ void shoreChecks(const std::string& source,const std::filesystem::path& evidence
     // computation to isolate the signal through real production output.
     GLuint base=program(replace(source,"* ripple * 0.38;","* 0.0;"),shoreVertex);
     ShoreGrid grid; std::ofstream quality(evidence/"shore-quality.tsv");
+    std::ofstream legacyDifference(evidence/"shore-legacy-first-difference.tsv");
+    require(legacyDifference.good(),"Cannot create legacy first-difference observation");
+    legacyDifference<<"case\tpixel_index\tx\ty\tchannel\tcurrent_float\tprior_float\tcurrent_uint32_bits\tprior_uint32_bits\n";
     quality<<"case\twidth\theight\toracle_subsamples\tfiltered_mae\toriginal_mae\tfiltered_mean\toracle_mean\tmax_error\n";
     const double shallow=std::pow((.43+.055)/1.055,2.4);
     const double white=std::pow((.85+.055)/1.055,2.4);
@@ -259,6 +266,19 @@ void shoreChecks(const std::string& source,const std::filesystem::path& evidence
         totalFiltered+=mae*count;totalOriginal+=oldMae*count;totalPixels+=int(count);
         const auto legacy=grid.draw(filtered,c,0), oldLegacy=grid.draw(unfiltered,c,0);
         check(c.name+"-legacy-exact-rgba32f",legacy==oldLegacy,maxPixelDifference(legacy,oldLegacy));
+        // Observe the first component rejected by the unchanged exact predicate.
+        // This readback-only record does not alter shader source or the verdict.
+        bool wroteDifference=false;
+        for(std::size_t pixel=0;pixel<legacy.size()&&!wroteDifference;++pixel)for(int channel=0;channel<4;++channel) {
+            if(legacy[pixel][channel]==oldLegacy[pixel][channel])continue;
+            std::uint32_t currentBits=0,priorBits=0;
+            static_assert(sizeof(float)==sizeof(currentBits),"Raw readback requires 32-bit float");
+            std::memcpy(&currentBits,&legacy[pixel][channel],sizeof(currentBits));
+            std::memcpy(&priorBits,&oldLegacy[pixel][channel],sizeof(priorBits));
+            legacyDifference<<c.name<<'\t'<<pixel<<'\t'<<pixel%std::size_t(c.width)<<'\t'<<pixel/std::size_t(c.width)<<'\t'<<channel<<'\t'
+                <<std::setprecision(10)<<legacy[pixel][channel]<<'\t'<<oldLegacy[pixel][channel]<<'\t'<<currentBits<<'\t'<<priorBits<<'\n';
+            wroteDifference=true;break;
+        }
         const auto legacyWindow=grid.draw(filtered,c,0,GL_RGBA8),oldLegacyWindow=grid.draw(unfiltered,c,0,GL_RGBA8);
         check(c.name+"-legacy-window-rgba8-exact",legacyWindow==oldLegacyWindow,maxPixelDifference(legacyWindow,oldLegacyWindow));
         const auto legacyHalf=grid.draw(filtered,c,0,GL_RGBA16F),oldLegacyHalf=grid.draw(unfiltered,c,0,GL_RGBA16F);
@@ -516,6 +536,17 @@ void surfaceChecks(const std::string& source,const std::string& vertex,const std
     { Fixture oldChecksFixture;
       const auto origin=oldChecksFixture.draw(centreProgram,false,{0,0,0});
       check("historical-original-radiance-fixture-origin-exact",origin==Pixel{0,0,0,1});
+    }
+    { Fixture shiftedChecksFixture;
+      // One representable FP16 step at x=.25 is a real, small displacement.
+      // First prove that the GPU drew that displaced centre, then apply the
+      // same exact equality as the historical gate to reject it. Uniform-only
+      // translation preserves the nondegenerate horizontal derivatives.
+      constexpr float shift=1.f/4096.f;
+      const Pixel expected{.25f,.125f,-.125f,1};
+      const auto shifted=shiftedChecksFixture.draw(centreProgram,false,{.25f+shift,.125f,-.125f});
+      check("historical-fixture-shifted-centre-actual-gpu-exact",shifted==Pixel{.25f+shift,.125f,-.125f,1},shifted[0],.25f+shift);
+      check("historical-fixture-shifted-centre-exact-negative-rejected",!(shifted==expected),std::abs(shifted[0]-.25f),0);
     }
     glDeleteProgram(centreProgram);
     for(const SurfaceCase& c:std::vector<SurfaceCase>{

@@ -2,6 +2,14 @@
 
 2026-10-06启动，持续执行至2026-10-07。宿主 Goal **active**（本次恢复审计第2个真实turn），未设置 token 预算。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
 
+## 当前开发验证策略与水面定位
+
+2026-10-07 用户明确要求验证轻量化。后续以受影响编译／定向检查／实际效果为默认，不每轮执行全矩阵或多次独立审计；完整适用验收集中到稳定交付候选。停止未运行的VS bit-exact私有候选，工具已恢复原HEAD，保留全部560旧门槛与旧FAIL；FS私有隔离候选亦未运行／未promote。
+
+仅修测试夹具非二进制步长导致的非零中心误差：真实varying改1/256，原491门槛不变，新增实际一FP16 ULP位移精确校准及拒绝。Root本轮CGL自然1，493／7；中心32F与16F均精确(.25,.125,-.125,1)，两个位移校准PASS，GL0；七个legacy32F零差压力仍FAIL（最大2.98e−8…8.94e−8），原RGBA8／16F比较通过。见`build/reference-visual-goal/resumed-audit-r2/reference-water-dyadic-centre-gpu-r1/baseline-run.json`。生产VS／FS及当前v12未改，不把夹具修复称游戏画面改善。
+
+当前B56整格StoneBrick岸邻面按生产网格规则不发Water侧面；同实际反射frame240推回的主机位估算，水平水面66.9在浅视角投影覆盖当前宽蓝带。这改变下一步：不再按旧全Step实验盲修整条“侧面蓝墙”，优先核实当前水平面及四个保留台阶凹口的局部表现。估算与10s主PNG未绑定同帧，不能作为逐像素归属证明；普通输入／最终动态仍未验。
+
 ## 最新r14洞口背景视距修复
 
 洞口背景现复用普通几何的逻辑中心、viewRange、退场强度及fog色，露天零覆盖discard，地下strength0保留原暗色与mask。只改变Ogre背景表示；World遮罩、需求、2048面／696KiB固定预算、八面扫描／更新、碰撞及保存语义保持。真实owned clone接收四个typed参数，反射private pass深拷贝；完整旧接口保留原行为，partial／wrong-type／wrong-size拒绝。见[洞口合同](../contracts/cave-boundary-background-contract-v1.md)。
@@ -14,7 +22,7 @@ macOS arm64 Debug／Release客户端构建和两个168／managed167工程包均�
 
 普通候选v12／r14已实际创建为`build/reference-visual-goal/HelloMine3D Reference Complete v12.app`，bundle `local.hellomine3d.reference-current-v12`，world `world-9e3124820f269c3627f43438c7d6891b`，prepared spawn `208.5 68 -169.5`；全226／managed167／save56、current2990／formal143已核，创建身份继承上述2a448＋dirty09e288。[创建原件](../../build/reference-visual-goal/resumed-audit-r2/reference-normal-v12-preparation-r14-r2/creation/run.json)SHA `7628dff6ec02c908c1d9a719b0fd40da7344bd47cc794ae73f6c7a46dc4f281d`；fresh作者构场28944自然0、两原图已实际查看，不算普通建造。旧包保留，新增v12后保护基线为14包3101文件；创建后helper追加v12四处保护，四真实CLI前置拒绝。离源码完整临时副本菜单PID30620自然0／stderr0B，实际映像与cwd吻合；Root查看5000ms原图，“继续游戏”列出完整样板，七env／input0／未进入World，保护14包3101与私有保存保持。外围PNG reader漏设tools/tests导入路径首次FAIL保留，[只读恢复](../../build/reference-visual-goal/resumed-audit-r2/reference-normal-v12-post-create-r14-r1/menu-reader-recovery-r2.json)SHA `0ab0209f9f1b21653693005e8ec8f6b1208f0834836e2e54bc6b01a889fa178a`重读原件通过，native未重跑。本批三张精选原字节图见`.local-evidence/reference-visual-20261006/delivery-r14-engineering/index.json`（SHA `1a4f8310c6ca26086418f5a332b0b3cc79ae9dc8b51231881299ed4510746fb1`），[独立主景图审](../../build/reference-visual-goal/resumed-audit-r2/reference-cave-range-r14-native-independent-visual-review-r1/receipt.json)只关闭有限黑块观察域。
 
-下一步集中在当前Water严格VS16／FS8压力定位、蓝band／局部三角，以及由唯一输入方完成普通12路线／编辑保存重开。左墙保存chunk `d74e8525c2985c3272d15117a54add256f27237cb8d58641fd70feedd52ffb55` 在B56／HDR RD3／legacy完全一致；黑区路径更符合既有洞口，精确像素归属未知，不作为已确认破墙修复。原六参考图缺失不变，用户先让另一任务继续使用桌面的指示仍适用；ordinary input0／12 NOT_RUN，Goal active，退出条件未全部成立。
+下一步按轻量开发策略集中在当前水面实际视觉问题及唯一输入方的普通12路线／编辑保存重开；微小bit压力保留到稳定候选的适用验收，不反复扩展夹具。左墙保存chunk `d74e8525c2985c3272d15117a54add256f27237cb8d58641fd70feedd52ffb55` 在B56／HDR RD3／legacy完全一致；黑区路径更符合既有洞口，精确像素归属未知，不作为已确认破墙修复。原六参考图缺失不变，用户先让另一任务继续使用桌面的指示仍适用；ordinary input0／12 NOT_RUN，Goal active，退出条件未全部成立。
 
 ## r13工程、作者保存与实际画面（修复前检查点）
 
