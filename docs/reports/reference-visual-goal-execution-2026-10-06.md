@@ -1,6 +1,16 @@
 # HelloMine3D 参考画质完整交付执行记录
 
-2026-10-06启动，持续执行至2026-10-07。宿主最新 Goal **active**，未设置 token 预算。本轮开始为 blocked，随后宿主已恢复；重核确认旧窗口占用解除；公开输入仍缺持续按住接口，完整普通路线未完成。r15／r16实际缩放的失败保留；最新r17清理两层位移缓冲后，一次普通缩放及保存姿态保持。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+2026-10-06启动，持续执行至2026-10-07。宿主最新 Goal **blocked（2026-10-07，恢复后三轮重核）**，未设置 token 预算。用户要求重核阻塞后，已连续三轮推进空帧保护、Cocoa位移缓冲修复及稳定v13候选；旧窗口占用已解除，公开工具仍缺持续按住接口。完整普通路线和五项退出条件未全部成立，未 complete。r15／r16实际缩放失败保留，r17一次普通缩放及保存姿态保持仅为有限通过。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E范围保持；旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+
+## 最新稳定候选与阻塞收尾（2026-10-07）
+
+稳定普通菜单候选已保存为 [HelloMine3D Reference Complete v13.app](../../build/reference-visual-goal/HelloMine3D%20Reference%20Complete%20v13.app)，bundle `local.hellomine3d.reference-current-v13`，Release SHA `79e75b8a333fe58cd22a12907247f30542f94b997315f6b5cf0f1e736801db20`。使用已测试r17二进制及资源，当前2990源码清单与r17逐项一致；运行文件仅新ID／身份记录有差别。保存样板及配置从受保护v12复制，56份保存文件同SHA，完整225／managed167；不沿用旧226文件计数。创建时commit `0436b7d3`、工作区干净，见 [creation.json](../../build/reference-visual-goal/reference-normal-v13-r17/creation.json)，不回写为后续保护／文档提交。此包为 CREATED_NOT_ACCEPTED，未签名／公证，五项退出条件未关闭。
+
+创建后为准备器追加v13路径／ID保护四处，并只执行一次只读子目录输出拒绝。实际CLI exit2，正确命中“Output overlaps the published v13 app”，未创建输出或计划；首个wrapper错误地要求exit1而FAIL，其JSON及stdout／stderr原件保留。仅重读同份原始结果并按helper真实parser.error语义恢复，CLI重跑0，见 [protection-check-r2.json](../../build/reference-visual-goal/reference-normal-v13-r17/protection-check-r2.json)。没有再做旧包全树审计。
+
+仅在 `/private/tmp/hellomine3d-v13-menu-xsym3b0w/HelloMine3D Reference Complete v13.app` 精确副本启动一次普通菜单。公开getApp请求30秒但实际1354.8861秒（约22分35秒）才返回AX，不称有界；owned PID18217映像／cwd与副本匹配。截图显示“临水建筑完整样板”、2026-10-07 15:55及普通继续按钮；没有进入世界。菜单EXIT点击后仍显示菜单，未算正常退出通过；随后原生AX关闭按钮后getAX超时，最终只读ps返回1／空输出确认自有进程结束，不把超时称App quit。实际结果独立记在 [menu-run.json](../../build/reference-visual-goal/reference-normal-v13-r17/menu-run.json)，创建快照不修改。原稳定v13未原生启动，旧包和存档保持；截图仅为本会话CUA输出，无编造PNG索引。
+
+本轮没有运行时代码变更、新构建、GPU或全矩阵复核。只读范围核对确认其余必要进展依赖真实连续普通操作，公开API仍无文档化按住／松开／时长能力；既有短按／拖动未完成行走或挖掘，不通过改游戏语义适配工具。这个同一阻塞在用户恢复后已连续第三个实际Goal turn存在；前两轮独立输入修复与本轮稳定候选已完成，宿主已按规则返回blocked，未complete；本轮停止执行。完整12套件获取／四向建造／挖掘拾取／动态画质路线仍未通过，旧严格GPU压力493／7 FAIL保留。下次需持续输入能力可用或用户明确调整退出条件后恢复；沿用当前包及已通过定向检查，不无新改动重复验收。
 
 ## 最新原生位移缓冲修复（2026-10-07）
 
@@ -354,13 +364,13 @@ r7先前无PNG的5s warmup＋30s采样4729帧：P95 8.933ms/P99 10.064ms/max23.1
 
 | 提示词第6节 | 当前结论 |
 | --- | --- |
-| 1 全部正常生产方向 | A–E范围保持；r14补洞口背景视距，r13 Water能力接口／80格整岸线与12套件已接真实路径。历史World／编辑／驻留只按准确身份和不变域复用；普通获取／编辑／移动及本版其它水位完整循环仍未验 |
-| 2 画质和动态 | r14实际主图露天悬空sky黑块消失，地下边界／RD8岩壁保持；水蓝band、局部三角／斜边仍OPEN；左墙黑区与保存Air洞口一致，精确像素归属未证。原RD1 FAIL保留，工程机位与稀疏原图不关闭普通连续动态或整体画质 |
-| 3 工程和稳定性 | r14双构建／双包0、Renderer90×2／0、Cave41／0、HDR r2 851／0；首次HDR850／7和legacy wrapper FAIL保留。r13 sampler228×2与历史World等只按准确域保留；VS16／FS8压力FAIL及普通编辑／碰撞／地图／保存可靠性仍未闭合 |
-| 4 普通输入保存重开 | NOT_RUN_WAITING_FOR_SINGLE_INPUT_OWNER；本Goal getApp已实际返回AX但耗时992s、owned6107路径核对、input0／12路线NOT_RUN；用户指定先让另一任务继续，键盘效果未知。ordinary-v11副本／计划不由菜单状态或工程保存关闭此项 |
-| 5 交付和身份 | v12／r14普通候选已实际创建，全226／managed167／save56与当前源码／资源已核，创建2a448＋dirty09e288保持；旧包原样，保护基线14包3101。v12保护四拒绝／离源码菜单已核、普通input0，整体五项退出条件未成立 |
+| 1 全部正常生产方向 | A–E主体、12套件、材质／反射／植被及第二样板已接真实路径；当前r17补齐缩放时Cocoa位移缓冲清理。所有套件的普通获取／编辑／移动及其它水位完整循环仍未验，整体未通过 |
+| 2 画质和动态 | r14有限主图露天悬空sky黑块消失、地下边界／RD8岩壁保持；后续RGB分类支持宽蓝带主要为水平水面，不沿用整条竖直蓝墙解释。局部斜边、透明叠层归属及连续编辑画质仍OPEN；r17单次缩放观察不关闭普通连续动态验收 |
+| 3 工程和稳定性 | r17 macOS arm64 Debug／Release增量构建及适用Cocoa输入检查exit0，mouse各34／0；r16 P11A131／0仅复用未改域。r14 Renderer90×2／0、Cave41／0、HDR r2 851／0及历史World按身份／不变域保留。首次HDR、VS16／FS8及后续严格GPU压力493／7 FAIL均保留，未称当前全量复跑或工程整体完成；普通碰撞／拾取等完整可靠性未闭合 |
+| 4 普通输入保存重开 | 旧v12已实际浅石砖合成／放置、地图及保存冷重开；r17一次普通缩放及保存姿态保持，v13仅普通菜单。当前没有旧窗口占用阻塞，但完整12套件、持续行走、四向建造、挖掘拾取及编辑重开路线仍BLOCKED_CONTINUOUS_INPUT_NOT_AVAILABLE；不再误写全部input0或等待另一任务 |
+| 5 交付和身份 | 稳定v13／r17普通候选已实际创建，全225／managed167／save56；源码／资源与r17、保存与v12准确核对，创建0436b7d3／干净身份保持。v13保护及一次副本菜单观察已记账，owned18217已结束，原包／旧包／失败保留。候选NOT_ACCEPTED，五项退出条件未全部成立 |
 
-宿主保持active：本次恢复审计为第2个真实turn，旧blocked三turn及未知操作者paused不累计；本turn有地图/HDR/跨水面和完整sampler修复、当前候选及必要交接独立进展，不blocked、不complete，也不把工具调用、跨日、上下文压缩当Goal turn。公开App选择已有另一任务的恢复证据，当前普通路线为NOT_RUN_WAITING_FOR_SINGLE_INPUT_OWNER；待其会话收尾后，唯一执行者先核最新普通候选的owned clone实际进程／窗口及用户接管状态，再执行普通12路线及编辑保存重开。键盘效果尚未闭合，不预先宣称PASS，不合成输入或重启service；旧包、FAIL和此前blocked检查点均保留。
+本次用户恢复后的阻塞重核已连续第三个实际Goal turn，不累计旧blocked三轮；空帧及Cocoa缓冲修复、定向验证、一次实际缩放和稳定交付候选已完成。当前公开工具只有pressKey／click／drag等，缺持续按住／松开／时长接口，剩余普通路线没有可继续关闭的独立实现操作。宿主已实际返回blocked（updatedAt 1791378593），不complete；不以工具调用次数、跨日或上下文压缩计turn。恢复条件为文档化持续输入可用，或用户明确改变相关退出范围；恢复后先核候选副本／映像和桌面归属，再从剩余普通路线继续。已有检查按未改域复用，只有新改动、失败或未解决疑点才追加适用检查，历史FAIL与原五项退出条件保留。
 
 **公开恢复更正前的退出4与恢复记录（历史原文保留，当前结论见上文）**：
 
