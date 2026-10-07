@@ -1,10 +1,10 @@
 # HelloMine3D 参考画质完整交付执行记录
 
-2026-10-06启动，持续执行至2026-10-07。宿主 Goal **blocked**，未设置 token 预算。本轮重核已确认旧窗口占用解除；公开输入仍缺持续按住接口，完整普通路线未完成。r15／r16实际缩放均观察到视角变化，效果未通过。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+2026-10-06启动，持续执行至2026-10-07。宿主最新 Goal **active**，未设置 token 预算。本轮开始为 blocked，随后宿主已恢复；重核确认旧窗口占用解除；公开输入仍缺持续按住接口，完整普通路线未完成。r15／r16实际缩放均观察到视角变化，效果未通过。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
 
 ## 本轮阻塞重核及空帧保护（2026-10-07）
 
-用户要求检查 blocked 原因并在解除后启动。开始时没有 HelloMine3D 进程；旧 PID47302 已结束，原 r15 临时目录已不存在，窗口归属不再是当前阻塞。公开 CUA 文档仍只提供 pressKey／click／drag，没有按住、松开或时长接口；未找到新增持续输入能力。完整连续行走／挖掘路线仍 BLOCKED，不修改退出条件，也不把短按累计或工具耗时当按住时长。宿主保持 blocked，未创建重复 Goal。
+用户要求检查 blocked 原因并在解除后启动。开始时没有 HelloMine3D 进程；旧 PID47302 已结束，原 r15 临时目录已不存在，窗口归属不再是当前阻塞。公开 CUA 文档仍只提供 pressKey／click／drag，没有按住、松开或时长接口；未找到新增持续输入能力。完整连续行走／挖掘路线仍 BLOCKED，不修改退出条件，也不把短按累计或工具耗时当按住时长。本轮前半宿主仍为 blocked；本地提交 a8ad894c 后最新 get_goal 返回 active，按恢复后的状态继续可执行工作，未创建重复 Goal。
 
 复用现成 r15 二进制和发布 v12 的样板／配置恢复候选，无重建。普通菜单进入、一次公开 zoom 放大／恢复和正常保存退出，owned PID6083 的映像及 cwd 匹配该副本。未发送转头／移动操作；恢复后视角变化，保存位置保持 `208.5 68 -169.5`，旋转由 `-8 0 0` 变为 `36.6499977 26.7999382 0`。r15 四行保护实际效果为 FAILED_OBSERVED，原始记录见 [actual-resize-restored.json](../../build/reference-visual-goal/resize-input-r15/actual-resize-restored.json)。
 
@@ -12,7 +12,9 @@
 
 r16 通过通用资源打包器创建普通菜单临时候选 `/private/tmp/hellomine3d-resize-input-r16-3pfz8_2c/HelloMine3D Resize Input r16.app`，bundle `local.hellomine3d.reference-resize-r16`，Release SHA `2b33e7fcaa0f19fbb6956c3a3d1aa6c92c30d3541d17e7e4b6a9d4744c572986`。创建身份保持17df42ec＋当时源码／测试／合同diff，不回写后续提交；[candidate.json](../../build/reference-visual-goal/resize-input-r16/candidate.json) 是创建时 READY_NOT_RUN 快照，后续结果单独记账。原发布 v12 和旧包未改。
 
-普通菜单进入 r16 样板，owned PID9199 映像及 cwd 实核匹配。仅一次放大／恢复、暂停与正常保存退出；本轮没有转头／移动命令。放大时已观察到视角变化；保存位置保持 `208.5 68 -169.5`，旋转为 `9.15000057 23.6999207 0`，实际缩放效果仍 FAILED_OBSERVED。工具报告 App quit，后续只读 ps 返回1且无进程输出。公开截图在本会话 CUA 输出，无本地 PNG；[actual-resize.json](../../build/reference-visual-goal/resize-input-r16/actual-resize.json) 保存结果。当前只关闭空帧保护语义缺口，未证明原生窗口事件时点或缩放问题已解决；不继续盲增丢弃帧数。恢复条件为公开持续输入能力可用后继续同一普通路线；缩放视角变化仍为待解决的实际观察。全套退出条件及未验动态画质保留。
+普通菜单进入 r16 样板，owned PID9199 映像及 cwd 实核匹配。仅一次放大／恢复、暂停与正常保存退出；本轮没有转头／移动命令。放大时已观察到视角变化；保存位置保持 `208.5 68 -169.5`，旋转为 `9.15000057 23.6999207 0`，实际缩放效果仍 FAILED_OBSERVED。工具报告 App quit，后续只读 ps 返回1且无进程输出。公开截图在本会话 CUA 输出，无本地 PNG；[actual-resize.json](../../build/reference-visual-goal/resize-input-r16/actual-resize.json) 保存结果。当前只关闭空帧保护语义缺口，未证明原生窗口事件时点或缩放问题已解决；不继续盲增丢弃帧数。公开持续输入能力可用后续跑同一普通路线；当前 active 状态继续定位缩放视角变化等可执行项。此为恢复后的首轮阻塞重核，不把旧 blocked 三轮直接累计为本次恢复的三轮。全套退出条件及未验动态画质保留。
+
+恢复后仅追加一次小范围只读定位：Cocoa mTempState 与应用 m_pendingLookDelta 是两层缓冲，resize 当前只清后者；键盘capture派发 Cocoa 事件后，鼠标capture再发布累计位移。源码允许旧累计消耗首份保护、迟到样本随后通过，但本次没有回调／delta顺序记录，原因仍未定。不猜丢弃帧数，不扩展工程矩阵；下一步仅取得该实际顺序或实现有明确依据的缓冲边界修复，再做一次对应效果检查。
 
 ## r15 缩放输入边界修复检查点（实际结果见上方）
 
