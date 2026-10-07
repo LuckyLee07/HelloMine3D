@@ -2,7 +2,13 @@
 
 ## 恢复区
 
-- **当前检查点：2026-10-07 V10u设置文本／Escape取消及地图开关分项通过；完整目标仍剩6组功能验收＋1组整合交付。**
+- **当前检查点：2026-10-07 V11c补五生态当前静态整合覆盖，发现局部土壁阴影噪声；完整目标仍剩6组功能验收＋1组整合交付。**
+  复用native`a2e36575…34dd2`／2967源码`6305ca02…7808`，确认原工作包无进程后刷新当前已验证资源。当前生产planner查询五固定点的v18／v31区域与高度相同；保留原X／Z与采图前冻结的Y／朝向，不换漂亮机位。草甸、针叶高地、沙丘、峡谷、湿地均seed42／terrain31／time6000／FOV90／标准／中阴影，串行复用同一隐藏不激活工作包；十原PNG均2560×1440，五native0／reaped、无超时。Root查看五张9000ms及草甸／湿地5000ms，独审查看全部十图；固定生态代表静态覆盖通过，针叶近树干遮挡限制保持，不计普通到达或动态稳定。
+  `v11c/coverage-input-audit-r1.json`按真实输入归并原24组合：未变天空／时段／FOV及V05b修复证据复用，旧整幅图与当前叶色、水面、阴影组件证据分记，没有重跑整套矩阵。湿地9000ms左近土壁和草甸5000ms左近壁出现局部细点；另一次湿地同机位Off对照native0／reaped，Root实际查看后细点消失，精确根因仍在定位。保留medium与Off原件，关闭只用于归因，不记修复或V05稳定PASS，生产源码与着色器尚未改动。
+  收据为`v11c/{capture-review-handoff-r1,independent-visual-review-r1,shadow-off-comparison-r1,shadow-diagnosis-r1,selected-evidence-r1}.json`；三当前原图追加至71轮268有效选图，旧70轮对象、manifest／index前缀及旧媒体保持。六次隐藏采集均已终止，最后精确query为空；刷新包会保留诊断配置，初次恢复断言失败保留，随后实际离线拷回普通config并逐字节核验`70d9f6e9…16047`，不冒称公开设置操作。冻结V06j clean After和用户客户端保持。普通副本已同步当前资源，12份非托管存档文件及配置逐字节保持；没有输入或系统权限变化。
+  用户的CGEvent技术授权仅限`v07j/OrdinaryWorkbench.app`，系统PostEvent权限仍缺，实际接收对象为本机ChatGPT（`com.openai.codex`），行动时确认待答复。只请求权限的程序已编译、独审和只读预检，无事件API；尚未运行请求模式。CUA重置后入口仍30秒超时，普通输入还需可用的窗口连接。下一步定位并修复本次阴影现象；权限及连接恢复后继续普通路线，不重验已确认的基本持续行走。
+
+- **已完成分项：2026-10-07 V10u设置文本／Escape取消及地图开关。**
   复用未变的V10s r4客户端，在同PID5551／window7111实际输入宽度草稿1281→1282；Escape取消后公开重开恢复1280，四份正确bin/config.txt逐字节同`70d9f6e9…16047`。尝试F5后视角选项与配置未变，只记此观察，不推定专用键已送达或完整输入归属通过。公开Tab／小地图打开局部3D地图，Escape返回后重开成功；五次短S没有实际位移，前后保存位置均36.2999992／92／56.5、rotation45／0／0，地图移动和普通编辑仍OPEN。
   本会话只有启动focused=0→1，切换Finder／TextEdit的尝试没有产生新的原生失焦，故不能关闭同会话复焦；V10t的Escape无效与focused=0反证保持。准备库存不计原始采集。公开SaveAndQuit后精确query为空、日志13:37:13完整Shutdown，native退出码不可得；无生产改动、重编或旧门禁重跑。
   `v10u/{session-r1,independent-interaction-review-r1,selected-evidence-r1}.json`保留五原PNG和限定结论；两张当前原图追加至70轮265有效选图，旧manifest／index前缀和旧媒体保持。普通菜单交付继续复用V06j clean After，用户客户端及两未批准规划未操作。用户随后明确允许CGEvent仅用于`v07j/OrdinaryWorkbench.app`；系统事件发送权限尚未授予，实际TCC subject为本机显示名ChatGPT的`com.openai.codex`，新权限单独待确认；截至此检查点没有创建或发送CGEvent。
