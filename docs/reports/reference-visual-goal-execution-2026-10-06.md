@@ -1,6 +1,6 @@
 # HelloMine3D 参考画质完整交付执行记录
 
-2026-10-06启动，2026-10-07按用户最新调整范围完成本阶段交付，Goal收尾待记录complete，未设置token预算。用户已明确将Computer Use无法完成的普通验收后置，不再阻塞整个Goal。A–E实现、适用工程证据及稳定v13已经交付，剩余普通路线为 `DEFERRED_BY_USER`，未冒充PASS。整工具493／7严格压力FAIL及其它历史失败保留；当前限制与后续补验见下文。按[调整后的第5／6节](../current/reference-visual-goal-prompt-2026-10-06.md)判断完成；实现[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E保持，旧版本见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+2026-10-06启动，2026-10-07按用户最新调整范围完成本阶段交付，宿主Goal已返回 **complete**（updatedAt 1791379129），未设置token预算。用户已明确将Computer Use无法完成的普通验收后置，不再阻塞整个Goal。A–E实现、适用工程证据及稳定v13已经交付，剩余普通路线为 `DEFERRED_BY_USER`，未冒充PASS。整工具493／7严格压力FAIL及其它历史失败保留；当前限制与后续补验见下文。按[调整后的第5／6节](../current/reference-visual-goal-prompt-2026-10-06.md)判断完成；实现[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E保持，旧版本见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
 
 ## 本阶段交付结论与后续补验（2026-10-07）
 
@@ -27,7 +27,7 @@
 
 据此将受工具限制的剩余普通行走、工位获取全部套件、四向建造／登阶／选取、挖掘拾取、实际增删灯／墙／岸与连续画质、对应普通编辑保存重开专项标为 `DEFERRED_BY_USER`。原执行结果BLOCKED／NOT_RUN不修改，旧v12有限普通PASS与r17一次缩放PASS仍只覆盖各自版本和步骤。原六参考图缺失也保留为对照限制。延期只影响这一组实际Computer Use补验；A–E实现、可执行工程检查、兼容／资源预算／生命周期和真实产品失败要求保持。
 
-本轮get_goal仍返回旧blocked。可调用Goal工具没有active恢复能力；尝试使用公开CUA查看宿主继续入口时，getApp("Codex")在0.0437秒直接拒绝 `Computer Use is not allowed to use the app 'com.openai.codex' for safety reasons.`，没有AX返回或输入操作。这是宿主应用工具限制，不是新的游戏验收缺陷，不因此给本阶段增加blocked理由。继续可执行交付收尾，不建重复Goal、不改验收为PASS；宿主实际状态与阶段可交付状态分别记录。
+本轮开始时get_goal仍返回旧blocked。可调用Goal工具没有active恢复能力；尝试使用公开CUA查看宿主继续入口时，getApp("Codex")在0.0437秒直接拒绝 `Computer Use is not allowed to use the app 'com.openai.codex' for safety reasons.`，没有AX返回或输入操作。这是宿主应用工具限制，不是新的游戏验收缺陷，不因此给本阶段增加blocked理由。继续可执行交付收尾，不建重复Goal、不改验收为PASS；宿主实际状态与阶段可交付状态分别记录。
 
 ## 最新稳定候选与阻塞收尾（历史检查点，2026-10-07）
 
@@ -397,7 +397,7 @@ r7先前无PNG的5s warmup＋30s采样4729帧：P95 8.933ms/P99 10.064ms/max23.1
 | 4 普通输入保存重开 | 按授权后置交付成立：v12浅石砖合成／放置／地图／冷重开及r17有限缩放保存各自证据保持；完整12套件、连续行走／建造／挖掘／真实编辑画质和重开为DEFERRED_BY_USER，原BLOCKED／NOT_RUN不改 |
 | 5 交付和身份 | 成立：稳定v13，225／managed167／save56，创建0436b7d3／干净身份；当前源码／资源与r17、保存与v12准确核对。正式资源／可编辑源／导出链、既有证据／精选索引／复现入口／平台限制、本地提交已提供。v13及旧包受保护，自有菜单副本进程已结束；创建快照保持，阶段结论另记 |
 
-本阶段按最新用户授权已满足调整后的退出条件，收尾将记录Goal complete；此前blocked为历史，不再把Computer Use补验作为本阶段整体阻断。后续普通专项沿用上方清单与证据，公开持续输入或另行授权的真实操作路径可用后执行。既有失败与未通过结果保留，阶段完成不冒充全路线PASS。
+本阶段按最新用户授权已满足调整后的退出条件，宿主已实际返回Goal complete（updatedAt 1791379129），阶段交付本地提交9484bca0；此前blocked为历史，不再把Computer Use补验作为本阶段整体阻断。后续普通专项沿用上方清单与证据，公开持续输入或另行授权的真实操作路径可用后执行。既有失败与未通过结果保留，阶段完成不冒充全路线PASS。
 
 **公开恢复更正前的退出4与恢复记录（历史原文保留，当前结论见上文）**：
 
