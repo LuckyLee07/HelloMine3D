@@ -2,7 +2,13 @@
 
 ## 恢复区
 
-- **当前检查点：2026-10-06 V07m：有界BMP密集采样及无损展示通过；完整步态未证明，Goal active。**
+- **当前检查点：2026-10-07 V01i：白桦／云杉叶面分类修复，工程与固定机位复核通过；完整目标未完成。**
+  两份terrain fragment仅把真实row8的Spruce(2,8)／Birch(5,8)接入已有naturalPalette，不改系数、纹理、mip、Alpha、UV、生成或保存。复用V10s native `a2e36575…34dd2`／producer `823a2086`；资源双配置各201／资产91通过，实际Apple M1 Pro生产GPU最终489／0，旧源负控489／20正常exit1，原413项均保持。
+  桦树Before／After-r1、云杉Before-r1／After-r3均配置逐字一致、固定seed42／机位／time6000、Full／map64／FOV90／RD8／medium／postOff、2560×1440。两树兼容及夜景另作限定静态检查；RGB细对比减弱，物种叶色／树干／透孔保留，不关闭移动闪烁与全部V01。所有会话终态、失败和差异见文末V01i及`v01i/session-r1.json`。
+  默认沙箱GL失败、scale1 wrapper失败、初版GPU12个错误夹具预期及云杉r2设置差异均保留；主机获准执行恢复GL，r4校正实际alpha128覆盖并对原三个世界原点取最大差，原阈值不降。精选三After／两Before新增至67轮256有效选图，旧66轮对象／索引前缀保持；初选r2原图和归档收据不覆写，r2 addendum改选真实r3。
+  本地提交后的clean普通包及菜单终态以`v01i/batch-handoff-r1.json`为准，旧V10s137项和两未读规划SHA保护；用户客户端未操作。持续输入技术授权仍待答复，无CGEvent／TCC变更；用户持续行走确认和严格性能延期保持。本次宿主查询返回paused，按用户“请继续”恢复本轮工作，未伪报active／complete；全部普通路线与必要动态余项继续留账。
+
+- **历史检查点：2026-10-06 V07m：有界BMP密集采样及无损展示通过；完整步态未证明，Goal active。**
   仅两采集工具新增显式格式与BMP校验，默认PNG／八目标上限保持；43项无客户端检查通过。复用V10s `823a2086`／native `a2e36575…34dd2`，一个较高机位新条件、Full／FOV60自然林兔诊断；实际42.003…42.560秒八BMP、间隔78–83ms、跨度557ms，八内容不同。植物遮挡减少，兔头耳／身体及根位移可辨；脚部多在身体下方，不关闭关节、完整步态／接地、AI状态、坡面或普通遭遇。
   PID41113 native0／signal null／无timeout／已reaped，exec65729终态0；sips转换exec91376终态0，八展示PNG与BMP全RGBA相等，BMP原件保持。三PNG及对应三BMP原件追加至66轮251展示图，旧65轮248对象和index字面前缀保持，未重扫旧媒体；明确本轮PNG为无损展示副本。
   无运行时／资源修改或重建，普通交付与未变门禁复用V10s；本批会话、原格式、时间语义、独审及保护见文末V07m。持续输入辅助器授权仍待答复，无CGEvent或权限变更；全部普通路线与必要动态余项保持。
@@ -4666,3 +4672,46 @@ Root逐张查看八全帧，工具预览由2560×1440缩至2048×1152，文件�
 没有CGEvent、权限申请或修改；持续输入技术授权待答复，不重问。完整V00–V11普通采集制作、
 地图移动编辑、地表／地下／水域／地标及其他必要动态余项保持；用户持续行走确认与严格性能
 DEFERRED_BY_USER保持。中文小批次本地提交，不推送／发布／标签，完整Goal active。
+
+
+## V01i：白桦与云杉叶面分类修复（2026-10-07）
+
+实际生产`TerrainAppearance::select`把两树种叶片映到row8 x2／x5；V01c已有正式材质，但两份
+`naturalPalette`的leaves只识别baseOak和生态row3–7。本批只补两个bool条件，复用原叶面
+细对比压缩与宽世界色块。`blendedPlant`／ecologyPalette仍保持，避免误采row4草土；没有
+修改静态材质来源、采样、Alpha／discard、mip、caster、顶点、系数、权威或持久状态。
+Terrain.frag SHA `c72fd793…22f846be`，Shadow.frag `12532dfd…19de2298`；helper最终r4 SHA
+`77fc190a…c63b39a`，binary `beb403fe…31213b0`。资源双配置实际各201／0、资产91／0，
+`resource-checks-r1.json`保留构建／运行argv、x86_64目标与arm64主机身份。纯fragment复用
+现有Release native／2967源码快照，不冒充C++重建或重复未变World门禁。
+
+| 检查 | 实际结果与范围 |
+|---|---|
+| 默认沙箱／主机图形环境 | GPU r1 exit2／No OpenGL context；旧未改客户端spruce-before-r2 native1／OpenGL3.0 unsupported、reaped／无timeout。默认system_profiler未列显示屏只适用于该执行边界；获准主机GPU实际Apple M1 Pro，当前LG显示3840×2160／1920×1080点。没有归因锁屏或生产shader。 |
+| 初版GPU夹具r2 | 实际489／12、exit1；原413全部PASS。数组叶纹理可见alpha128，生产cutoff .4999保留，fixture误要求255导致零有效探点；宽field原-16→32均值差仅.241…431，不能满足>.5单对断言。原log／编译收据保持。 |
+| 修正夹具／最终生产GPU | r4按恒定完整cutout覆盖选择样本，数量≥2、luma>5与全部contrast门槛保持；宽field仅原-16／0／32三点两两取max，>.5阈值保持，明确改变度量而非声称原单对PASS。实际489／0／exit0；新宽field最大1.675…2.839，frozen三对全0。两模式两叶三原点contrast均压缩且>1，Alpha／Off／normal-shadow Off及十邻材RGBA保护通过。 |
+| 旧源负控 | 同一r4、真实旧V10s资源，489／20／正常exit1；两mode两leaf颜色变化／宽field／三origin对比均正确失败，原413仍全PASS。context异常不计负控检出。 |
+| 标准同条件静态对照 | 桦树Before／After-r1均2560×1440、设置逐字相等；云杉r1实际scale1虽native0但wrapper FAIL，原两1280图保留。主机r2虽捕获成功但Off／map128与冻结Full／64不同，仅scene smoke；r3显式恢复Full／64，设置／seed／机位／time与Before相等、actual12000／18002ms，native78161正常0／reaped。 |
+| 两树种兼容与夜景 | 各两原PNG2560×1440、native均正常0／reaped／无timeout。Root与独审实际看两标准对照、两兼容及两夜末帧；桦浅绿／杉深绿身份、白树干／暗树干、剪影与天空透孔仍可辨，未见明显新增坏边或发光。不是全mip／远景／移动连续证据。 |
+
+最终GPU的12个高低色样本中，atlas云杉80.33→69…71、桦116→100…103；array云杉70.67→
+60.67…62.67、桦113→97.33…100.33。这是稀疏真实texel RGB差，不能当全图改善百分比。
+normal-shadow相等限定directional shadow Off；原阴影行为检查与当前medium实际画面另留。
+新增76项加原413，共489，原早期230估计不沿用。`gpu-check-r3.json`和两原log保留真实结果；
+`block-feedback-gpu-compile-r4.json`说明错误Alpha预期／三固定world点度量修正。
+
+`session-r1.json` SHA `a2ef83cb…18ec1ad`记录11个原会话，实际原PNG20张（含scale1失败中的两图）；包括scale1原失败及默认
+沙箱baseline失败，所有子进程已回收。较早spruce-after-r1真实墙钟802.929秒照录，不把
+有效frame时刻18秒当墙钟或性能通过；其他成功会话约22–24秒。`independent-review-r1.json`
+限定代码／夹具、实图和当前身份，静态图不证明移动无闪烁。CGEvent／系统权限申请未执行。
+
+三升级原PNG与两同条件Before逐字节保留至`.local-evidence/visual-polish-20260928/v01i-species-leaves-r1/`。
+归档r1初选的云杉r2设置差异被独审指出，原图／r1 manifest与index快照／收据均留存；r2
+addendum只修本批云杉选图到真实r3，原66轮对象与index字面前缀保持，未重扫旧媒体。
+当前67轮256有效展示图，另留原r2 scene smoke；manifest SHA `b683eaaa…1230df0`。
+本地提交与clean普通包、正常配置及菜单终态见`batch-handoff-r1.json`，不原位刷新旧交付。
+
+本批只关闭两树叶遗漏分类、必要工程及上述固定静态风险，完整V01／V00–V11仍Doing。
+世界／手持／掉落物／背包／地图同物使用、远近移动闪烁、普通采集制作、地图移动编辑、
+地表／水域／地下／地标路线及动物／玩家坡面近墙仍保留。持续行走用户确认与严格配对性能
+DEFERRED_BY_USER不改；用户客户端和未批准规划未读／未暂存。不推送、发布或标签。

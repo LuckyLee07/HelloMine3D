@@ -231,7 +231,8 @@ vec3 naturalPalette(vec3 colour, vec2 tile, vec3 face, float footprint)
     bool grassSide = (tile.y == 0.0 && tile.x == 1.0) ||
         (ecology && tile.x >= 3.0 && tile.x <= 5.0);
     bool leaves = (tile.y == 0.0 && tile.x == 6.0) ||
-        (ecology && tile.x >= 6.0 && tile.x <= 8.0);
+        (ecology && tile.x >= 6.0 && tile.x <= 8.0) ||
+        (tile.y == 8.0 && (tile.x == 2.0 || tile.x == 5.0));
     bool tallGrass = (tile.y == 0.0 && tile.x == 11.0) ||
         (ecology && tile.x >= 12.0 && tile.x <= 14.0);
     bool flower = tile.y == 0.0 && tile.x == 10.0;

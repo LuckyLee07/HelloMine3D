@@ -2,6 +2,7 @@
 // clang++ -std=c++17 -Wno-deprecated-declarations tools/validate_block_feedback_shader_macos.cpp \
 //   -framework OpenGL -framework CoreGraphics -framework ImageIO -framework CoreFoundation -o /tmp/block-feedback-gpu
 // /tmp/block-feedback-gpu <repository-or-package-resources> <new-output-directory>
+// /tmp/block-feedback-gpu <root> <new-output-directory> --species-leaves <frozen-fragment-directory>
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/gl3.h>
 #include <CoreGraphics/CoreGraphics.h>
@@ -31,13 +32,15 @@ std::string read(const std::filesystem::path &path)
     require(stream.good(), "Missing shader " + path.string());
     return {std::istreambuf_iterator<char>(stream), {}};
 }
-GLuint program(const std::filesystem::path &root, const char *vertex, const char *fragment, bool array, bool unfilteredGeology = false)
+GLuint program(const std::filesystem::path &root, const char *vertex, const char *fragment, bool array, bool unfilteredGeology = false,
+               const std::filesystem::path &fragmentDirectory = {})
 {
     GLuint result = glCreateProgram();
     for (const auto &entry : {std::pair<GLenum,const char *>{GL_VERTEX_SHADER,vertex},
                               {GL_FRAGMENT_SHADER,fragment}})
     {
-        auto source = read(root / "media/ogre" / entry.second);
+        auto source = read(entry.first == GL_FRAGMENT_SHADER && !fragmentDirectory.empty()
+            ? fragmentDirectory / entry.second : root / "media/ogre" / entry.second);
         if (array && entry.first == GL_FRAGMENT_SHADER)
             source.insert(source.find('\n') + 1, "#define TERRAIN_ARRAY 1\n");
         if (unfilteredGeology && entry.first == GL_FRAGMENT_SHADER)
@@ -306,8 +309,13 @@ int main(int argc,char **argv)
 {
     try
     {
-        require(argc==3 || argc==4 || (argc==5 && std::string(argv[4])=="--irregular-geology"),"Usage: block-feedback-gpu <root> <new-output-directory> [baseline-root-for-geology] [--irregular-geology]");
+        const bool speciesLeaves = argc==5 && std::string(argv[3])=="--species-leaves";
+        const bool irregularGeology = argc==5 && std::string(argv[4])=="--irregular-geology";
+        require(argc==3 || (argc==4 && std::string(argv[3])!="--species-leaves") || speciesLeaves || irregularGeology,"Usage: block-feedback-gpu <root> <new-output-directory> [baseline-root-for-geology] [--irregular-geology] OR <root> <new-output-directory> --species-leaves <frozen-fragment-directory>");
         const std::filesystem::path root(argv[1]), output(argv[2]);
+        if (speciesLeaves)
+            for (const auto *name : {"HelloMine3DTerrain.frag", "HelloMine3DTerrainShadow.frag"})
+                require(std::filesystem::is_regular_file(std::filesystem::path(argv[4])/name), "Missing frozen leaf shader");
         require(!std::filesystem::exists(output),"Output must be new");
         std::filesystem::create_directories(output);
         const CGLPixelFormatAttribute attributes[]{kCGLPFAOpenGLProfile,
@@ -516,6 +524,79 @@ int main(int argc,char **argv)
             check(mode+"-ground-palette-world-space-variation", quietGround != renderGround(base, 1.f, 32.f));
             png(output/(mode+"-ground-before.png"),originalGround);
             png(output/(mode+"-ground-after.png"),quietGround);
+            if (speciesLeaves)
+            {
+                // Compile the frozen real fragments with the same vertices and
+                // real textures. All colour measurements come from GPU output.
+                const std::filesystem::path frozen(argv[4]);
+                const auto old=program(root,"HelloMine3DTerrain.vert","HelloMine3DTerrain.frag",array,false,frozen);
+                const auto oldShadow=program(root,"HelloMine3DTerrainShadow.vert","HelloMine3DTerrainShadow.frag",array,false,frozen);
+                for (int column : {2,5})
+                {
+                    const std::string label=mode+(column==2?"-spruce-leaves":"-birch-leaves");
+                    const auto before=renderGround(old,1,-16,column,8);
+                    const auto after=renderGround(base,1,-16,column,8);
+                    bool sameAlpha=true;
+                    for(std::size_t i=3;i<after.size();i+=4) sameAlpha &= before[i]==after[i];
+                    check(label+"-colour-changes-with-alpha-preserved",sameAlpha && colourDifference(before,after)>1.f);
+                    check(label+"-off-preserves-frozen-colour",renderGround(base,0,-16,column,8)==renderGround(old,0,-16,column,8) &&
+                          renderGround(shadow,0,-16,column,8)==renderGround(oldShadow,0,-16,column,8));
+                    check(label+"-normal-shadow-agree",after==renderGround(shadow,1,-16,column,8) &&
+                          before==renderGround(oldShadow,1,-16,column,8));
+                    const auto oldZero=renderGround(old,1,0,column,8),oldPositive=renderGround(old,1,32,column,8);
+                    const auto newZero=renderGround(base,1,0,column,8),newPositive=renderGround(base,1,32,column,8);
+                    const std::array<float,3> newDeltas{colourDifference(after,newZero),colourDifference(after,newPositive),colourDifference(newZero,newPositive)};
+                    const std::array<float,3> oldDeltas{colourDifference(before,oldZero),colourDifference(before,oldPositive),colourDifference(oldZero,oldPositive)};
+                    check(label+"-broad-world-field-added",*std::max_element(newDeltas.begin(),newDeltas.end())>.5f &&
+                          before==oldZero && before==oldPositive && oldZero==oldPositive);
+                    std::cout << label << " world_pairs=-16:0,-16:32,0:32 new_delta=" << newDeltas[0] << ',' << newDeltas[1] << ',' << newDeltas[2]
+                              << " old_delta=" << oldDeltas[0] << ',' << oldDeltas[1] << ',' << oldDeltas[2] << '\n';
+                    // Locate actual covered high/low texels through the disabled
+                    // production shader, rather than inventing input colours.
+                    std::array<float,2> low{},high{};
+                    double lowLuma=1e9,highLuma=-1;int opaque=0;
+                    const auto sample = [&](GLuint shader,float enabled,const std::array<float,2> &uv,float origin) {
+                        return renderGeology(shader,column,8,true,.125f,origin,72,origin,enabled,0,1.23f,1,.5f,0,uv[0],uv[1]);
+                    };
+                    for(int y=0;y<4;++y) for(int x=0;x<4;++x)
+                    {
+                        const std::array<float,2> uv{(x+.5f)/4.f,(y+.5f)/4.f};
+                        const auto pixels=sample(old,0,uv,-16);
+                        // Array foliage uses alpha 128, which passes the real
+                        // .4999 cutoff. Require complete constant coverage,
+                        // retaining the source alpha rather than inventing 255.
+                        bool covered=pixels[3]>=128;
+                        for(std::size_t i=3;i<pixels.size();i+=4) covered &= pixels[i]==pixels[3];
+                        if(!covered) continue;
+                        ++opaque;
+                        const double luma=.2126*pixels[0]+.7152*pixels[1]+.0722*pixels[2];
+                        if(luma<lowLuma) { lowLuma=luma;low=uv; }
+                        if(luma>highLuma) { highLuma=luma;high=uv; }
+                    }
+                    check(label+"-real-high-low-texels-readable",opaque>=2 && highLuma-lowLuma>5);
+                    std::cout << label << " covered_texels=" << opaque << " high_low_luma=" << highLuma-lowLuma << '\n';
+                    for(float origin : {-16.f,0.f,32.f})
+                    {
+                        const auto oldLow=sample(old,1,low,origin),oldHigh=sample(old,1,high,origin);
+                        const auto newLow=sample(base,1,low,origin),newHigh=sample(base,1,high,origin);
+                        const float oldContrast=colourDifference(oldLow,oldHigh),newContrast=colourDifference(newLow,newHigh);
+                        const std::string position=label+"-"+std::to_string(int(origin));
+                        check(position+"-fine-contrast-reduced",oldContrast>5 && newContrast>1 && newContrast<oldContrast-.25f);
+                        check(position+"-frozen-negative-has-no-compression",oldLow==sample(old,0,low,origin) && oldHigh==sample(old,0,high,origin));
+                        check(position+"-high-low-shadow-agree",newLow==sample(shadow,1,low,origin) && newHigh==sample(shadow,1,high,origin));
+                        std::cout << position << " low_uv=" << low[0] << ',' << low[1] << " high_uv=" << high[0] << ',' << high[1]
+                                  << " old_contrast=" << oldContrast << " new_contrast=" << newContrast << '\n';
+                    }
+                    png(output/(label+"-before.png"),before);png(output/(label+"-after.png"),after);
+                }
+                // Oak and neighboring row-eight materials retain every RGBA
+                // byte, so recognizing two leaves cannot reclassify the row.
+                for(const auto tile : {std::pair<int,int>{6,0},{6,5},{0,8},{1,8},{3,8},{4,8},{6,8},{7,8},{2,1},{3,0}})
+                    check(mode+"-species-leaves-preserve-"+std::to_string(tile.first)+"-"+std::to_string(tile.second),
+                        renderGround(base,1,-16,tile.first,tile.second)==renderGround(old,1,-16,tile.first,tile.second) &&
+                        renderGround(shadow,1,-16,tile.first,tile.second)==renderGround(oldShadow,1,-16,tile.first,tile.second));
+                glDeleteProgram(old);glDeleteProgram(oldShadow);
+            }
             for (int tile : {1, 2, 3, 4, 5, 6, 10, 11})
             {
                 const auto before = renderGround(base, 0.f, -16.f, tile);
@@ -576,7 +657,7 @@ int main(int argc,char **argv)
             check(mode+"-waystone-inset-readable-at-night", brighterCore > 100 && retainedFrame > 100 && coreAlpha);
             check(mode+"-waystone-shadow-off-agrees", coreAfter == renderGround(shadow, 1.f, 0.f, 15, 0, .18f));
             png(output/(mode+"-waystone-night.png"), coreAfter);
-            if (argc == 5)
+            if (irregularGeology)
             {
                 // The former test intentionally required strong periodic bands.
                 // This mode measures the user-requested quieter, irregular rock
