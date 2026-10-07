@@ -4,20 +4,22 @@
 
 ## 当前版本和保护
 
-当前普通候选为 `build/reference-visual-goal/HelloMine3D Reference Complete v9.app`，Release arm64，bundle `local.hellomine3d.reference-current-v9`，世界“临水建筑完整样板”／seed42／`world-9e31248c24a39bbc9510d3f1a9233649`。正常配置v12，spawn／player `208.5 68 -169.5`；两栋不同布局建筑来自真实作者构场保存，普通输入建造仍未验。完整226文件分别记托管167和可写保存56；v9加入保护后，十一包共2423文件逐成员／SHA保持，不覆盖未知操作者改变的 `WorkbenchCurrent`。
+当前普通候选为 `build/reference-visual-goal/HelloMine3D Reference Complete v10.app`，Release arm64，bundle `local.hellomine3d.reference-current-v10`，世界“临水建筑完整样板”／seed42／`world-9e31248faeb63c1f9a59f368ece99651`。正常配置v12，spawn／player `208.5 68 -169.5`；两栋不同布局建筑来自真实作者构场保存，普通输入建造仍未验。完整226文件分别记托管167和可写保存56；v10加入保护后，十二包共2649文件逐成员／SHA保持，不覆盖未知操作者改变的 `WorkbenchCurrent`。
 
-| 当前v9／r8身份 | SHA-256 |
+| 当前v10／r9身份 | SHA-256 |
 | --- | --- |
-| Release r8游戏 | `50b0615880b5b16f8aba4958e2a53f48cf9ab725466ebd78c89f4366bdab3137` |
-| Debug r8游戏 | `cad8e62ee0f147f9f7f02b331c6f49dd62b5b5e46d57b5dc3db94e2e909f348e` |
-| 2989项src清单（含生成inc） | `551927627fc40e5c84b274140bab8d4ce3e4d68374b9aebee64cce1ff98c2f14` |
+| Release r9游戏 | `1f23ca5ed547ec2c0221b3dcdc4132dc0530cf0f71413e3a238e5deac1d3309b` |
+| Debug r9游戏 | `739495700441960dbf5be196fee71025265e80dede6ceb712ca2eec816c51be2` |
+| 2989项src清单（含生成inc） | `60d760b27ca79485228b826f4e820bdc978b9333c67a6478632c2a2541cea0c9` |
 | 正式资源manifest（未改） | `f859433d9801ca4e41f34fc3c8ed91715d16f00ffb98e970f3b95870b956b91c` |
-| v9托管分发清单 | `db10123d585f3e12f8f3ca04710348b6c6f61de47b69cba535d1f7a8b0e7b2a6` |
-| v9全226文件清单 | `e518eac4768785051d6c5937148c053c5384f2d8f38e17b0df0182a36f060b10` |
+| v10托管分发清单 | `fb6e524b7fdceb9ace1193a3c5a666277aeeebebeee34104b979c4183dd690f6` |
+| v10全226文件清单 | `edb06b03ee6fe02cfb75282768a781cf1a2e02d23bc8250062b39815239beb8b` |
 
-v9创建身份保留实际来源 `2ccd0ccd2e4ea886b8a8633e825f261397e86461`＋tracked dirty `5a2c984086a577ae57ff1a36576a6ce424a6759ccee4711c2591ac868aa9c894`，后续提交不回写创建身份。`final-workbench-v9-r1/postcheck.json` 实际27／0；创建后再加入v9保护，`helper-protection-r1/audit.json` 真实CLI4／0、0游戏启动，十一包2423原样。工程包source168、正常用户包226、模板save56各自记账。
+受保护v9创建身份保留实际来源 `2ccd0ccd2e4ea886b8a8633e825f261397e86461`＋tracked dirty `5a2c984086a577ae57ff1a36576a6ce424a6759ccee4711c2591ac868aa9c894`，后续提交不回写创建身份。`final-workbench-v9-r1/postcheck.json` 实际27／0；创建后再加入v9保护，`helper-protection-r1/audit.json` 真实CLI4／0、0游戏启动，十一包2423原样。工程包source168、正常用户包226、模板save56各自记账。
 
-当前r9实际双客户端构建0、双水位Release／Debug各292／0及真实旧面负控已发生；r8地图1793／0、HDR链接四案例164／0和原跨水面176×2按准确域保留，当前r9原协议另有176／0，详见本轮记录。`reference-map-water-build-r8/source-scoped-reuse-r1.json` 已独立核对精确域（SHA `d1c2fbf21412048ff0280e6cf456a3eefef4d36f63da9a909eead024bcc8cdd9`）：World+Tests215逐SHA同，旧4491/26可复用；驻留330和三PID设置仅沿用协议/World/安装退役/释放的未改函数，不把新Bootstrap/HDR初始化或历史native写成r8重跑。正常材质／WaterVS／WaterFS资源未改，严格VS16／FS8压力FAIL仍保留。岸边宽透明带和三角明暗继续OPEN，RGB单因归因仍有独立工作；宿主active、本次恢复第2个真实turn，不blocked、不complete。12普通路线全部NOT_RUN/input0。
+v10创建身份继承真实r9来源 `b170d3aa555acfc5446da3471f63b28322f3db7e`＋dirty `81763f0243a980abe005cf31e014d048c3e70c2ebc4fc4095510eded351e68d6`，当前实现已本地提交 `2c73ec2dc721de0f2127127678f1607bc28a1a3e`，包身份不回写。`final-workbench-v10-r1/postcheck.json` 27／0（SHA `080e5d958c977c66c8dc9e22d1f7e13986a2b4bb522191604459eeff7ad0e4c5`），当前代码/资源及完整包/正常fresh保存核对；准备器在创建后加入v10路径/ID保护。 独立创建24／0、菜单27／0和创建后保护CLI4／4均已完成，十二包2649文件原样；准确收据与首轮reader失败保留见下文。
+
+当前r9实际双客户端构建0、双水位Release／Debug各292／0及真实旧面负控已发生；r8地图1793／0、HDR链接四案例164／0和原跨水面176×2按准确域保留，当前r9原协议另有176／0。`reference-water-plane-build-r9/source-scoped-reuse-r1.json`（SHA `a3552ad262598f9501d6be2e65884737b909c9a560a2bcfc6ace60552bba48cb`）核r8→r9仅三runtime文件改变、World+Tests215／资源143／C GPU输入24逐SHA同；旧4491/26等只按未变域复用，不把驻留330、三PID设置或旧HDR／Bootstrap全流程称为r9重跑。正常材质／WaterVS／WaterFS资源未改，严格VS16／FS8压力FAIL仍保留。新opaque分类depth对照36／0支持局部depth/order贡献，原Alpha单pass depth对照仍有三角与细线；宽透明岸带和画质归因继续OPEN。宿主active、本次恢复第2个真实turn，不blocked、不complete；12普通路线全部NOT_RUN/input0。
 
 ## v8历史交付身份
 
@@ -72,7 +74,7 @@ v7完整全树副本在 `/private/tmp/hellomine3d-reference-goal-menu-v7-4c68wp_
 | A HDR | 固定曝光／真实RGBA16F／独立owned depth；r8真实resolve stage-pair先于回退/FBO链接校验，四native和临时GL对象清理通过；历史resize／A→B→A和组件释放按未改源码域限定 | 普通窗口resize、目录UI和设置操作、普通行走及长期释放未验；r6驻留和r7新进程切档不能扩称当前全部生命周期 |
 | B 套件 | 12类单格部件，最多8盒、四向；BlockId33–44、Material49–60，11制作+1冶炼；真实mesh/编辑/上传/保存路径；r8补全12ID地图材质族配色，1793／0及旧源码负控 | 普通制作、四向摆放、登阶、窗洞选取、挖掘拾取及地图使用 |
 | C 材质与光照 | 四种正式 authored albedo，3×64²×256×7 mip；线性色彩 mip、法线归一化、roughness/metalness/emission；普通/阴影完整 shader；真实最多8灯源有界索引；内外阻光修复 | 普通增删灯／墙后受光、正常连续低太阳／近远；本轮隐藏真实编辑及8帧近远证据另列 |
-| D 倒影 | 单选水位、半物理尺寸RGBA16F镜像RTT／真实裁切和驻留世界；r8同Root above→collar→below→above实测medium、TUS、linked driver和恢复更新，两配置各176／0及真实retained-binding负控 | 普通转头、入水出水、拆墙／增灯／改岸、行走卸载返回和长期稳定性仍未验；本轮r9实际双水位292×2已完成；其它水层像素fallback与普通水路线仍未验 |
+| D 倒影 | 单选水位、半物理尺寸RGBA16F镜像RTT／真实裁切和驻留世界；当前r9双水位各292／0、46故障副本和真实旧面负控，原四阶段另176／0；r8两配置176／0及retained-binding负控保留原域 | 普通转头、入水出水、拆墙／增灯／改岸、行走卸载返回和长期稳定性仍未验；其它水层像素fallback、岸边三角/透明带与普通水路线仍OPEN |
 | E 整合 | 48×48街道／6m水道，两层阳台屋和不同布局L形工坊；2株现行 TreeGenerator 普通种植树 tag0；入口通路清楚；HDR正常首选实际 MSAA4，单HDR空间滤波回退 | 三种AA稀疏连续原图已审查；共面细纹已修并复审8帧；侧面硬切已局部修复；近似水侧着色局限保留，普通完整路线未验 |
 
 新 ID 和合法四向 metadata 追加，世界／设置仍v12，无新增持久字段。单格邻面、封层、AO、Alpha和格级阻光分别判断。套件配方保持成本和物品守恒，12部件在真实World而非Ogre直接摆设；工位、炉子、箱子走正常交互。
@@ -87,24 +89,24 @@ v7完整全树副本在 `/private/tmp/hellomine3d-reference-goal-menu-v7-4c68wp_
 
 | 当前适用检查 | 结果与定位 |
 | --- | --- |
-| 当前Debug／Release客户端 | r8两配置实际自然exit0；`reference-map-water-build-r8`，Debug `cad8e62e…`／Release `50b06158…`；完整2989src前后不变。旧r3/r5/r6/r7构建与失败/第三方警告保留 |
-| 完整World双配置（源码域限定） | r5真实各4491／0、RETAINED_MESH聚焦各26／0；`reference-retained-replay-world-validation-r5`。World/Runtime/Tests未改，r8 source-scoped-reuse核World+Tests215同SHA，限定复用、不称r8实跑full；旧4465和超时原件保持 |
+| 当前Debug／Release客户端 | r9两配置实际自然exit0；`reference-water-plane-build-r9`，Debug `73949570…`／Release `1f23ca5e…`；完整2989src前后不变。旧r3/r5/r6/r7构建与失败/第三方警告保留 |
+| 完整World双配置（源码域限定） | r5真实各4491／0、RETAINED_MESH聚焦各26／0；`reference-retained-replay-world-validation-r5`。当前r9 scoped-reuse核World+Tests215同SHA，限定复用、不称r9实跑full；旧4465和超时原件保持 |
 | 严格 World summary | 4491真实双full通过、26项实际/正负校准通过；旧4465明确拒绝。只更新来自26新测试的期望计数和注释，旧工具与失败原件保留，解析/阈值不放宽 |
 | 纯 shape 双配置／生产 recipe 双配置 | 各2495／0；各184／0（含正常成本／发现／守恒） |
-| ResourcePack双配置／生成工程 | 各201／0限定unchanged合同；r8实际生成图31工程／396groups／3222memberships／54refs＋9正/负校准（1正＋8负），未手改工程 |
+| ResourcePack双配置／生成工程 | 各201／0限定unchanged合同；当前r9实际generate/graph通过，旧r8图结构与9正/负校准保留原域，未手改工程 |
 | HDR完整生产GPU | 814／0；`hdr-gpu-r2`对应 resolve 及颜色域覆盖 |
 | 当前 C普通／阴影完整GPU | 3502／0、GL0；`reference-surface-gpu/r5`含当前道路和木色、三数组21mips、独立BRDF／法线／四向／退化／远原点与坏输入 |
 | 当前 C parser／包优先级 | 37／0；`integration-r1/surface-profile-r6`；确定性 export/check PASS，68保护输入哈希不变 |
 | D shader／policy | 45／0、19／0；原生真实 RTT RGBA16F、HDR>1、非有限0；当前原图确见建筑镜像 |
 | 场景真实 World／导出 | 9／0＋492围护格；`scene-enclosure-r1`，6真实缺陷负例、10场景功能字段保持 |
-| 当前普通包交付／隔离 | v9完整226/托管167/save56，交付27／0、保护CLI4／0、菜单独立58／0，十一包2423原样；历史helper67、launcher stub33及旧59等保留，各自scope，不冒称普通游戏输入 |
+| 当前普通包交付／隔离 | v10完整226/托管167/save56，交付27／0、独立创建24／0、菜单27／0、保护CLI4／4；十二包2649原样，current2c73与creation b170＋dirty81763分开。历史v9／helper／launcher证据保留，12普通路线仍NOT_RUN |
 | 适用沿用原生工程生命周期 | Debug／Release各895／0，Release oracle校准23／23；`render-lifecycle-native-r4`；另有真实 delayed-drain负控自然exit1和严格拒绝 |
 | 适用沿用生命周期入口 | 十个真实负例自然exit1＋probe-off CPU validation正控exit0；`render-lifecycle-startup-guards-r2`，独立153／0；非普通输入 |
 | 启动坏输入／回退 | 6案例PASS；`native-startup-r3`：能力回退、坏PBR、缺variant、缺真实AA auto、legacy坏normal、旧AA-less HDR兼容 |
-| 当前HDR链接前置校验 | r8三合法native0＋真实坏pair自然1，独立164／0；`hdr-link-current-r8-calibration-r1/current-native-audit-r1.json`，r7坏link被fallback隐藏FAIL保留 |
-| 当前跨水面component | r8 Release/Debug实际各176／0、24故障副本拒绝；真实retain-binding自然1/nativeFAILED/oracleFAIL，独立聚合119／0；普通输入0 |
-| 当前跨水面启动拒绝 | unknown-opt-in/orphan-fault/foreign-diagnostic三actual均自然exit1；独立72／0严格核完整生产错误前缀及preRoot零副作用；原reader三个FAIL保持 |
-| 当前套件地图配色 | 生产共用函数1793／0，旧2ccd函数12个新族负控全部拒绝；新颜色已进入r8/v9，未代替普通地图验收 |
+| 当前HDR链接前置校验 | r8三合法native0＋真实坏pair自然1、独立164／0；r9对应链接源码／资源域同，限定复用。`hdr-link-current-r8-calibration-r1/current-native-audit-r1.json`，r7坏link被fallback隐藏FAIL保留 |
+| 当前跨水面component | 当前r9双水位Release/Debug各292／0、46故障副本指定拒绝、真实retain-selected-plane自然1；原四阶段r9另176／0。r8各176／0、24副本／119聚合与retain-binding FAIL保留原域；普通输入0 |
+| 当前跨水面启动拒绝 | r9新scenario三actual均自然exit1，独立100／0严格核preRoot拒绝；r8三actual阴性72／0保留原域，旧reader漏前缀FAIL保持 |
+| 当前套件地图配色 | 生产共用函数1793／0，旧2ccd函数12个新族负控全部拒绝；当前r9/v10保留该精确函数，未代替普通地图验收 |
 | AA完整生产GPU | 空间滤波97case、719工程checks／0功能失败但12质量失败；实际MSAA97case、605工程checks／0工程失败但1质量失败 |
 
 保留失败：初次 World3108／49暴露48方向射线与1邻面遮挡，已修真实实现；3264／36为新GPU来源测试漏既有+1标签，精确修夹具且所有断言保留。初始surface编译误加header-only .cpp、旧包夹具非法脚本覆盖、并行Xcode数据库锁、初始Ogre数组API和4个CGL弃用警告、Retina参数遗漏／反射preview误计主帧均保留原日志并修正复验。不能以删测试或放宽质量门槛换PASS。
@@ -219,13 +221,13 @@ r7先前无PNG的5s warmup＋30s采样4729帧：P95 8.933ms/P99 10.064ms/max23.1
 
 | 提示词第6节 | 当前结论 |
 | --- | --- |
-| 1 全部正常生产方向 | A–E范围未撤回；r8补地图族色、HDR坏链接真实拒绝和同Root跨水面component，旧World/replay/编辑/驻留/切档仅按不变源码域适用。普通获取／编辑／移动仍未验，不能整体关闭 |
-| 2 画质和动态 | v9街道、菜单和r8跨水返回精选原图确有实际审查；两栋/材料/室内/真实RTT证据保留。宽透明岸带、局部三角明暗与近似侧光仍OPEN，Fresnel/fog归因在推进；稀疏图/teleport不关闭普通连续动态 |
-| 3 工程和稳定性 | 当前r8双构建0、HDR四native/164观察、跨水两配置176×2/24故障/真实negative/119聚合成立；旧World4491×2/26focus×2、r6驻留330×2/42cal、r7三PID与性能按精确域限定。旧VS16/FS8压力FAIL保留，普通编辑/碰撞/选取/拾取/地图/保存可靠性未完成 |
+| 1 全部正常生产方向 | A–E范围未撤回；当前r9/v10含12套件、材质族地图、HDR链接修复及真实双水位观察。World/replay/编辑/驻留/切档旧证据仅按未变源码域适用；普通获取／编辑／移动仍未验，不能整体关闭 |
+| 2 画质和动态 | v10 fresh街道/默认菜单和r9双水位原图确有实际审查；两栋/材料/室内/RTT证据保留。opaque分类depth对照36／0支持局部depth/order贡献，但原Alpha单pass仍有三角/细线、蓝侧带仍OPEN；稀疏图/teleport不关闭普通连续动态 |
+| 3 工程和稳定性 | 当前r9双构建0、双水位292×2／46故障／真实negative／266聚合、原四阶段176及新入口100／0成立；HDR164与旧World4491×2/26focus×2、驻留330×2/42cal、三PID和性能仅按精确域限定。旧VS16/FS8压力FAIL保留，普通编辑/碰撞/选取/拾取/地图/保存可靠性未完成 |
 | 4 普通输入保存重开 | BLOCKED_AT_PUBLIC_APP_SELECTION；12路线全部NOT_RUN/input0；工程teleport、设置、保存与菜单截图不关闭此项 |
-| 5 交付和身份 | v9当前macOS候选、2989src/资源/完整226包/56保存、27交付/4保护CLI/58菜单审查和11包2423保护有实际证据；creation2ccd＋dirty5a2c保持。本轮已本地提交 `b170d3aa555acfc5446da3471f63b28322f3db7e`；新选面工程入口仍在实施，新恢复点在冻结后补记，整体退出条件未成立 |
+| 5 交付和身份 | 当前v10 macOS候选：2989src/资源143/完整226包/save56，交付27／0、独立创建24／0、菜单27／0、保护CLI4／4与十二包2649原样；creation b170＋dirty81763不回写，当前源码提交2c73。交付工程证据成立，整体五项退出条件仍未成立 |
 
-宿主保持active：本次恢复审计为第2个真实turn，旧blocked三turn及未知操作者paused不累计；本turn有地图/HDR/跨水面独立进展，岸边归因仍在推进，不blocked、不complete，也不把工具调用、跨日、上下文压缩当Goal turn。普通恢复条件是公开macOS `getApp` 有界初始观察返回可用App状态/handle，或文档化替代入口。恢复后先核对最新v9候选及实际进程/窗口是否已由用户接管，再由唯一执行者完成普通12路线及编辑保存重开。无新能力证据不重复旧超长getApp/getState、不合成输入或重启service；旧包、FAIL和此前blocked检查点均保留。
+宿主保持active：本次恢复审计为第2个真实turn，旧blocked三turn及未知操作者paused不累计；本turn有地图/HDR/跨水面独立进展，岸边归因仍在推进，不blocked、不complete，也不把工具调用、跨日、上下文压缩当Goal turn。普通恢复条件是公开macOS `getApp` 有界初始观察返回可用App状态/handle，或文档化替代入口。恢复后先核对最新v10候选及实际进程/窗口是否已由用户接管，再由唯一执行者完成普通12路线及编辑保存重开。无新能力证据不重复旧超长getApp/getState、不合成输入或重启service；旧包、FAIL和此前blocked检查点均保留。
 
 **历史 blocked 检查点（本次恢复前）**：本轮第三个真实宿主Goal turn，首次实际新能力审计 `blocker-audit-r3/audit.json`：公开文档0.3755秒返回但API未变，当前App/GoalApp绑定undefined（0.0139秒），选应用／launch／输入均0。原service PID1250身份仍同，service存在不证明应用选择恢复；后来的其它／未知归属游戏不操作。首轮审计发现真实独立C/D编辑证据及v6保护缺证，先完成本轮实现、双构建、实际正负控、当前视觉、v7和新保护，没有仅因三turn就blocked。当前性能、独立审查和交接已完成，最终保护18／0再核九包1971文件、2985src和5张精选原字节。剩余必须条件是公开CUA普通输入、连续动态／卸载及编辑保存重开，当前没有可用App绑定或文档化替代入口；不存在可继续关闭这些条件的独立实现／验证操作。宿主已实际返回 `blocked`（2026-10-06T13:25:34Z），未设置预算，未标记complete。新恢复点 `build/reference-visual-goal/reference-complete-v7-recovery-r2.json`，原v6/v4恢复点及失败不覆盖；记录当前普通候选、全部已关闭own进程、旧包保护、准确源／资源／binary／原图／工程证据和12条未执行路线。公开getApp初始观察有界返回可用App handle或文档化新入口后，先核对v7候选进程／窗口及是否已被用户接管，再由唯一执行者从普通菜单完成12路线；按用户恢复操作重新审计阻塞，不合成输入、不重启service、不无新证据重复失败。状态依据实际连续三turn及当前impasse，不以工具次数或上下文压缩当turn。
 
@@ -362,3 +364,25 @@ r8 `water-rgb-attribution-native-r1` control80173/lighting-RGB80217/depth-RGB802
 当前r9两归因组都未改正式shader：geometry PID89429/89441自然0，depth-all89594/89607自然0，四7000ms原图根与独立代理实际查看，两组各33／0技术审核；geometry原Alpha分类不能给每像素独占face证明，depth全部消费者固定仍有三角。geometry审计SHA `4eef973a06bf45eb4f47b89013b3405f82d3f28ffe8c0699d87eb4444f46abc0`，depth-all SHA `f535fa69d8403ccd769989eb6efb98e25f94069cdc191a681d5f37ddbab1d76d`。最初geometry r9 import失败为0native，原脚本和独立失败receipt保留；仅NEW r10补tools import路径。此前normal/source三图独立41／0（SHA `63cfae8935d349c36913684ea6ad6a389edcb19d04860c5ec431bf34c5bb39cf`）同样保留残留，未宣画质PASS。Alpha1几何分类新PID90349/90368自然0，根实际查看两原图：大红top均匀，绿侧条带边缘尖三角；它保留depth_write off/cull_none及提交顺序，只是终端覆盖归因，不证明物理遮挡或正式修复，继续独立核查。
 
 `reference-water-plane-build-r9/source-scoped-reuse-r1.json`（SHA `a3552ad262598f9501d6be2e65884737b909c9a560a2bcfc6ace60552bba48cb`）独立核r8→r9同2989成员、仅三runtime文件改变；World/Tests215、正式资源143和C GPU输入24逐SHA相同，旧4491×2/focus26×2/shape2495×2/recipe184×2/Resource201×2/C3502及HDR164只在对应未变域复用。18个正常资源安装/退役/释放等函数提取原文同；新scenario/init/matrix观察不能由旧native整体代验，本次Water证据另实跑292×2/原176。source compiler0 warnings与实际host destination警告分开，不声称无警告。两次审计准备错误的完整脚本/错误记录保留，0native/0test重跑。
+
+
+## 当前v10普通候选与离源码菜单
+
+v10使用当前r9工程包和 `scene-v2-native-r15/street-msaa4` 真正fresh街道作者保存，不用water/编辑/residency fixture保存。根owned PID90274自然exit0/12.365928秒、无forced cleanup，lsof核真实1f23；无Water/edit/residency probe，真实scenev2两布局/12部件/2树/正常World保存，仍是作者诊断，不冒普通建造。首r14外围路径guard在0native拒绝；r15完成后外围误要求existing capture helper隐式None返回为0，原wrapper FAIL_RETAINED和捕获CAPTURED均不改。独立恢复42／0（`final-workbench-v10-r1/domain-recovery-r1.json` SHA `e532a6edb88fc8d0ca5a99e1923d56399b89f15961525ab6f63e52b83e58833c`）核实际natural exit/current源码/raw/保存/保护，只纠正读者API假设，不重启native或改门槛。根实际查看10000ms原件，两栋/瓦窗/桥/HUD可读，蓝侧带仍在。
+
+新候选普通config严格继承v9菜单的medium shadow，其余v12字段与fresh capture相同；fresh捕获实际shadow off，唯一off→medium差异在before/27项核对中明确，不能说两者图形条件相同。普通启动器仍清除四组诊断变量、只设置自身ROOT，托管167/可写save56/全226分别记账。只有live display name/spawn准备更改，区块、备份、地图/preview均原字节保持；赠送库存和作者构场不证明正常制作。
+
+完整226临时副本位于 `/private/tmp/hellomine3d-reference-goal-menu-v10-l8oxiz5z/HelloMine3D Reference Complete v10.app`；actual PID91272自然exit0，七环境只ROOT/hidden/有界capture，无WORLD/SAVE/CATALOGUE/SkipMenu override、没有点击Continue/input0。根实际查看5000ms原件，列出“临水建筑完整样板”和静态森林菜单；没有进入World。source226/临时save56/十二包2649/全src前后保持。独立菜单27／0与创建后保护CLI4／4已完成，证据范围仍是隐藏菜单，不代替12条普通路线。
+
+精选当前三个原字节图 `.local-evidence/reference-visual-20261006/delivery-v10/index.json` SHA `8e3700de118c0929444549e03b551e8fc0c7531fddc2f684fcf0983792691095`：r9 fresh street（shadow off）、v10默认菜单、r9 low-return主画面（工程teleport）。准确绑定来源/设置/二进制/src/原SHA及根实际审查，保存原件不提交Git，不宣称此默认关闭观察批次带来新的美术收益。v9精选和创建身份继续保留。
+
+
+v10独立审核最终收据：`final-workbench-v10-r1/creation-independent-review-r2.json` 24／0，SHA `d764d272f79da43e427aef2b1b2c90c7013fdcf2eecc94f7bf66e85117746118`；`menu-isolation/domain-audit-r2.json` 27／0，SHA `81c12f4db360e317dc8a25368fdb81120c5253424e9fb5b3ad9c90b3c7e93375`。两张原图实际查看，均显示“继续游戏／临水建筑完整样板”；完整330 chunks CRC、IEND EOF与11059200B RGB解码通过，实际Cocoa1280×720 points／2560×1440 backing、七env及lsof临时映像一致。原r1把WorldSave v12合法重复objective／inventory／actor记录误作唯一键而FAIL；完整脚本与失败收据保留，r2只纠正metadata解析域，唯一singleton和record counts、settings唯一键与全部包门槛保持。
+
+`helper-protection-r1/audit.json` 真实CLI4／4，SHA `0c8de0bc309942a567a45ece1027eaacd014d33dbdbde9b3074152bcf0a1d4ce`；大小写alias/包后代/证据后代/重复bundle均前置拒绝，0native／0包创建。创建及postcheck使用helper c6bc，创建后96efd只新增四处v10保护上下文，内存去除后精确恢复c6bc；十二包2649全部成员／SHA保持。身份仍b170＋dirty81763，current2c73分开记账，未追改创建来源。
+
+## 当前水面depth/order归因范围
+
+opaque分类仅把Water pass的depth_write off改on，保持Alpha1分类颜色、cull_none与几何；新独立技术审核36／0（`resumed-audit-r2/water-geometric-depthwrite-attribution-native-r10/image-domain-review-r1.json`，SHA `d7cb54e212784cb25423ce4aaa8aabbc254fd8d92bfb464e51ccaace7a0d151d`）。远岸绿侧带／红top尖三角消失，近岸及桥下部分绿面仍在，支持局部depth/order贡献；未观测实际driver depth mask或主draw源码ID，不建立唯一病因或生产画质PASS；正式WaterVS／FS未改。
+
+随后原RGB／原Alpha单pass只切depth_write：`water-original-depthwrite-attribution-native-r9/results.json` 的control91547／depth-on91556均自然exit0；根已实际看两张7000ms原图，三角和细线仍留，不能把分类图改善扩为正常透明水修复。完整独立图域审核由D另记，SHA待根补入；仅资源变更尚不能建立全局透明排序。宽蓝侧带／跨面覆盖仍OPEN，12普通路线保持NOT_RUN/input0。
