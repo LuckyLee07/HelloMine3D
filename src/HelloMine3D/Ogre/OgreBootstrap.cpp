@@ -7892,6 +7892,10 @@ namespace
             updateAspectRatio();
             updateMouseBounds();
             refreshNativeCursorClip();
+            // A resized captured cursor can report a window-management delta.
+            // Treat it like an ownership boundary before accepting world input.
+            clearTransientInput();
+            m_focusGate.suppressUntilRelease();
         }
 
         void windowMoved(Ogre::RenderWindow*) override

@@ -1,6 +1,16 @@
 # HelloMine3D 参考画质完整交付执行记录
 
-2026-10-06启动，持续执行至2026-10-07。宿主 Goal **active**，未设置 token 预算。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+2026-10-06启动，持续执行至2026-10-07。宿主 Goal **blocked**，未设置 token 预算。持续输入工具限制连续三轮复现；当前完整普通路线及 r15 实际缩放确认等待可用输入和单一操作者，未完成。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。工程与静态画面通过不等于普通输入验收通过。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E 范围保持；过程中的旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+
+## 最新轻量修复：缩放输入边界（2026-10-07）
+
+普通 v12 会话 PID44873 中，一次有位移的短拖动未完成挖掘。源码确认石镐挖浅石砖需累计0.2秒按住输入；公开 CUA 的 pressKey 没有按住／松开／时长接口，拖动返回耗时不能当作按住时长。木梁／栏杆需要工作台，黏土屋瓦需要熔炉，当前个人合成栏和库存不能继续完成这些配方。以上为明确未通过／未执行项，不再重复短按尝试。
+
+本次公开窗口“zoom the window”放大后画面和 HUD 正常；恢复原尺寸的截图出现俯视地面及朝向改变，期间未发送转头操作。源码发现 windowResized 未清理待处理相对位移；增加 clearTransientInput 和已有 suppressUntilRelease，按输入所有权边界丢弃下一份 look sample 并等待鼠标释放。不改移动／挖掘时长、存档、材质或第三方 OIS。观察尚不能证明具体原生事件时点，此修复的实际缩放效果仍为 NOT_RUN。
+
+仅完成 macOS arm64 Debug／Release 客户端增量构建（exit0）及现有 P11A 定向运行129／0（exit0）；输入核心与定向测试源码未变，未重建世界目标，不追加全量 World、GPU 或独立复核。两构建保留 Xcode destination WARNING，不声明全部warning为0。日志及候选身份见 [resize-input-r15](../../build/reference-visual-goal/resize-input-r15/candidate.json)。Release SHA `e392a5c595ebd0dbbb29975732959e0b4fae020b63981074a8ac6d6a7e71b6b6`。通用正式资源打包器准备了独立临时普通菜单候选 `/private/tmp/hellomine3d-resize-input-r15-gf9go1nl/HelloMine3D Resize Input r15.app`，bundle `local.hellomine3d.reference-resize-r15`，沿用发布 v12 的样板及配置；167项托管清单与当前源码身份核对通过，0 native launch，旧包保持。候选创建身份9e97fad2＋本次源码diff保持，不回写为后续文档提交。
+
+刷新窗口时已出现新 PID47302（17:21:06启动），映像／cwd仍为原 v12 临时副本，菜单显示17:17保存，玩家保存位置与旋转均已变化。44873已不在，操作者与重启来源无法确认；不把其移动算为本 Goal 成功，不继续操作或终止该窗口。宿主已标记 blocked（未 complete），当前等待单一输入操作者及可用持续输入；连续行走、四向建造、挖掘拾取及完整动态画质仍需要真实持续输入。恢复时只确认桌面归属、对上述 r15 候选做一次缩放检查并续跑剩余普通路线，复用已有构建与定向结果。
 
 ## 最新普通放置及冷启动保存重开（2026-10-07）
 
