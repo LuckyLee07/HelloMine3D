@@ -1,8 +1,35 @@
 # HelloMine3D 参考画质完整交付执行记录
 
-2026-10-06启动，持续执行至2026-10-07。宿主最新 Goal **blocked（2026-10-07，恢复后三轮重核）**，未设置 token 预算。用户要求重核阻塞后，已连续三轮推进空帧保护、Cocoa位移缓冲修复及稳定v13候选；旧窗口占用已解除，公开工具仍缺持续按住接口。完整普通路线和五项退出条件未全部成立，未 complete。r15／r16实际缩放失败保留，r17一次普通缩放及保存姿态保持仅为有限通过。仅当[提示词第6节](../current/reference-visual-goal-prompt-2026-10-06.md)五项退出条件全部成立才 complete。[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E范围保持；旧版本和失败见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
+2026-10-06启动，2026-10-07按用户最新调整范围完成本阶段交付，Goal收尾待记录complete，未设置token预算。用户已明确将Computer Use无法完成的普通验收后置，不再阻塞整个Goal。A–E实现、适用工程证据及稳定v13已经交付，剩余普通路线为 `DEFERRED_BY_USER`，未冒充PASS。整工具493／7严格压力FAIL及其它历史失败保留；当前限制与后续补验见下文。按[调整后的第5／6节](../current/reference-visual-goal-prompt-2026-10-06.md)判断完成；实现[方案](../current/reference-visual-upgrade-plan-2026-10-06.md) A–E保持，旧版本见[集成历史](../archive/reference-visual-goal-integration-history-2026-10-06.md)。
 
-## 最新稳定候选与阻塞收尾（2026-10-07）
+## 本阶段交付结论与后续补验（2026-10-07）
+
+按最新授权，A–E实现及非工具受阻的必要交付项已完成：12类建筑部件及配方、四类关键多通道材质与室内外灯光、真实planar倒影、植被／MSAA整合、两种布局的可编辑样板、正式资源／源链、当前macOS arm64 Debug／Release构建和适用工程／坏输入／兼容／有限预算与生命周期证据。旧Near驻留返回、露天悬空黑块及r15／r16缩放问题分别已有生产修复及对应有限通过，失败原件不改。本轮只做文档及既有原图归档，新增构建／测试／GPU／游戏启动均0，不追加审计工具或全矩阵。
+
+交付 [v13普通客户端](../../build/reference-visual-goal/HelloMine3D%20Reference%20Complete%20v13.app)，从主菜单“继续游戏”打开“临水建筑完整样板”。包离开源码运行入口已实际观察，创建身份保持0436b7d3、Release SHA `79e75b8a333fe58cd22a12907247f30542f94b997315f6b5cf0f1e736801db20`，完整225／managed167／save56；[创建记录](../../build/reference-visual-goal/reference-normal-v13-r17/creation.json)、[菜单结果](../../build/reference-visual-goal/reference-normal-v13-r17/menu-run.json)、[r17构建／输入检查](../../build/reference-visual-goal/resize-input-r17/validation.json)和[有限实际缩放](../../build/reference-visual-goal/resize-input-r17/actual-resize.json)分别保持。阶段结论记录在包外 [delivery-status.json](../../build/reference-visual-goal/reference-normal-v13-r17/delivery-status.json)，不修改包内原NOT_RUN身份快照或旧用户客户端。
+
+当前精选原图为 [.local-evidence/reference-visual-20261006/delivery-v13/index.json](../../.local-evidence/reference-visual-20261006/delivery-v13/index.json)：街道RD3和水岸RD1各一张r14原图，保持原字节／哈希及采集身份，原件已查看；它们是当前渲染资源的既有画面覆盖，不冒称v13新拍或普通路线通过。原六参考图无法恢复，后加五张建筑候选图保持；不宣称已完成缺失原图的逐图比较、人类审美或手感。
+
+严格压力范围已依原合同和原结果澄清：[planar合同](../contracts/planar-water-reflection-contract-v1.md)明确56项TFfloat32与RGBA32F比较为额外bit压力。493／7原工具整体仍FAIL；七个legacy-exact-rgba32f差2.98e−8…8.94e−8，同七组RGBA8／16F对照、中心、FP16 ULP校准和GL0已通过，见[原始samples.tsv](../../build/reference-visual-goal/resumed-audit-r2/reference-water-dyadic-centre-gpu-r1/execution-baseline/samples.tsv)。它保留“额外32F逐bit一致性未保证”的限制，不扩大为正常输出FAIL或整工具PASS，不因这个补充精度压力再做微小候选／生产修改。适用功能、兼容、资源和生命周期通过按各原版本／未变域复用，不称当前全套重跑。
+
+以下专项由用户明确后置，阶段完成不关闭其原BLOCKED／NOT_RUN结果；恢复时复用v13或当时最新候选，只重验后续改动影响的项目：
+
+1. 普通室外连续行走、进入工坊／工位，正常获取／制作全部12类部件。
+2. 四向放置、登阶、窗洞选取后方、玩家／生物碰撞与持续挖掘拾取。
+3. 真实增删灯、拆墙、填岸、出入水及卸载返回后的光照／材质／倒影更新；连续栏杆／植被／屋瓦抗锯齿及局部岸线透明叠层观察。
+4. 上述新编辑后的普通地图检查、保存退出、冷启动重开与持久化确认；已有v12浅石砖闭环和r17缩放单次通过不扩大到全路线。
+
+后续入口是公开Computer Use具备所需持续输入能力，或用户另行指定可用真实操作路径；先核工作副本／映像及桌面输入归属，不竞争用户窗口。菜单EXIT无响应的有限观察保持，原生关闭后的自有PID18217结束也保持；完整普通主线和连续画质尚未声称验收通过。平台为macOS arm64，包未签名／公证，Windows及严格配对性能沿用原范围处理。
+
+## 最新用户授权：工具受阻的普通验收后置（2026-10-07）
+
+用户明确：“可以使用Computer use去完成吧，如果Computer use都没法完成验收，就把这款验收调整到后面去吧，不要Block整个goal”。此前菜单／合成／浅石砖放置／地图／保存重开与r17缩放已经通过公开Computer Use执行；本轮仅刷新公开文档，接口仍为pressKey／click／drag等，无持续按住／松开／时长能力。既有短按和drag未完成行走／挖掘的实际结果保持，不重复无新能力的尝试，也不再为此启动游戏或重跑工程矩阵。
+
+据此将受工具限制的剩余普通行走、工位获取全部套件、四向建造／登阶／选取、挖掘拾取、实际增删灯／墙／岸与连续画质、对应普通编辑保存重开专项标为 `DEFERRED_BY_USER`。原执行结果BLOCKED／NOT_RUN不修改，旧v12有限普通PASS与r17一次缩放PASS仍只覆盖各自版本和步骤。原六参考图缺失也保留为对照限制。延期只影响这一组实际Computer Use补验；A–E实现、可执行工程检查、兼容／资源预算／生命周期和真实产品失败要求保持。
+
+本轮get_goal仍返回旧blocked。可调用Goal工具没有active恢复能力；尝试使用公开CUA查看宿主继续入口时，getApp("Codex")在0.0437秒直接拒绝 `Computer Use is not allowed to use the app 'com.openai.codex' for safety reasons.`，没有AX返回或输入操作。这是宿主应用工具限制，不是新的游戏验收缺陷，不因此给本阶段增加blocked理由。继续可执行交付收尾，不建重复Goal、不改验收为PASS；宿主实际状态与阶段可交付状态分别记录。
+
+## 最新稳定候选与阻塞收尾（历史检查点，2026-10-07）
 
 稳定普通菜单候选已保存为 [HelloMine3D Reference Complete v13.app](../../build/reference-visual-goal/HelloMine3D%20Reference%20Complete%20v13.app)，bundle `local.hellomine3d.reference-current-v13`，Release SHA `79e75b8a333fe58cd22a12907247f30542f94b997315f6b5cf0f1e736801db20`。使用已测试r17二进制及资源，当前2990源码清单与r17逐项一致；运行文件仅新ID／身份记录有差别。保存样板及配置从受保护v12复制，56份保存文件同SHA，完整225／managed167；不沿用旧226文件计数。创建时commit `0436b7d3`、工作区干净，见 [creation.json](../../build/reference-visual-goal/reference-normal-v13-r17/creation.json)，不回写为后续保护／文档提交。此包为 CREATED_NOT_ACCEPTED，未签名／公证，五项退出条件未关闭。
 
@@ -362,15 +389,15 @@ r7先前无PNG的5s warmup＋30s采样4729帧：P95 8.933ms/P99 10.064ms/max23.1
 
 ## 退出条件与恢复
 
-| 提示词第6节 | 当前结论 |
+| 调整后提示词第6节 | 本阶段结论 |
 | --- | --- |
-| 1 全部正常生产方向 | A–E主体、12套件、材质／反射／植被及第二样板已接真实路径；当前r17补齐缩放时Cocoa位移缓冲清理。所有套件的普通获取／编辑／移动及其它水位完整循环仍未验，整体未通过 |
-| 2 画质和动态 | r14有限主图露天悬空sky黑块消失、地下边界／RD8岩壁保持；后续RGB分类支持宽蓝带主要为水平水面，不沿用整条竖直蓝墙解释。局部斜边、透明叠层归属及连续编辑画质仍OPEN；r17单次缩放观察不关闭普通连续动态验收 |
-| 3 工程和稳定性 | r17 macOS arm64 Debug／Release增量构建及适用Cocoa输入检查exit0，mouse各34／0；r16 P11A131／0仅复用未改域。r14 Renderer90×2／0、Cave41／0、HDR r2 851／0及历史World按身份／不变域保留。首次HDR、VS16／FS8及后续严格GPU压力493／7 FAIL均保留，未称当前全量复跑或工程整体完成；普通碰撞／拾取等完整可靠性未闭合 |
-| 4 普通输入保存重开 | 旧v12已实际浅石砖合成／放置、地图及保存冷重开；r17一次普通缩放及保存姿态保持，v13仅普通菜单。当前没有旧窗口占用阻塞，但完整12套件、持续行走、四向建造、挖掘拾取及编辑重开路线仍BLOCKED_CONTINUOUS_INPUT_NOT_AVAILABLE；不再误写全部input0或等待另一任务 |
-| 5 交付和身份 | 稳定v13／r17普通候选已实际创建，全225／managed167／save56；源码／资源与r17、保存与v12准确核对，创建0436b7d3／干净身份保持。v13保护及一次副本菜单观察已记账，owned18217已结束，原包／旧包／失败保留。候选NOT_ACCEPTED，五项退出条件未全部成立 |
+| 1 全部正常生产方向 | 成立：A–E主体、12套件／配方、四种关键材质、方向受光、真实倒影、植被／AA及不同布局第二样板已接真实运行和源链；完整普通使用专项按用户授权后置 |
+| 2 画质和动态 | 可执行原图／有限动态范围已覆盖两栋／材质／灯／镜像，r14悬空sky黑块消失、地下边界保持，r17单次缩放姿态保持。连续普通编辑／闪烁及局部透明叠层补验为DEFERRED_BY_USER，不称整体普通画质PASS；原六参考缺失保留 |
+| 3 工程和稳定性 | 成立于适用工程域：r17双构建及Cocoa mouse各34／0，r16 P11A131／0仅复用未改域；r14 Renderer90×2／0、Cave41／0、HDR r2 851／0及World／资源／生命周期按原身份与未变域复用。额外TF32F与RGBA32F bit压力整体FAIL保留为精度限制，同组正常RGBA8／16F已通过；未称整工具PASS或当前全量复跑。受工具影响的普通可靠性补验后置 |
+| 4 普通输入保存重开 | 按授权后置交付成立：v12浅石砖合成／放置／地图／冷重开及r17有限缩放保存各自证据保持；完整12套件、连续行走／建造／挖掘／真实编辑画质和重开为DEFERRED_BY_USER，原BLOCKED／NOT_RUN不改 |
+| 5 交付和身份 | 成立：稳定v13，225／managed167／save56，创建0436b7d3／干净身份；当前源码／资源与r17、保存与v12准确核对。正式资源／可编辑源／导出链、既有证据／精选索引／复现入口／平台限制、本地提交已提供。v13及旧包受保护，自有菜单副本进程已结束；创建快照保持，阶段结论另记 |
 
-本次用户恢复后的阻塞重核已连续第三个实际Goal turn，不累计旧blocked三轮；空帧及Cocoa缓冲修复、定向验证、一次实际缩放和稳定交付候选已完成。当前公开工具只有pressKey／click／drag等，缺持续按住／松开／时长接口，剩余普通路线没有可继续关闭的独立实现操作。宿主已实际返回blocked（updatedAt 1791378593），不complete；不以工具调用次数、跨日或上下文压缩计turn。恢复条件为文档化持续输入可用，或用户明确改变相关退出范围；恢复后先核候选副本／映像和桌面归属，再从剩余普通路线继续。已有检查按未改域复用，只有新改动、失败或未解决疑点才追加适用检查，历史FAIL与原五项退出条件保留。
+本阶段按最新用户授权已满足调整后的退出条件，收尾将记录Goal complete；此前blocked为历史，不再把Computer Use补验作为本阶段整体阻断。后续普通专项沿用上方清单与证据，公开持续输入或另行授权的真实操作路径可用后执行。既有失败与未通过结果保留，阶段完成不冒充全路线PASS。
 
 **公开恢复更正前的退出4与恢复记录（历史原文保留，当前结论见上文）**：
 
