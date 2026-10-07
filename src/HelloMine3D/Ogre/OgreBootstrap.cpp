@@ -10,6 +10,7 @@
 #include "ReferenceWorldEditDiagnostics.h"
 #include "ReferenceResidencyDiagnostics.h"
 #include "ReferenceSettingsRestartDiagnostics.h"
+#include "ReferenceWaterTransitionDiagnostics.h"
 #include <GLSL/OgreGLSLShader.h>
 #include "HdrShaderContract.h"
 #include "../Actor/EnemyPresentationGallery.h"
@@ -618,6 +619,7 @@ namespace
         {
             loadGameConfig();
             m_referenceRestartOutput=ReferenceSettingsRestartObservation::validateConfig(m_config);
+            m_referenceWaterOutput=ReferenceWaterTransitionProbe::validateConfig(m_config);
             if (m_config.renderPipeline == RenderPipeline::LinearHdr)
                 validateHdrSceneShaderContract(runtimeResourcePackResolver());
             const auto lifecycleDirectory = RenderLifecycleProbe::validateEnvironment(
@@ -786,6 +788,10 @@ namespace
             m_listenersInstalled = true;
             try {
                 m_root->startRendering();
+                if(m_referenceWaterProbe) {
+                    ReferenceEdit::require(m_referenceWaterProbe->complete() && m_world,"Water transition incomplete normal rendering");
+                    m_referenceWaterProbe->finish(m_world->save());
+                }
                 if(m_referenceEditProbe) {
                     ReferenceEdit::require(m_world!=nullptr,"World disappeared before completion");
                     m_referenceEditProbe->finish(*m_world);
@@ -808,6 +814,7 @@ namespace
                     m_lifecycleProbe->finish();
                 }
             } catch(const std::exception& error) {
+                if(m_referenceWaterProbe)m_referenceWaterProbe->fail(error.what());
                 if(m_referenceEditProbe)m_referenceEditProbe->fail(error.what(),m_world);
                 if(m_referenceResidencyProbe){std::string facts="null";try{facts=referenceResidencySnapshot(false);}catch(...){}m_referenceResidencyProbe->fail(error.what(),facts);}
                 if(m_lifecycleProbe) {
@@ -2379,6 +2386,10 @@ namespace
                 m_verticalSliceFixturePlaced = true;
             }
 
+            if(!m_referenceWaterOutput.empty()) {
+                ReferenceEdit::require(!m_referenceWaterProbe && m_hdrPipeline->active() && m_referenceSurfaceEnabled,"Water transition single actual HDR/surface World required");
+                m_referenceWaterProbe=std::make_unique<ReferenceWaterTransitionProbe>(m_referenceWaterOutput,*m_world,*m_sceneManager,*m_camera);
+            }
             if(!m_referenceResidencyOutput.empty()) {
                 ReferenceResidency::require(!m_referenceResidencyProbe && m_hdrPipeline->active() && m_referenceSurfaceEnabled,"single current HDR World required");
                 m_referenceResidencyProbe=std::make_unique<ReferenceResidencyProbe>(
@@ -2989,6 +3000,13 @@ namespace
             prepareCameraDiagnostics(event.timeSinceLastFrame);
             prepareFloraWindCapture(event.timeSinceLastFrame);
             prepareShoreEditCapture();
+            if(m_referenceWaterProbe) {
+                ReferenceEdit::require(m_worldPlayer && m_sandbox && m_logicCamera,"Water transition actual player/session missing");
+                m_referenceWaterProbe->drive(unsigned(m_frameCount),event.timeSinceLastFrame,*m_worldPlayer,[this](const glm::vec3& requested) {
+                    const bool accepted=m_sandbox->getWorldManager().teleportPlayer(*m_worldPlayer,requested);
+                    if(accepted)m_logicCamera->update();return accepted;
+                });
+            }
             const bool sandboxAdvanced =
                 updateSandbox(event.timeSinceLastFrame);
             if (!sandboxAdvanced && m_sandbox != nullptr)
@@ -3063,7 +3081,20 @@ namespace
                 };
                 if(!m_referenceEditProbe || !m_referenceEditProbe->skipReflection())
                     m_waterReflection->render(*m_camera,*m_camera->getViewport(),reflection);
-                m_waterReflection->bindWaterPass(*materialPass("HelloMine3D/Water"));
+                // The only admitted negative deliberately retains the prior
+                // real pass/TUS on collar frames; ordinary binding is unchanged.
+                if(!m_referenceWaterProbe || !m_referenceWaterProbe->faultBinding())
+                    m_waterReflection->bindWaterPass(*materialPass("HelloMine3D/Water"));
+                if(m_referenceWaterProbe) {
+                    m_referenceWaterFrameRevision=reflection.sceneRevision;
+                    const float delta=plane?eye.y-*plane:0.f;
+                    const unsigned phase=m_referenceWaterProbe->phase();
+                    const bool actualPhase=plane && std::isfinite(delta) && std::abs(*plane-66.9f)<.001f &&
+                        ((phase==0 || phase==3)?(!reflection.cameraUnderwater && delta>.15f):
+                         phase==1?(!reflection.cameraUnderwater && delta>0.f && delta<=.15f):
+                                  (reflection.cameraUnderwater && delta<0.f));
+                    m_referenceWaterProbe->arm(sandboxAdvanced && actualPhase);
+                }
                 if (!m_planarDiagnosticCaptured && m_hiddenWindow && m_frameCount >= 240 &&
                     m_waterReflection->statistics().active &&
                     isTrueValue(std::getenv("HELLO_RENDER_CAPTURE")) &&
@@ -3173,6 +3204,7 @@ namespace
             finishShoreEditFrame();
             finishReferenceEditFrame();
             finishReferenceResidencyFrame();
+            finishReferenceWaterTransitionFrame();
             if(m_referenceRestartObservation && m_referenceRestartObservation->ready()) {
                 std::optional<float> spatialAaStrength;
                 if(m_hdrPipeline && m_hdrPipeline->active()) {
@@ -3415,6 +3447,65 @@ namespace
                 {"cache",object({{"target_live_sections",array(live)},{"target_render_states",array(states)},{"render_state_keys",array(stateKeys)},{"target_section_visuals",array(visuals)},{"target_batches",array(batches)},{"target_dirty_batches",array(dirty)}})},
                 {"draws",m_referenceResidencyProbe->drawFacts()},{"render_object_access",m_referenceResidencyProbe->accessFacts()},{"local_lights",lights(m_localLights)},{"hdr",m_hdrPipeline?m_hdrPipeline->lifecycleFacts().json():"null"},{"planar",planar},{"lifecycle",lifecycleSnapshot()}});
         }
+        void finishReferenceWaterTransitionFrame()
+        {
+            if(!m_referenceWaterProbe || !m_referenceWaterProbe->ready())return;
+            using namespace ReferenceEdit;
+            require(m_world && m_worldPlayer && m_logicCamera && m_window && m_camera && m_hdrPipeline && m_waterReflection,"Water transition actual objects missing");
+            const auto eye=m_camera->getDerivedPosition();
+            const glm::ivec3 cell(World::toBlockCoord(eye.x),World::toBlockCoord(eye.y),World::toBlockCoord(eye.z));
+            const auto block=m_world->getBlock(cell.x,cell.y,cell.z),above=m_world->getBlock(cell.x,cell.y+1,cell.z);
+            const bool underwater=block==BlockId::Water;
+            const float depth=underwater?cell.y+1.f-eye.y:0.f;
+            const float immersion=underwater?(above==BlockId::Water?1.f:WorldEnvironment::cameraWaterImmersion(depth)):0.f;
+            const auto observedPlane=m_world->observeWaterSurfacePlane(glm::vec3(eye.x,eye.y,eye.z));
+            const auto& stats=m_waterReflection->statistics();
+            const auto hdr=m_hdrPipeline->lifecycleFacts(),target=m_waterReflection->lifecycleFacts();
+            const auto pass=materialPass("HelloMine3D/Water");
+            const auto parameters=pass->getFragmentProgramParameters();
+            const auto* definition=parameters->_findNamedConstantDefinition("planarReflectionEnabled",false);
+            require(definition,"Water transition actual Ogre flag missing");
+            float passEnabled=0;parameters->_readRawConstants(definition->physicalIndex,1,&passEnabled);
+            const auto* tus=pass->getTextureUnitState("planarReflection");
+            const auto identity=m_world->observeWorldIdentity();
+            std::vector<std::string> column;
+            for(int y=64;y<=66;++y){const auto b=m_world->getBlock(194,y,-183);require(b==ChunkBlock(Block_t(7),0),"Water transition unchanged loaded column differs");column.push_back(object({{"position",xyz(glm::ivec3(194,y,-183))},{"id",number(b.id)},{"metadata",number(b.metadata)},{"observation",quote("blocking-World.getBlock-find-only-nonAir")},{"observed_frame",number(m_frameCount)}}));}
+            const auto facts=object({{"frame",number(m_frameCount)},{"identity",object({{"root_instance",lifecycleAddress(m_root.get())},{"scene_instance",lifecycleAddress(m_sceneManager)},{"window_instance",lifecycleAddress(m_window)},{"world_instance",lifecycleAddress(m_world)},{"world_id",quote(identity.worldId)},{"seed",number(identity.seed)},{"terrain_generation_version",number(identity.terrainGenerationVersion)},{"save_directory",quote(value("HELLOMINE3D_SAVE_DIR"))}})},
+                {"main_camera",camera(*m_camera)},{"logic_camera",object({{"position",xyz(m_logicCamera->position)},{"rotation",xyz(m_logicCamera->rotation)}})},
+                {"player",object({{"position",xyz(m_worldPlayer->position)},{"rotation",xyz(m_worldPlayer->rotation)},{"velocity",xyz(m_worldPlayer->velocity)}})},
+                {"requested_player",xyz(m_referenceWaterProbe->requested())},{"production_teleports",number(m_referenceWaterProbe->teleportCount())},{"simulation_delta",number(m_referenceWaterProbe->delta())},{"warm_frames",number(m_referenceWaterProbe->warmFrames())},
+                {"world_time",number(m_world->getWorldTime())},{"frame_input_scene_revision",number(m_referenceWaterFrameRevision)},{"later_current_world_visual_revision",number(m_world->visualRevision())},
+                {"medium",object({{"observation_domain",quote("actual-World.getBlock-main-eye")},{"cell",xyz(cell)},{"id",number(block.id)},{"metadata",number(block.metadata)},{"above_id",number(above.id)},{"camera_underwater",boolean(underwater)},{"surface_depth",number(depth)},{"immersion",number(immersion)}})},
+                {"selected_plane_y",observedPlane?number(*observedPlane):"null"},{"eye_plane_delta",observedPlane?number(eye.y-*observedPlane):"null"},{"water_column",array(column)},
+                {"physical_window",array({number(m_window->getWidth()),number(m_window->getHeight())})},{"update_floor",number(m_referenceWaterProbe->updateFloor())},
+                {"hdr",hdr.json()},{"planar",m_waterReflection->transitionDiagnosticFacts(*pass)},{"draw",m_referenceWaterProbe->drawFacts()}});
+            // Preserve real corrupted pass/driver facts before any strict gate;
+            // never label a requested pose or submitted parameter as GPU draw.
+            m_referenceWaterProbe->observed(facts);
+            require(m_window->getWidth()==2560 && m_window->getHeight()==1440 && m_hdrPipeline->active() && RenderLifecycle::valid(hdr.native,2560,1440,4),"Water transition actual native HDR4 storage missing");
+            require(observedPlane && std::abs(*observedPlane-66.9f)<.001f && stats.frameSerial==std::uint64_t(m_frameCount) && stats.sceneRevision==m_referenceWaterFrameRevision,"Water transition actual frame/plane mismatch");
+            require(target.targetCount<=1 && target.depthCount<=1 && target.cameraCount==1 && target.privateMaterials<=PlanarWaterReflection::MaximumPrivateMaterials && target.privatePasses<=PlanarWaterReflection::MaximumPrivatePasses && !target.listenersActive && !target.observerFailures,"Water transition component bound/listener violation");
+            const bool active=m_referenceWaterProbe->phase()==0 || m_referenceWaterProbe->phase()==3;
+            const float distance=eye.y-*observedPlane;
+            if(active) {
+                require(!underwater && distance>.15f && stats.active && stats.reason=="rendered" && stats.lastRenderedFrame==std::uint64_t(m_frameCount) && stats.updateCount>m_referenceWaterProbe->updateFloor(),"Water transition actual above update not current");
+                require(m_referenceWaterProbe->linkedEnabled()==1.f && m_referenceWaterProbe->linkedTexture()==target.native.resolved.object && m_referenceWaterProbe->linkedStorage(1280,720) && passEnabled==1.f && tus && target.waterSamplerBound && target.ownedDepthAttached && RenderLifecycle::valid(target.native,1280,720,0) && !target.textureName.empty() && tus->getTextureName()==target.textureName,"Water transition actual active binding/storage mismatch");
+                m_waterReflection->captureDiagnostic(m_referenceWaterProbe->prefix());
+            } else {
+                const bool correctMedium=m_referenceWaterProbe->phase()==1?(!underwater && distance>0.f && distance<=.15f):(underwater && distance<0.f);
+                require(correctMedium && !stats.active && stats.reason=="underwater-or-surface-crossing" && stats.updateCount==m_referenceWaterProbe->updateFloor() && stats.lastRenderedFrame<std::uint64_t(m_frameCount),"Water transition inactive medium/update mismatch");
+                require(m_referenceWaterProbe->linkedEnabled()==0.f && passEnabled==0.f && !tus && !target.waterSamplerBound,"Water transition inactive pass/TUS retained");
+            }
+            m_window->writeContentsToFile(m_referenceWaterProbe->mainPng());
+            require(glGetError()==GL_NO_ERROR,"Water transition main PNG GL error");
+            m_referenceWaterProbe->inventory();m_referenceWaterProbe->checkpoint(facts,stats.updateCount);
+            if(m_referenceWaterProbe->complete()) {
+                m_worldPlayer->rotation=m_referenceWaterProbe->rotation();
+                require(m_sandbox->getWorldManager().teleportPlayer(*m_worldPlayer,m_referenceWaterProbe->origin()),"Water transition original player restore rejected");
+                m_logicCamera->update();m_referenceWaterProbe->restored(*m_worldPlayer);m_shutdownRequested=true;
+            }
+        }
+
         void finishReferenceResidencyFrame() {
             if(!m_referenceResidencyProbe)return;using namespace ReferenceResidency;
             const auto phase=m_referenceResidencyProbe->phase();if(!m_referenceResidencyProbe->warm())return;
@@ -7470,6 +7561,7 @@ namespace
             if(m_referenceEditProbe) ++m_referenceEditInputEvents;
             if(m_referenceResidencyProbe)++m_referenceResidencyInputs;
             if(m_referenceRestartObservation)m_referenceRestartObservation->input();
+            if(m_referenceWaterProbe)m_referenceWaterProbe->input();
             const bool isJumpKey = event.key == toOisKey(
                 m_config.inputBindings.get(GameplayAction::Jump));
             const bool firstJumpPress = isJumpKey && m_jumpHeldKey != event.key;
@@ -7643,6 +7735,7 @@ namespace
             if(m_referenceEditProbe) ++m_referenceEditInputEvents;
             if(m_referenceResidencyProbe)++m_referenceResidencyInputs;
             if(m_referenceRestartObservation)m_referenceRestartObservation->input();
+            if(m_referenceWaterProbe)m_referenceWaterProbe->input();
             if (m_jumpHeldKey == event.key) m_jumpHeldKey.reset();
             if (event.key == OIS::KC_GRAVE)
             {
@@ -7667,6 +7760,7 @@ namespace
             if(m_referenceEditProbe) ++m_referenceEditInputEvents;
             if(m_referenceResidencyProbe)++m_referenceResidencyInputs;
             if(m_referenceRestartObservation)m_referenceRestartObservation->input();
+            if(m_referenceWaterProbe)m_referenceWaterProbe->input();
             if (m_userInterface != nullptr)
             {
                 m_userInterface->mouseMoved(event);
@@ -7703,6 +7797,7 @@ namespace
             if(m_referenceEditProbe) ++m_referenceEditInputEvents;
             if(m_referenceResidencyProbe)++m_referenceResidencyInputs;
             if(m_referenceRestartObservation)m_referenceRestartObservation->input();
+            if(m_referenceWaterProbe)m_referenceWaterProbe->input();
             // Decide ownership before the UI can consume/close on this click.
             for (std::size_t i = 0; i < GameplayMouseButtonCount; ++i)
             {
@@ -7727,6 +7822,7 @@ namespace
             if(m_referenceEditProbe) ++m_referenceEditInputEvents;
             if(m_referenceResidencyProbe)++m_referenceResidencyInputs;
             if(m_referenceRestartObservation)m_referenceRestartObservation->input();
+            if(m_referenceWaterProbe)m_referenceWaterProbe->input();
             if (m_userInterface != nullptr)
             {
                 m_userInterface->mouseButton(event, button, false);
@@ -8005,6 +8101,7 @@ namespace
                 RuntimePerformanceCapture::shutdown();
                 m_runtimeStarted = false;
             }
+            m_referenceWaterProbe.reset();
             m_referenceRestartObservation.reset();
             m_referenceEditProbe.reset();
             m_renderCapture.reset();
@@ -8086,6 +8183,9 @@ namespace
         std::array<std::vector<std::string>,5> m_lifecycleEmptyManagerNames;
         std::unique_ptr<HdrPipeline> m_hdrPipeline;
         std::unique_ptr<PlanarWaterReflection> m_waterReflection;
+        std::unique_ptr<ReferenceWaterTransitionProbe> m_referenceWaterProbe;
+        std::string m_referenceWaterOutput;
+        std::uint64_t m_referenceWaterFrameRevision=0;
         std::unique_ptr<ReferenceSettingsRestartObservation> m_referenceRestartObservation;
         std::string m_referenceRestartOutput;
         std::unique_ptr<ReferenceWorldEditProbe> m_referenceEditProbe;
@@ -8333,6 +8433,7 @@ int runOgreBootstrap(bool validateOnly,
 
     try
     {
+        ReferenceWaterTransitionProbe::validateEntrypoint(validateOnly);
         ReferenceSettingsRestartObservation::validateEntrypoint(validateOnly);
         ReferenceResidencyProbe::validateEntrypoint(validateOnly);
         ReferenceWorldEditProbe::validateEntrypoint(validateOnly);

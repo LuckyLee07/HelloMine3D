@@ -3820,6 +3820,19 @@ class OgreUserInterface::Impl
             case BlockId::Workbench:
             case BlockId::OakDoorClosed:
             case BlockId::OakDoorOpen: colour = ImVec4(189, 147, 93, 255); break;
+            // Architectural map colours follow the authored surface families.
+            case BlockId::StoneStep:
+            case BlockId::StoneWindowFrame:
+            case BlockId::StoneBrick:
+            case BlockId::StoneSlab:
+            case BlockId::StoneCornice:
+            case BlockId::StoneWindowSill: colour = ImVec4(222, 209, 184, 255); break;
+            case BlockId::ClayTileStep:
+            case BlockId::ClayTileEave: colour = ImVec4(185, 109, 68, 255); break;
+            case BlockId::TimberBeam:
+            case BlockId::TimberRailing: colour = ImVec4(162, 124, 79, 255); break;
+            case BlockId::StonePlanter: colour = ImVec4(98, 72, 47, 255); break;
+            case BlockId::Lantern: colour = ImVec4(255, 230, 160, 255); break;
             case BlockId::WaystoneCore: colour = ImVec4(116, 195, 210, 255); break;
             case BlockId::Cactus: colour = ImVec4(77, 117, 75, 255); break;
             case BlockId::Air: colour = ImVec4(37, 43, 46, 255); break;

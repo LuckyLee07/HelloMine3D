@@ -438,7 +438,7 @@ void PlanarWaterReflection::render(Ogre::Camera& mainCamera, Ogre::Viewport& mai
     s.target->update(false);
     s.stats.cpuMilliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
     s.stats.colourBatches = s.target->getBatchCount(); s.stats.colourTriangles = s.target->getTriangleCount();
-    ++s.stats.updateCount; s.stats.active = true;
+    ++s.stats.updateCount; s.stats.active = true; s.stats.lastRenderedFrame = input.frameSerial;
     if (s.stats.reason != "rendered") {
         s.stats.reason = "rendered";
         std::cout << "[PLANAR_REFLECTION] active=1 plane_y=" << s.planeY << " size=" << s.stats.width << 'x' << s.stats.height
@@ -600,5 +600,33 @@ std::string PlanarWaterReflection::worldEditDiagnosticFacts() const
         <<",\"projection_row_major\":"<<matrix(projection)<<",\"view_projection_row_major\":"<<matrix(s.viewProjection)
         <<",\"target_clear_linear_rgba\":["<<s.viewport->getBackgroundColour().r<<','<<s.viewport->getBackgroundColour().g<<','<<s.viewport->getBackgroundColour().b<<','<<s.viewport->getBackgroundColour().a<<']'
         <<",\"target\":"<<s.facts().json()<<'}';
+    return o.str();
+}
+
+std::string PlanarWaterReflection::transitionDiagnosticFacts(const Ogre::Pass& pass) const
+{
+    const auto& s=*m_impl;
+    if (!std::getenv("HELLOMINE3D_REFERENCE_WATER_PROBE") || s.rendering || !s.scene || !s.camera || !pass.hasFragmentProgram())
+        throw std::runtime_error("Water-transition numeric facts require its admitted completed main view.");
+    const auto parameters=pass.getFragmentProgramParameters();
+    const auto* definition=parameters->_findNamedConstantDefinition("planarReflectionEnabled",false);
+    if (!definition) throw std::runtime_error("Water-transition actual pass reflection parameter missing.");
+    float enabled=0;parameters->_readRawConstants(definition->physicalIndex,1,&enabled);
+    if (!std::isfinite(enabled)) throw std::runtime_error("Water-transition nonfinite actual pass flag.");
+    const auto* unit=pass.getTextureUnitState(ReflectionUnit);
+    std::ostringstream o;o<<std::boolalpha<<std::setprecision(17)
+        <<"{\"frame\":"<<s.stats.frameSerial<<",\"scene_revision\":"<<s.stats.sceneRevision
+        <<",\"last_rendered_frame\":"<<s.stats.lastRenderedFrame<<",\"update_count\":"<<s.stats.updateCount
+        <<",\"selected_plane_y\":"<<s.planeY<<",\"selected\":"<<s.selected
+        <<",\"input_enabled\":"<<s.input.enabled<<",\"input_linear_hdr\":"<<s.input.linearHdr
+        <<",\"input_camera_underwater\":"<<s.input.cameraUnderwater<<",\"active\":"<<s.stats.active
+        <<",\"reason\":"<<RenderLifecycle::quote(s.stats.reason)
+        <<",\"colour_batches\":"<<s.stats.colourBatches<<",\"shadow_updates\":"<<s.stats.shadowUpdates
+        <<",\"pass\":{\"observation_domain\":\"actual-Ogre-Water-pass-parameter-and-TUS\",\"enabled\":"<<enabled
+        <<",\"tus_name\":"<<RenderLifecycle::quote(ReflectionUnit)<<",\"tus_present\":"<<(unit!=nullptr)
+        <<",\"tus_index\":"<<(unit?int(pass.getTextureUnitStateIndex(unit)):-1)
+        <<",\"tus_texture_name\":"<<RenderLifecycle::quote(unit?unit->getTextureName():std::string())
+        <<",\"tus_matches_target\":"<<(unit && !s.texture.isNull() && unit->_getTexturePtr().get()==s.texture.get())
+        <<"},\"target\":"<<s.facts().json()<<'}';
     return o.str();
 }

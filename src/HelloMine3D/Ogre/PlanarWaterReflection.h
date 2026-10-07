@@ -41,6 +41,7 @@ public:
     };
     struct Statistics {
         std::uint64_t updateCount = 0, frameSerial = 0, sceneRevision = 0;
+        std::uint64_t lastRenderedFrame = 0; // Completed actual RTT update, not latest input.
         unsigned width = 0, height = 0;
         std::size_t colourBytes = 0, depthStencilBytes = 0;
         std::size_t privateMaterials = 0, privatePasses = 0;
@@ -71,6 +72,9 @@ public:
     // Numeric view/storage facts for the strictly admitted owned World-edit
     // probe. No readback, retained resource pointer or render occurs here.
     std::string worldEditDiagnosticFacts() const;
+    // Default-off water-transition probe: numeric input/update/pass/storage
+    // observations, including inactive frames. Retains no resource reference.
+    std::string transitionDiagnosticFacts(const Ogre::Pass&) const;
     // Call before destroying residents/SceneManager, including world switches.
     void resetWorld() noexcept;
     RenderLifecycleTargetFacts lifecycleFacts() const;

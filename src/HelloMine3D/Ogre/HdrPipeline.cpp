@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 #include <stdexcept>
 namespace {
@@ -241,6 +242,78 @@ void checkProgram(const char* name, Ogre::GpuProgramType expectedStage)
     if (!shader->compile(true))
         throw std::runtime_error(std::string("Invalid HDR shader program: ") + name);
 }
+void checkResolveLink(Ogre::Pass& pass)
+{
+    if (!pass.hasVertexProgram() || !pass.hasFragmentProgram())
+        throw std::runtime_error("Missing HDR resolve shader program stages.");
+    auto vertex = pass.getVertexProgram();
+    auto fragment = pass.getFragmentProgram();
+    if (vertex.isNull() || fragment.isNull() ||
+        vertex->getType() != Ogre::GPT_VERTEX_PROGRAM ||
+        fragment->getType() != Ogre::GPT_FRAGMENT_PROGRAM)
+        throw std::runtime_error("Invalid HDR resolve shader program stages.");
+    auto* vs = dynamic_cast<Ogre::GLSLShader*>(vertex.get());
+    auto* fs = dynamic_cast<Ogre::GLSLShader*>(fragment.get());
+    if (!vs || !fs)
+        throw std::runtime_error("HDR resolve requires the active GLSL backend.");
+    GLint currentBefore = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &currentBefore);
+    const GLenum errorBefore = glGetError();
+    if (errorBefore != GL_NO_ERROR)
+        throw std::runtime_error("HDR resolve link validation entered with OpenGL error: " +
+                                 std::to_string(errorBefore));
+    vertex->load(); fragment->load();
+    if (!vs->compile(true) || !fs->compile(true) ||
+        vertex->hasCompileError() || fragment->hasCompileError() ||
+        !vertex->isSupported() || !fragment->isSupported())
+        throw std::runtime_error("Invalid compiled HDR resolve shader resources.");
+    struct TemporaryProgram
+    {
+        GLuint handle = glCreateProgram();
+        ~TemporaryProgram() { if (handle) glDeleteProgram(handle); }
+        void destroy() { glDeleteProgram(handle); handle = 0; }
+    } certificate;
+    if (!certificate.handle)
+        throw std::runtime_error("Cannot create HDR resolve shader link certificate.");
+    const GLuint handle = certificate.handle;
+    GLint linked = 0;
+    std::exception_ptr failure;
+    try
+    {
+        // Link Ogre's actual compiled stages, including child libraries, without
+        // binding a draw program or entering Ogre's persistent program cache.
+        vs->attachToProgramObject(handle);
+        fs->attachToProgramObject(handle);
+        glLinkProgram(handle);
+        glGetProgramiv(handle, GL_LINK_STATUS, &linked);
+        if (!linked)
+        {
+            std::array<char, 16384> log{};
+            GLsizei written = 0;
+            glGetProgramInfoLog(handle, static_cast<GLsizei>(log.size()), &written, log.data());
+            throw std::runtime_error("Invalid linked HDR resolve shader resources (" +
+                vertex->getName() + " + " + fragment->getName() + "): " +
+                std::string(log.data(), static_cast<std::size_t>(std::max<GLsizei>(0, written))));
+        }
+    }
+    catch (...) { failure = std::current_exception(); }
+    // Deleting this never-bound program also detaches all attached child stages.
+    // Ogre keeps ownership of the shaders; even a failed attachment/link drains.
+    certificate.destroy();
+    const bool deleted = glIsProgram(handle) == GL_FALSE;
+    GLint currentAfter = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &currentAfter);
+    const GLenum errorAfter = glGetError();
+    std::cout << "[HDR_RESOLVE_LINK] vertex=" << vertex->getName()
+              << " fragment=" << fragment->getName() << " temporary_program=" << handle
+              << " linked=" << linked << " deleted=" << deleted
+              << " current_program_before=" << currentBefore
+              << " current_program_after=" << currentAfter
+              << " gl_error_before=" << errorBefore << " gl_error_after=" << errorAfter << '\n';
+    if (!deleted || currentBefore != currentAfter || errorAfter != GL_NO_ERROR)
+        throw std::runtime_error("HDR resolve link validation did not preserve native program state.");
+    if (failure) std::rethrow_exception(failure);
+}
 }
 HdrPipeline::HdrPipeline() = default;
 HdrPipeline::~HdrPipeline() { remove(); }
@@ -449,7 +522,11 @@ void HdrPipeline::initialize(Ogre::Viewport& viewport, Ogre::RenderSystem& rende
     auto material = Ogre::MaterialManager::getSingleton().getByName("HelloMine3D/HdrResolve");
     if (material.isNull()) throw std::runtime_error("Missing HDR resolve material.");
     material->load();
-    auto resolveParameters = material->getTechnique(0)->getPass(0)->getFragmentProgramParameters();
+    if (!material->getNumTechniques() || !material->getTechnique(0)->getNumPasses())
+        throw std::runtime_error("Missing HDR resolve material pass.");
+    auto* resolvePass = material->getTechnique(0)->getPass(0);
+    checkResolveLink(*resolvePass);
+    auto resolveParameters = resolvePass->getFragmentProgramParameters();
     const char* aaOff = std::getenv("HELLOMINE3D_SPATIAL_AA_OFF");
     m_spatialAaRequested = !(aaOff && std::string(aaOff) == "1");
     m_hasSpatialAa = resolveParameters->_findNamedConstantDefinition("spatialAaStrength", false) != nullptr;

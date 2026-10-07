@@ -1046,6 +1046,11 @@ index.json重写与Root原图另计，本批九帧、实际2560×1440帧尺寸�
 曝光 resolve 完成显示转换；HUD 继续在主窗口末绘。legacy 的旧 Off／On 保持，HDR Off 仍需
 resolve。切换管线保存 settings v12 请求并要求重启，能力回退不改写请求。
 
+HDR 请求还会在强制回退和能力／格式探测之前，对实际 resolve material 的 VS／FS 与附加库进行
+临时原生完整链接；资产链接错误明确失败。临时 program 不绑定、不进入 Ogre 缓存，检查后删除，
+当前 GL program 与错误状态必须保持。旧 legacy 请求的早返回及旧 AA-less resolve 兼容保持，见
+[HDR 合同](../contracts/reference-hdr-contract-v1.md)。
+
 `BlockShape` v2 是单格内最多八个按 1/8 m 离散的盒，缓存四向表面和碰撞盒。新增 `StoneStep`
 与 `StoneWindowFrame` 追加 ID 33／34，metadata 0–3 保存朝向；已有 ID 和 metadata 语义保持。
 `BlockGeometry` 被地形、选取、碰撞、反馈和物品视觉共同消费。部分形状不当作整格面遮挡、AO
@@ -1055,6 +1060,12 @@ resolve。切换管线保存 settings v12 请求并要求重启，能力回退�
 普通重新打开读取已保存世界，不重复注入。范围和证据见
 [首版合同](../contracts/reference-visual-prototype-contract-v1.md)与
 [执行记录](../reports/reference-visual-prototype-execution-2026-10-06.md)。
+
+完整参考套件的 ID 33–44 共用地图着色显式保留浅石、陶瓦、木材、花槽土和暖灯身份；
+地图仍消费 World 的真实材质及高度。默认关闭的跨水面工程观察只在受保护自有会话内，
+通过正常 WorldManager teleport 与模拟记录实际介质、原生 Water draw、停用 pass/TUS 和同帧 RTT；
+观察完成或失败后先解除监听／query，再销毁 Scene／HDR／Root。不引入持久化字段，普通输入另验，见
+[跨水面合同](../contracts/reference-water-transition-contract-v1.md)。
 
 ## 12. Frozen Version and Boundary Facts
 
